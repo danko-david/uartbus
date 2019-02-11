@@ -1,0 +1,106 @@
+package eu.javaexperience.electronic.uartbus.rpc;
+
+import java.io.File;
+import java.util.List;
+import java.util.Map;
+
+import eu.javaexperience.cli.CliEntry;
+import eu.javaexperience.cli.CliTools;
+import eu.javaexperience.log.JavaExperienceLoggingFacility;
+import eu.javaexperience.log.Loggable;
+import eu.javaexperience.log.Logger;
+
+public class UarbusRpcServer
+{
+	protected static final Logger LOG = JavaExperienceLoggingFacility.getLogger(new Loggable("UarbusRpcServer"));
+	
+	protected static final CliEntry<String> WORK_DIR = CliEntry.createFirstArgParserEntry
+	(
+		(e) -> e,
+		"Working directory",
+		"d", "-working-directory"
+	);
+	
+	protected static final CliEntry<Integer> RPC_PORT = CliEntry.createFirstArgParserEntry
+	(
+		(e)->Integer.parseInt(e),
+		"Rpc listen port",
+		"p", "-port"
+	);
+
+	protected static final CliEntry<String> SERIAL_DEV = CliEntry.createFirstArgParserEntry
+	(
+		(e) -> e,
+		"Serial device path",
+		"s", "-serial-device"
+	);
+
+	protected static final CliEntry<Integer> SERIAL_BAUD = CliEntry.createFirstArgParserEntry
+	(
+		(e)->Integer.parseInt(e),
+		"Serial baud rate",
+		"b", "-baud"
+	);
+	
+	protected static final CliEntry[] PROG_CLI_ENTRIES =
+	{
+		WORK_DIR,
+		RPC_PORT,
+		SERIAL_DEV,
+		SERIAL_BAUD
+	};
+	
+	public static void printHelpAndExit(int exit)
+	{
+		System.err.println("Usage of UarbusRpcServer:\n");
+		System.err.println(CliTools.renderListAllOption(PROG_CLI_ENTRIES));
+		System.exit(1);
+	}
+	
+	public static void main(String[] args)
+	{
+		JavaExperienceLoggingFacility.addStdOut();
+		Map<String, List<String>> pa = CliTools.parseCliOpts(args);
+		String un = CliTools.getFirstUnknownParam(pa, PROG_CLI_ENTRIES);
+		if(null != un)
+		{
+			printHelpAndExit(1);
+		}
+		
+		String wd = WORK_DIR.tryParseOrDefault(pa, ".");
+		int port = RPC_PORT.tryParseOrDefault(pa, 2112);
+		String serial = SERIAL_DEV.tryParseOrDefault(pa, null);
+		int baud = SERIAL_BAUD.tryParseOrDefault(pa, -1);
+		
+		boolean error = false;
+		if(null == serial)
+		{
+			System.err.println("No Serial port sepcified.");
+			error = true;
+		}
+		
+		if(-1 == baud)
+		{
+			System.err.println("No Serial baud rate sepcified.");
+			error = true;
+		}
+		
+		if(error)
+		{
+			printHelpAndExit(2);
+		}
+		
+		JavaExperienceLoggingFacility.startLoggingIntoDirectory(new File(wd+"/log/"), "uartbus-rpc-server-");
+		
+		
+		
+		//TODO bus packet logging 
+		
+		
+		
+		
+		
+		
+		
+	}
+}

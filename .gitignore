@@ -1,0 +1,12 @@
+**/CMakeCache.txt
+**/CMakeFiles
+**/*.o
+**/*.d
+**/*.a
+**/.settings/
+**/.project
+**/.classpath
+**/*.elf
+**/*.hex
+**/*.eep
+**/.Makefile.swp

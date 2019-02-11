@@ -1,0 +1,125 @@
+
+
+Felépítmény:
+
+Transmission control queue:
+	- mechanizmus ami biztosítja hogy a csomagok megérkeznek a vevő oldalra.
+
+
+Bootloader TODO:
+//	- illesszük közvetlenül az AVR-hez a kódot (UART és softUART-al)
+//	- fordításnál meg lehessen adni egy eszközazonosítót
+	- a címzés mellett legyen alkalmazás névtér azonosító
+		- bus: UC újraindítása, broadcast forgadás segítségével autodiscovery
+		- bootloader: új program feltöltése, jelenlegi letöltése
+		- alkalmazás csomag fogadása és továbbítása
+	- pár busz funkció megalkotása: .
+//	- felülírható callback, alkalmazásnak szánt csomagok fogadására az
+//		alkalmazás programban, illetve feladó függvény mellékelése ami a
+//		bootloaderben foglal helyet
+
+
+Arduino TODO:
+	- MsgPack int schema-ját felhasználva radjunk a csomagba címzést
+		alkossunk olyan callback-ot amiben benne van a forrás és a cél UC címe.
+		https://github.com/msgpack/msgpack/blob/master/spec.md
+
+
+BUS TODO:
+//	- adó buffer hozzáadaás
+//	- feladásnál és vételnél mellékeljük/ellenőrizzük a CRC8-at
+//	- ub_manage_connection-ból a visszaolvasást opcionálisra szervezzük ki,
+//		ezt lehessen megszakításos üzemben is használni (arduino: serialEvent[,1,2,3])
+
+--------
+	Arduino UARTBUS (struct arduino_uartbus testesíti meg)
+		Stream adható meg neki amibe ír, ez lehet a Serial[,1,2,3]
+	vagy
+		TODO SoftwareSerial
+--------	
+	UARTBUS (struct uartbus testesíti meg)
+	
+
+	
+
+--------------------------------------------------------------------------------
+
+Szakdogában említendő:
+	- 4 KB-ba bele kellene férni
+	
+	- A PIC-ek sokkal kisebb programtárral rendelkeznek az AVR-hez képest, és
+		ez utóbbi olcsóbb is.
+		
+	- a malloc/free sok területet foglal el a pgoramtárban (TODO mennyit),
+		ezeket mellőzöm
+
+	- Az app-nak páros címre igazítva kell lennie.
+
+	- Én big endiant használok (hálózati bájtsorrend), míg az AVR little-t így
+		a structure packet_structure beolvasás nem működik.
+		//https://stackoverflow.com/questions/13514614/why-is-network-byte-order-defined-to-be-big-endian
+
+	- A prototipusnál 0:0:1:0 formában adtam parancsokat.
+	
+	- Kódolási stílus (NASA szerű standard)
+	
+	- A dispatchelés az SNMP MIB-jeihez hasoló
+	
+	- Első app tesz kód:     8FEF84B985B1809585B90895 //DDRB=0xff;PORTB ^=0xff;return;return;
+
+Optimalizáció:
+	- Az AVR-gcc az -Os ellenére túl inline-osítja a sorokat ezzel nagyobb kódot
+		eredményezve, (TODO hogyan optimalizáltam, .asm és .sizes)
+	
+	- Nincs FPU, ezért az osztás és a szorzást nagy különálló kódrész végzi amit
+		ezért ezeket ki kell váltani a kódból.
+		- a timeout ciklust statikusan, fordítás időben számíttatom.
+		- a fairwait ciklusok száma alkalom helyett mód kapcsoló lett.
+
+Bootloader pitfalls:
+	- A flash-t író kódnak a bootloader területén kell lennie.
+		(nincs különleges mód stb, csak a kód elhelyezkedése)
+	- Az boot_spm_busy_wait-et nem szabad elmulasztani, ez meghiúsítja a beírást
+	- Ha már van bootloader section-ünk, akkor az elejére ugró kódot kell rakni,
+		mivel a resetelés ide adja a vezérlést és beleakadhat egy író funkcióba
+			rossz "paraméterekkel" (undefined behavior)
+	- Nem lehet az író lapot részletekben feltölteni.
+		Csak belekerült az a malloc/free
+
+//folyamat:
+	- belépés bootloader módba: 2:4:1
+		- válasz: 2:4:1:0
+	- köv lap lekérdezése: 2:4:2
+
+		
+	- lap kiírása: 2:4:3:$addess:$data
+		- 2:4:3:48:0:143:239:132:185:133:177:128:149:133:185:8:149
+		- empty: 2:4:3:48:0:255:255:255:255:255:255:255:255:255:255:255:255
+		- válasz: 2:4:3:0:$next_address
+	- commit 2:4:4
+		- run app:
+//			- disable sos 2:2:1:0
+			- enable app 2:2:0:1
+	- reboot (light reset) 2:0:1
+
+
+- b_get_var: 2:1:(0 = app_run, 1=sos)
+- b_set_var: 2:2: -||-:val
+- soft_reboot: 2:0:1
+- wdt_reboot: 2:0:0
+
+
+-lap lekérdezése: 2:3:$addr:$size
+(0x0000)	- 2:3:0:0:16
+(0x3000)	- 2:3:48:0:16
+(0x5000)	- 2:3:80:0:16
+
+
+- 34:0:0:16
+- 34:48:0:16
+- 34:80:0:16
+- 33:1:2:3:4:5:6:7:8:9
+
+2:4:1
+2:4:3:48:0:143:239:132:185:133:177:128:149:133:185:8:149
+2:3:48:0:16
