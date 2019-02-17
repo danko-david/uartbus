@@ -1,14 +1,28 @@
 package eu.javaexperience.electronic.uartbus.rpc;
 
 import java.io.File;
+import java.net.ServerSocket;
 import java.util.List;
 import java.util.Map;
 
 import eu.javaexperience.cli.CliEntry;
 import eu.javaexperience.cli.CliTools;
+import eu.javaexperience.datareprez.DataObject;
+import eu.javaexperience.electronic.SerialTools;
+import eu.javaexperience.electronic.uartbus.UartbusPacketConnector;
+import eu.javaexperience.interfaces.simple.getBy.GetBy1;
+import eu.javaexperience.interfaces.simple.getBy.GetBy2;
+import eu.javaexperience.io.IOStream;
+import eu.javaexperience.io.fd.IOStreamFactory;
 import eu.javaexperience.log.JavaExperienceLoggingFacility;
 import eu.javaexperience.log.Loggable;
 import eu.javaexperience.log.Logger;
+import eu.javaexperience.rpc.JavaClassRpcUnboundFunctionsInstance;
+import eu.javaexperience.rpc.RpcTools;
+import eu.javaexperience.rpc.SimpleRpcRequest;
+import eu.javaexperience.rpc.SimpleRpcSession;
+import eu.javaexperience.rpc.SocketRpcServer;
+import eu.javaexperience.rpc.bidirectional.BidirectionalRpcDefaultProtocol;
 
 public class UarbusRpcServer
 {
@@ -30,7 +44,7 @@ public class UarbusRpcServer
 
 	protected static final CliEntry<String> SERIAL_DEV = CliEntry.createFirstArgParserEntry
 	(
-		(e) -> e,
+		(e)->e,
 		"Serial device path",
 		"s", "-serial-device"
 	);
@@ -57,8 +71,9 @@ public class UarbusRpcServer
 		System.exit(1);
 	}
 	
-	public static void main(String[] args)
+	public static void main(String[] args) throws Throwable
 	{
+		args = new String[]{"-s", "/dev/ttyUSB0", "-b", "19200"};
 		JavaExperienceLoggingFacility.addStdOut();
 		Map<String, List<String>> pa = CliTools.parseCliOpts(args);
 		String un = CliTools.getFirstUnknownParam(pa, PROG_CLI_ENTRIES);
@@ -92,15 +107,35 @@ public class UarbusRpcServer
 		
 		JavaExperienceLoggingFacility.startLoggingIntoDirectory(new File(wd+"/log/"), "uartbus-rpc-server-");
 		
+		IOStream ser = SerialTools.openSerial(serial, baud);
+		Runtime.getRuntime().addShutdownHook(new Thread(ser::close));
+		UartbusPacketConnector conn = new UartbusPacketConnector(ser, (byte)0xff);
 		
+		//TODO bus packet logging
 		
-		//TODO bus packet logging 
+		UartbusRpcEndpoint bus = new UartbusRpcEndpoint(conn);
 		
+		GetBy1<DataObject, SimpleRpcRequest> dispatcher = RpcTools.createSimpleNamespaceDispatcherWithDiscoverApi
+		(
+			new JavaClassRpcUnboundFunctionsInstance<>("uartbus", bus, UartbusConnection.class)
+		);
 		
+		SocketRpcServer<IOStream, SimpleRpcSession> srv = RpcTools.newServer
+		(
+			IOStreamFactory.fromServerSocket(new ServerSocket(port)),
+			5,
+			BidirectionalRpcDefaultProtocol.DEFAULT_PROTOCOL_HANDLER_WITH_CLASS,
+			RpcTools.getSimpleSessionCreator(),
+			new GetBy2<DataObject, SimpleRpcSession, DataObject>()
+			{
+				@Override
+				public DataObject getBy(SimpleRpcSession a, DataObject b)
+				{
+					return dispatcher.getBy(new SimpleRpcRequest(a, b));
+				}
+			}
+		);
 		
-		
-		
-		
-		
+		srv.start();
 	}
 }
