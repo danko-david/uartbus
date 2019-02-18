@@ -19,6 +19,19 @@ public class PacketAssembler extends DataOutputStream
 		baos.reset();
 		return ret;
 	}
+	
+	public void writeAddress(int val) throws IOException
+	{
+		//TODO address packing
+		writeByte(0);
+		writeByte(val);
+	}
+	
+	public void writeAddressing(int from, int to) throws IOException
+	{
+		writeAddress(to);
+		writeAddress(from);
+	}
 
 	public void appendCrc8() throws IOException
 	{

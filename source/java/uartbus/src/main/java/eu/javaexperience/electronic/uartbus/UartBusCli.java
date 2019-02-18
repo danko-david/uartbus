@@ -1,6 +1,7 @@
 package eu.javaexperience.electronic.uartbus;
 
 import eu.javaexperience.electronic.uartbus.rpc.UartbusRpcServer;
+import eu.javaexperience.electronic.uartbus.rpc.client.UartbusConsole;
 import eu.javaexperience.generic.annotations.Ignore;
 import eu.javaexperience.rpc.JavaClassRpcUnboundFunctionsInstance;
 import eu.javaexperience.rpc.RpcFacility;
@@ -25,8 +26,12 @@ public class UartBusCli
 		UartbusRpcServer.main(args);
 	}
 	
+	public static void console(String... args) throws Throwable
+	{
+		UartbusConsole.main(args);
+	}
+	
 	//utilities to do:
-	//TODO packet console
 	//TODO code uploader
 	
 	

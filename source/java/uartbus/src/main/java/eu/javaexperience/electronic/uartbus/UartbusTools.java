@@ -1,5 +1,7 @@
 package eu.javaexperience.electronic.uartbus;
 
+import eu.javaexperience.text.StringTools;
+
 public class UartbusTools
 {
 	private UartbusTools() {}
@@ -38,5 +40,30 @@ public class UartbusTools
 		}
 
 		return crc;
+	}
+	
+	public static byte[] parseColonData(String data)
+	{
+		String[] ns = StringTools.plainSplit(data, ":");
+		byte[] ret = new byte[ns.length];
+		for(int i=0;i<ns.length;++i)
+		{
+			ret[i] = (byte) (Integer.parseInt(ns[i]) & 0xff);
+		}
+		return ret;
+	}
+
+	public static String formatColonData(byte[] e)
+	{
+		StringBuilder sb = new StringBuilder();
+		for(int i=0;i<e.length;++i)
+		{
+			if(i != 0)
+			{
+				sb.append(":");
+			}
+			sb.append(0xff & e[i]);
+		}
+		return sb.toString();
 	}
 }

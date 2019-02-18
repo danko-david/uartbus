@@ -114,4 +114,10 @@ public class UartbusRpcEndpoint implements UartbusConnection
 			return null;
 		}
 	}
+
+	@Override
+	public void close() throws IOException
+	{
+		conn.close();
+	}
 }

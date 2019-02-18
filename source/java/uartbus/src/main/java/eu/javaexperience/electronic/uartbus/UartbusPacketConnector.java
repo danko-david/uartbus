@@ -221,7 +221,6 @@ public class UartbusPacketConnector implements Closeable
 			}
 			
 			pa.appendCrc8();
-			//pa.appendCrc8();
 			conn.sendPacket(pa.done());
 		}
 	}

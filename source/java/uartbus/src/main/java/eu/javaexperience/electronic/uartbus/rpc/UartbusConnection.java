@@ -1,8 +1,9 @@
 package eu.javaexperience.electronic.uartbus.rpc;
 
+import java.io.Closeable;
 import java.io.IOException;
 
-public interface UartbusConnection
+public interface UartbusConnection extends Closeable
 {
 	//sending data
 	public void sendPacket(byte[] data) throws IOException;
