@@ -24,7 +24,7 @@ import eu.javaexperience.rpc.SimpleRpcSession;
 import eu.javaexperience.rpc.SocketRpcServer;
 import eu.javaexperience.rpc.bidirectional.BidirectionalRpcDefaultProtocol;
 
-public class UarbusRpcServer
+public class UartbusRpcServer
 {
 	protected static final Logger LOG = JavaExperienceLoggingFacility.getLogger(new Loggable("UarbusRpcServer"));
 	
@@ -73,7 +73,6 @@ public class UarbusRpcServer
 	
 	public static void main(String[] args) throws Throwable
 	{
-		args = new String[]{"-s", "/dev/ttyUSB0", "-b", "19200"};
 		JavaExperienceLoggingFacility.addStdOut();
 		Map<String, List<String>> pa = CliTools.parseCliOpts(args);
 		String un = CliTools.getFirstUnknownParam(pa, PROG_CLI_ENTRIES);
@@ -90,13 +89,13 @@ public class UarbusRpcServer
 		boolean error = false;
 		if(null == serial)
 		{
-			System.err.println("No Serial port sepcified.");
+			System.err.println("No Serial port specified.");
 			error = true;
 		}
 		
 		if(-1 == baud)
 		{
-			System.err.println("No Serial baud rate sepcified.");
+			System.err.println("No Serial baud rate specified.");
 			error = true;
 		}
 		

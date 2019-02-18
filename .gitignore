@@ -10,3 +10,4 @@
 **/*.hex
 **/*.eep
 **/.Makefile.swp
+**/log/
