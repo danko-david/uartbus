@@ -50,6 +50,14 @@
 		<artifactId>datareprez</artifactId>
 		<version>1.0-SNAPSHOT</version>
 	</dependency>
+
+  	<distributionManagement>
+		<repository>
+			<id>localised-repo</id>
+			<url>file:///${user.home}/maven-distribution/</url>
+		</repository>
+	</distributionManagement>
+
 	
   </dependencies>
     	<build>
@@ -70,7 +78,7 @@
 							<descriptorRefs>
 								<descriptorRef>jar-with-dependencies</descriptorRef>
 							</descriptorRefs>
-							<finalName>uartbus-rpc-server</finalName>
+							<finalName>uartbus</finalName>
 						</configuration>
 						<phase>package</phase>
 			            <goals>
