@@ -31,6 +31,12 @@ public class UartBusCli
 		UartbusConsole.main(args);
 	}
 	
+	public static void compile(String... args) throws Throwable
+	{
+		UartbusConsole.main(args);
+	}
+	
+	
 	//utilities to do:
 	//TODO code uploader
 	
