@@ -1,5 +1,6 @@
 package eu.javaexperience.electronic.uartbus;
 
+import eu.javaexperience.electronic.build.GccBuilderContext;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusRpcServer;
 import eu.javaexperience.electronic.uartbus.rpc.client.UartbusConsole;
 import eu.javaexperience.generic.annotations.Ignore;
@@ -33,7 +34,7 @@ public class UartBusCli
 	
 	public static void compile(String... args) throws Throwable
 	{
-		UartbusConsole.main(args);
+		GccBuilderContext.main(args);
 	}
 	
 	
