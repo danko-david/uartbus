@@ -11,3 +11,4 @@
 **/*.eep
 **/.Makefile.swp
 **/log/
+WD/
