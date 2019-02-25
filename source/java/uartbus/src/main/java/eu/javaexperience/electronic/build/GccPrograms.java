@@ -2,7 +2,8 @@ package eu.javaexperience.electronic.build;
 
 import java.io.File;
 
-import eu.javaexperience.text.StringTools;
+import eu.javaexperience.datareprez.DataCommon;
+import eu.javaexperience.datareprez.DataObject;
 
 public class GccPrograms
 {
@@ -68,5 +69,28 @@ public class GccPrograms
 		{
 			throw new RuntimeException(sb.toString());
 		}
+	}
+
+	public DataObject toObject(DataCommon proto)
+	{
+		DataObject ret = proto.newObjectInstance();
+		
+		ret.putString("gcc", gcc);
+		ret.putString("gpp", gpp);
+		ret.putString("ar", ar);		
+		ret.putString("objcopy", objcopy);
+		
+		return ret;
+	}
+
+	public static GccPrograms parse(DataObject src)
+	{
+		return new GccPrograms
+		(
+			src.getString("gcc"),
+			src.getString("gpp"),
+			src.getString("ar"),
+			src.getString("objcopy")
+		);
 	}
 }

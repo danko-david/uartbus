@@ -2,22 +2,65 @@ package eu.javaexperience.electronic.build;
 
 import java.io.Closeable;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+
+import org.json.JSONObject;
+
 import java.util.Set;
 
-import eu.javaexperience.collection.CollectionTools;
 import eu.javaexperience.collection.PublisherCollection;
+import eu.javaexperience.collection.list.NullList;
+import eu.javaexperience.datareprez.DataArray;
+import eu.javaexperience.datareprez.DataCommon;
+import eu.javaexperience.datareprez.DataObject;
+import eu.javaexperience.datareprez.DataReprezTools;
+import eu.javaexperience.datareprez.jsonImpl.DataObjectJsonImpl;
+import eu.javaexperience.io.IOTools;
 import eu.javaexperience.io.file.FileTools;
 import eu.javaexperience.process.ProcessTools;
 import eu.javaexperience.reflect.Mirror;
 import eu.javaexperience.text.StringTools;
 
 /**
+ * The point of this CModule stuff:
+ * 	- Declarative building type:
+ * 		- must be declarative about the source structure rather than functional
+ * 			like make. (This way used to )
+ * 	- an infrastructure that we can bound to a project without touching it's
+ * 		  repositroy
+ * 	- This declarative stuff 
+ * 
+ * 
+ * 
+ * 	Final baptism by fire goal:
+ * 	1) Create CModule descriptor for some
+ * 		internal (uartbus, ub_app, utils...) and some external libarary
+ * 		(arduino-avr, AltSoftSerial) and x86_64 executables as
+ * 		module (avr-gcc, sdcc).
+ * 
+ *  2) Check out the stable version of these projects. (On externals where
+ *  	it's available)
+ *  
+ *  3) Propagate back build profiles like:
+ *  	A)	- app for "bus host 1" (profile: atmega328_16Mhz_ub1)
+ *  			depends:
+ *  				- ub_app => atmega328
+ *  				- ub_bus_isp => atmega328  
+ *  		- ub_app (backprop profile: atmega328, but without 16Mhz and ub1
+ *  			definitions)
+ *  		- ub_bus_isp -||- 
+ *   	 
+ * 		B) same scheme like previous but with sdcc for 8051
+ * 
+ * 
+ *  4) build the project with dependencies and the the final 
  * 
  * 
 	required tools:
@@ -58,142 +101,39 @@ import eu.javaexperience.text.StringTools;
  * builds/{build_name}	/objects/dir/function.c.o
  *						/ultimate.o
  * 
+ * 
+ * 
+ * download sources from github: https://github.com/arduino/ArduinoCore-avr
+ * 
+ * 
  * */
 public class GccBuilderContext implements Closeable
 {
 	protected final File directory;
 	
-	protected GccPrograms progs;
+	protected String name;
 	
-	protected Map<String, String> builds = new HashMap<>();
+	protected CModuleContext originCtx;
 	
-	protected Set<String> includeDirectories = new HashSet<>();
+	protected CModuleContext fetchedCtx;
 	
-	public class GccBuildProfile
+	protected Map<String, Object> extraInformations;
+	
+	
+	public static class GccBuildInstruction
 	{
-		protected String name;
+		//TODO later this might have other Gcc tools to target different platforms with the same library.
 		
-		protected Set<Map<String, String>> dependencies;
-		
+		//TODO file unit selector: exact string glob, regex, enumeration
+		protected Set<Map<String, String>> dependencies = new HashSet<>();
 		protected Set<String> flags = new HashSet<>();
 		
-		public void ensureBuildReady() throws IOException
+		public DataObject toObject(DataCommon proto)
 		{
-			//ultimate takes the care of the whole compilation
-			getUltimateObjectFile().ensureNewestCompiled();
-		}
-		
-		public ObjectFile getObject(String srcName)
-		{
-			File src = new File(directory+"/files/sources/"+srcName);
-			if(!src.exists())
-			{
-				return null;
-			}
-			
-			ObjectFile of = new ObjectFile();
-			of.prof = this;
-			of.source = srcName;
-			of.fSource = src;
-			of.target = new File(directory+"/builds/"+name+"/objects/"+srcName+".o");
-			
-			return of;
-		}
-		
-		public ObjectFile getUltimateObjectFile() throws IOException
-		{
-			File f = new File(directory+"/builds/"+name+"/ultimate.o");
-			
-			ObjectFile ret = new ObjectFile();
-			ret.prof = this;
-			ret.source = null;
-			ret.target = f;
-			
+			DataObject ret = proto.newObjectInstance();
+			DataReprezTools.put(ret, "dependencies", dependencies);
+			DataReprezTools.put(ret, "flags", flags);
 			return ret;
-		}
-
-		public Set<String> getFlags()
-		{
-			return flags;
-		}
-		
-		public void touch()
-		{
-			new File(directory+"/builds/"+name+"/objects/").mkdirs();
-		}
-		
-		public void clean()
-		{
-			FileTools.deleteDirectory(new File(directory+"/builds/"+name+"/"), false);
-		}
-	}
-	
-	public class ObjectFile
-	{
-		protected GccBuildProfile prof;
-		protected String source;
-		
-		protected File fSource; 
-		protected File target;
-		
-		public void compileUnit() throws IOException
-		{
-			ArrayList<String> prog = new ArrayList<>();
-			prog.add(progs.gcc);
-			prog.addAll(prof.flags);
-			prog.add("-I"+directory+"/files/headers/");
-			for(String id:includeDirectories)
-			{
-				prog.add("-I"+id);
-			}
-			prog.add(fSource.toString());
-			prog.add("-o");
-			prog.add(target.toString());
-			try
-			{
-				ProcessTools.assertedProcessExitStatus(prog.toArray(Mirror.emptyStringArray));
-				target.setLastModified(fSource.lastModified());
-			}
-			catch (InterruptedException e)
-			{
-				Mirror.propagateAnyway(e);
-			}
-		}
-		
-		public void ensureNewestCompiled() throws IOException
-		{
-			if(null == fSource)
-			{
-				ArrayList<String> prog = new ArrayList<>();
-				prog.add(progs.ar);
-				prog.add("rcs");
-				prog.add(target.toString());
-				
-				long tmax = 0;
-				
-				for(String s:listSources())
-				{
-					ObjectFile obj = prof.getObject(s);
-					obj.ensureNewestCompiled();
-					tmax = Math.max(tmax, obj.target.lastModified());
-					prog.add(obj.target.toString());
-				}
-				
-				try
-				{
-					ProcessTools.assertedProcessExitStatus(prog.toArray(Mirror.emptyStringArray));
-					target.setLastModified(tmax);
-				}
-				catch (InterruptedException e)
-				{
-					Mirror.propagateAnyway(e);
-				}
-				//need to link
-			}
-			else if(fSource.lastModified() != target.lastModified())
-			{
-				compileUnit();
-			}
 		}
 	}
 	
@@ -202,30 +142,95 @@ public class GccBuilderContext implements Closeable
 		this.directory = directory;
 	}
 	
-	public void load()
+	public void reset()
 	{
-		
+		//TODO
 	}
 	
-	public void save()
+	public void load() throws IOException
 	{
+		DataObject src = null;
+		try(InputStream is = new FileInputStream(directory+"/CModule"))
+		{
+			src = DataObjectJsonImpl.receiveObject(is);
+		}
+		
+		name = src.getString("name");
+		originCtx.variables = VariableFetch.parse(src.getObject("variables"));
+		originCtx.sourcesLocation = src.getString("sourcesLocation");
+		originCtx.headersLocation = src.getString("headersLocation");
+		
+		{
+			originCtx.includeDirectories = new HashSet<>();
+			DataArray arr = src.getArray("includeDirectories");
+			for(int i=0;i<arr.size();++i)
+			{
+				originCtx.includeDirectories.add(arr.getString(i));
+			}
+		}
+
+		originCtx.progs = GccPrograms.parse(src.getObject("programs"));
+		
+		DataObject bs = src.getObject("builds");
+		for(String s:bs.keys())
+		{
+			originCtx.builds.put(s, GccBuildProfile.parse(this, bs.getObject(s)));
+		}
 		
 		
-		//if a build removed, remove also it's directory itself
+		fetchedCtx = originCtx.substitue(this, originCtx.getSubstitueVariables());
+	}
+	
+	public String getProperty(String var)
+	{
+		// TODO Auto-generated method stub
+		return null;
+	}
+	
+	public DataObject toObject(DataCommon proto)
+	{
+		DataObject out = proto.newObjectInstance();
+		
+		out.putString("name", name);
+		out.putObject("variables", originCtx.variables.toObject(proto));
+		out.putString("sourcesLocation", originCtx.sourcesLocation);
+		out.putString("headersLocation", originCtx.headersLocation);
+		
+		out.putObject("programs", originCtx.progs.toObject(proto));
+		
+		DataObject bs = out.newObjectInstance();
+		for(Entry<String, GccBuildProfile> kv:originCtx.builds.entrySet())
+		{
+			bs.putObject(kv.getKey(), kv.getValue().toObject(proto));
+		}
+		
+		out.putObject("builds", bs);
+		
+		DataReprezTools.put(out, "includeDirectories", originCtx.includeDirectories);
+		
+		return out;
+	}
+	
+	public void save() throws IOException
+	{
+		JSONObject obj = (JSONObject) toObject(DataObjectJsonImpl.instane).getImpl();
+		IOTools.putFileContent(directory+"/CModule", obj.toString(1).getBytes());
 	}
 	
 	public void reinitializeContainer()
 	{
-		 new File(directory+"/files/sources/").mkdirs();
-		 new File(directory+"/files/headers/").mkdirs();
+		originCtx = new CModuleContext();
+		originCtx.progs = new GccPrograms("$PROG_GCC", "$PROG_GPP", "$PROG_AR", "$PROG_OBJDUMP");
+		fetchedCtx = originCtx.copy();
+		new File(directory+fetchedCtx.sourcesLocation).mkdirs();
+		new File(directory+fetchedCtx.headersLocation).mkdirs();
 	}
 	
-	public static GccBuilderContext acquireDirectory(File f)
+	public static GccBuilderContext acquireDirectory(File f) throws IOException
 	{
-		boolean newlyCreated = false;
 		if(!f.exists())
 		{
-			newlyCreated = f.mkdirs();
+			f.mkdirs();
 			if(!f.exists())
 			{
 				throw new RuntimeException("Can't create directory!");
@@ -237,7 +242,7 @@ public class GccBuilderContext implements Closeable
 		}
 		
 		GccBuilderContext ctx = new GccBuilderContext(f);
-		if(newlyCreated)
+		if(!new File(f, "./CModule").exists())
 		{
 			ctx.reinitializeContainer();
 		}
@@ -247,6 +252,17 @@ public class GccBuilderContext implements Closeable
 		}
 		
 		return ctx;
+	}
+	
+	public static GccBuilderContext loadExistingConfig(File f) throws IOException
+	{
+		File cfg = new File(f, "./CModule");
+		if(!cfg.exists())
+		{
+			throw new RuntimeException("Not a CModule directory: `"+f.toString()+"` initialize directory first.");
+		}
+		
+		return acquireDirectory(f);
 	}
 	
 	protected static List<String> listRelFiles(String root)
@@ -271,12 +287,12 @@ public class GccBuilderContext implements Closeable
 	
 	public List<String> listSources()
 	{
-		return listRelFiles(directory+"/files/sources/");
+		return listRelFiles(directory+fetchedCtx.sourcesLocation);
 	}
 	
 	public List<String> listHeaders()
 	{
-		return listRelFiles(directory+"/files/headers/");
+		return listRelFiles(directory+fetchedCtx.headersLocation);
 	}
 	
 	protected static void copyOrLink(boolean linkOnly, String root, File f, String fe)
@@ -291,78 +307,61 @@ public class GccBuilderContext implements Closeable
 		}
 	}
 	
-	public void addHeader(boolean linkOnly, File f, String fe)
+	public void copyHeader(boolean linkOnly, File f, String fe)
 	{
-		copyOrLink(linkOnly, directory+"/files/headers/", f, fe);
+		copyOrLink(linkOnly, directory+fetchedCtx.headersLocation, f, fe);
 	}
 
-	public void addSource(boolean linkOnly, File f, String fe)
+	public void copySource(boolean linkOnly, File f, String fe)
 	{
-		copyOrLink(linkOnly, directory+"/files/sources/", f, fe);
+		copyOrLink(linkOnly, directory+fetchedCtx.sourcesLocation, f, fe);
 	}
-	
 	
 	public GccBuildProfile getBuildProfile(String name, boolean createIfNotExists)
 	{
-		GccBuildProfile prof = new GccBuildProfile();
-		prof.name = name;
-		
-		//TODO create
-		prof.touch();
-		
-		return prof;
-	}
-	
-	public static void main(String[] args) throws Throwable
-	{
-		//GccBuilderContext ctx = ArduinoGccTools.createArduinoBuildContext("/usr/share/arduino/", "atmega328p", "16000000");
-		GccPrograms progs = ArduinoGccTools.pickupArduinoPrograms("/usr/share/arduino/");
-		String mcu = "atmega328p";
-		String freq = "16000000";
-		
-		
-		GccBuilderContext ctx = acquireDirectory(new File("/tmp/compile/arduino/"));
-		ctx.progs = progs;
-		File root = new File("/usr/share/arduino/hardware/arduino/cores/arduino/");
-		
-		for(File f:root.listFiles())
+		GccBuildProfile ret = fetchedCtx.builds.get(name);
+		if(null != ret)
 		{
-			String sf = f.toString();
-			String fe = StringTools.getSubstringAfterFirstString(sf, "/usr/share/arduino/hardware/arduino/cores/arduino/");
-			if(fe.endsWith(".cpp") || fe.endsWith(".c"))
-			{
-				ctx.addSource(false, f, fe);
-			}
-			else if(sf.endsWith(".h"))
-			{
-				ctx.addHeader(false, f, fe);
-			}
+			return ret;
 		}
 		
-		ctx.includeDirectories.add("/usr/share/arduino/hardware/arduino/variants/standard");
+		GccBuildProfile prof = new GccBuildProfile();
+		prof.name = name;
+		prof.touch();
+		fetchedCtx.builds.put(prof.name, prof);
+		originCtx.builds.put(prof.name, prof);
 		
-		GccBuildProfile prof = ctx.getBuildProfile(mcu+"_16Mhz", true);
-		CollectionTools.inlineAdd
-		(
-			prof.getFlags(),
-			"-c",
-			"-g",
-			"-Os",
-			"-mmcu="+mcu,
-			"-DF_CPU="+freq
-		);
-		
-		prof.ensureBuildReady();
-		
-		/*"-ffunction-sections",
-		"-fdata-sections",*/
-	
-		
+		return prof;
 	}
 
 	@Override
 	public void close() throws IOException
 	{
-		
+		save();
+	}
+
+	public List<GccBuilderContext> getParentContextes()
+	{
+		return NullList.instance;
+	}
+	
+	public String passTroughtValue(String variable)
+	{
+		return fetchedCtx.variables.passTroughtValue(variable, this);
+	}
+	
+	public String fetchVariable(String var)
+	{
+		return fetchedCtx.variables.fetch(var, this);
+	}
+
+	public File relFile(String path)
+	{
+		return new File(directory, path);
+	}
+
+	public VariableFetch getVariables()
+	{
+		return originCtx.variables;
 	}
 }
