@@ -36,13 +36,13 @@
 	<dependency>
 		<groupId>javaexperience</groupId>
 		<artifactId>core</artifactId>
-		<version>0.0.3</version>
+		<version>0.0.7</version>
 	</dependency>
 	
 	<dependency>
 		<groupId>javaexperience</groupId>
 		<artifactId>rpc</artifactId>
-		<version>1.0.7</version>
+		<version>1.0.8</version>
 	</dependency>
 	
 	<dependency>

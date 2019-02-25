@@ -12,6 +12,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+//TODO this arduino dependency maybe can be removed.
 #ifdef ARDUINO
 	#if ARDUINO >= 100
 		#include "Arduino.h"

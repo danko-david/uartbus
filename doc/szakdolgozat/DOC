@@ -5,27 +5,68 @@ Felépítmény:
 Transmission control queue:
 	- mechanizmus ami biztosítja hogy a csomagok megérkeznek a vevő oldalra.
 
+UART infrastruktúra:
+Bus kapcsolat:
+//	- Bus connector létrehozása
+		- Mega-ra is kellene egy külön build, úgy látszik a soft-uart
+			néha hibás adatot küld a host gépre. (Teszt)
+//	- RPC szerver létrehozása
+//	- CLI Bus console létrehozása
+	- tranzakció azonoító foglaló, felszabadító rendszer.
+
+Programozás:
+	- egyéni build rendszer:
+//		- első build: arduinó könyvtár, a könyvtárat egy objektum file-ba
+//			foglaljuk össze.
+		- amiben különböző build schemákat lehet létrehozni
+		- ezeket egymás függőségeként meg lehet adni
+			(Arduino & UB > UB_APP ) > APP
+			
+		- A reset és megszakítás kódrészt le kellene valahogy vágatni az
+			szekció elejéről
+		- Ebből HEX file-t állítunk elő.
+		- Ezt felküldjük a bus-on keresztül a mikrovezérlőre.
+		- CLI: ub upload -t 3 app.cpp
+
+
+Bus Object API:
+	- busz rendszerből egy azt reprezentáló objektumot képezzünk
+		(Factory amiből eszköz objektumok hozhatóak létre)
+	- A BusNodeObject-en biztosítson a bootloader funkcióinak hívhatóságát
+	- a direkt hívás mellett lehessen tranzakciós módban is hívni.
+	- Egyéni funkció hivási lehetőség:
+		- tipusok támogatása: byte, int, short, char*, float
+
+
 
 Bootloader TODO:
 //	- illesszük közvetlenül az AVR-hez a kódot (UART és softUART-al)
 //	- fordításnál meg lehessen adni egy eszközazonosítót
-	- a címzés mellett legyen alkalmazás névtér azonosító
-		- bus: UC újraindítása, broadcast forgadás segítségével autodiscovery
-		- bootloader: új program feltöltése, jelenlegi letöltése
-		- alkalmazás csomag fogadása és továbbítása
-	- pár busz funkció megalkotása: .
+//	- a címzés mellett legyen alkalmazás névtér azonosító
+//		- bus: UC újraindítása, broadcast forgadás segítségével autodiscovery
+//		- bootloader: új program feltöltése, jelenlegi letöltése
+//		- alkalmazás csomag fogadása és továbbítása
+//	- pár busz funkció megalkotása:
 //	- felülírható callback, alkalmazásnak szánt csomagok fogadására az
 //		alkalmazás programban, illetve feladó függvény mellékelése ami a
 //		bootloaderben foglal helyet
-
+	- send queue
+	- eszköz cím legyen átállítható.
+	- funkciók exportálása a táblába (rand, manage_conntection, nyers küldés,
+		master_dispatcher felülírása, eredeti master_dispatcher kezelő címe)
+		megszakítás kezelő regisztrálása/funkciók kikérése
+	- megszakítások gyüjtése és software-es elosztása
 
 Arduino TODO:
-	- MsgPack int schema-ját felhasználva radjunk a csomagba címzést
-		alkossunk olyan callback-ot amiben benne van a forrás és a cél UC címe.
-		https://github.com/msgpack/msgpack/blob/master/spec.md
+	- Egyedi csomagolt címzés
 
 
 BUS TODO:
+	- helyes időzítések tesztelése (ping-pong oscilloscope rajzolata, 2 byte
+		idő legyen csak kihagyva az kérés és a válasz között)
+	- ütközés helyes kezelése (rand beépítése a host-ba)
+	- megzavart adás újraküldése (teszt: egymást pingelő uc-k, kamu feladó
+		csomag beszúrássa)
 //	- adó buffer hozzáadaás
 //	- feladásnál és vételnél mellékeljük/ellenőrizzük a CRC8-at
 //	- ub_manage_connection-ból a visszaolvasást opcionálisra szervezzük ki,
