@@ -31,7 +31,6 @@ volatile bool app_run;
 volatile bool sos_signal;
 volatile uint8_t reset_flag;
 
-
 /*
 // not being used but here for completeness
 // Wait until a byte has been received and return received data 
@@ -126,27 +125,27 @@ int8_t pack_value(int16_t v, uint8_t* arr, int size)
 	//ensure data in big endian
 	if(O32_HOST_ORDER == O32_LITTLE_ENDIAN)
 	{
-		value = (value>>8) | (value<<8);
+		v = (v>>8) | (v<<8);
 	}
 	
 	arr[0] = neg?0x40:0x00;
 	
 	if(v <= 63)//1 byte
 	{
-		arr[0] |= value & 0x3f;
+		arr[0] |= v & 0x3f;
 		return 1;
 	}
 	else if(v <= 8191)//2 byte
 	{
-		arr[1] = value & 0x7f;
-		arr[0] |= 0x3f & (value >> 7);
+		arr[1] = v & 0x7f;
+		arr[0] |= 0x3f & (v >> 7);
 		return 2;
 	}
 	
 	//else if(v <= 16384)//3 byte
-	arr[2] = value & 0x7f;
-	arr[1] = ((value >> 7) & 0xff) | 0x80;
-	arr[0] |= (0x3f & (value >> 14)) | 0x80;
+	arr[2] = v & 0x7f;
+	arr[1] = ((v >> 7) & 0xff) | 0x80;
+	arr[0] |= (0x3f & (v >> 14)) | 0x80;
 	return 3;
 	
 }
@@ -206,7 +205,7 @@ int8_t unpack_value(int16_t* dst, uint8_t* arr, int size)
 	
 	if(arr[0] & 0x40)
 	{
-		value = -dst-1;
+		value = -(value+1);
 	}
 	
 	*dst = value;
@@ -224,7 +223,7 @@ struct rpc_request
 	uint8_t* payload;
 	uint8_t size;
 	uint8_t procPtr;
-}
+};
 
 /*
 bool il_send(int16_t to, uint8_t ns, uint8_t size, ...)

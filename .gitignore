@@ -9,6 +9,8 @@
 **/*.elf
 **/*.hex
 **/*.eep
+**/*.asm
+**/*.sizes
 **/.Makefile.swp
 **/log/
 WD/
