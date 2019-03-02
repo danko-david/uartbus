@@ -109,8 +109,124 @@ bool send_packet_priv(int16_t to, uint8_t ns, uint8_t* data, uint8_t size);
 void blinkShort(uint8_t n);
 void blinkLong(uint8_t n);
 
-//TODO minimize these functions
 
+int8_t pack_value(int16_t v, uint8_t* arr, int size)
+{
+	if(0 == size)
+	{
+		return -EMSGSIZE;
+	}
+
+	bool neg = v < 0;
+	if(neg)
+	{
+		v = -(v+1);
+	}
+	
+	//ensure data in big endian
+	if(O32_HOST_ORDER == O32_LITTLE_ENDIAN)
+	{
+		value = (value>>8) | (value<<8);
+	}
+	
+	arr[0] = neg?0x40:0x00;
+	
+	if(v <= 63)//1 byte
+	{
+		arr[0] |= value & 0x3f;
+		return 1;
+	}
+	else if(v <= 8191)//2 byte
+	{
+		arr[1] = value & 0x7f;
+		arr[0] |= 0x3f & (value >> 7);
+		return 2;
+	}
+	
+	//else if(v <= 16384)//3 byte
+	arr[2] = value & 0x7f;
+	arr[1] = ((value >> 7) & 0xff) | 0x80;
+	arr[0] |= (0x3f & (value >> 14)) | 0x80;
+	return 3;
+	
+}
+
+//-8192 - 8191 //we might use one more bit from the beginning to double the
+//available adresses and max out the int16_t type
+//TODO watch out! this code is for little endian arch
+int8_t unpack_value(int16_t* dst, uint8_t* arr, int size)
+{
+	int16_t value = 0;
+	int req = 1;
+	for(int i=0;i<size;++i)
+	{
+		if(arr[i] & 0x80)
+		{
+			++req;
+			if(i == size-1)
+			{
+				return -ELNRNG;//truncated value
+			}
+		}
+		else
+		{
+			break;
+		}
+		
+		if(req > 2)
+		{
+			return -EMSGSIZE;//too long value for int16_t
+		}
+	}
+
+	//check value remains in buffer a 3 byte might fit to int16_t
+	if(req == 3)
+	{
+		if(arr[1] & 0b0011100)
+		{
+			return -EOVERFLOW;//value overflow
+		}
+		
+		value = (0b00111111 & arr[0]) << 14 | (0b01111111 & arr[1]) << 7 | arr[2];
+	}
+	else if(req == 2)
+	{
+		value = (0b00111111 & arr[0]) << 7 | arr[1];
+	}
+	else
+	{
+		value = 0b00111111 & arr[0];
+	}
+	
+	//ensure data in the host's endian
+	if(O32_HOST_ORDER == O32_LITTLE_ENDIAN)
+	{
+		value = (value>>8) | (value<<8);
+	}
+	
+	if(arr[0] & 0x40)
+	{
+		value = -dst-1;
+	}
+	
+	*dst = value;
+	
+	return req;
+}
+
+
+
+//TODO minimize these functions
+struct rpc_request
+{
+	int16_t from;
+	int16_t to;
+	uint8_t* payload;
+	uint8_t size;
+	uint8_t procPtr;
+}
+
+/*
 bool il_send(int16_t to, uint8_t ns, uint8_t size, ...)
 {
 	uint8_t* d = (uint8_t*) alloca(size);
@@ -122,7 +238,7 @@ bool il_send(int16_t to, uint8_t ns, uint8_t size, ...)
 	}
 	va_end(v);
 	return send_packet_priv(to, ns, d, size);
-}
+}*/
 
 bool il_reply_arr(uint16_t to, uint8_t* o_data, uint8_t neg, uint8_t* data, uint8_t size)
 {

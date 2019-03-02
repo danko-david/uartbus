@@ -3,7 +3,7 @@
 Felépítmény:
 
 Transmission control queue:
-	- mechanizmus ami biztosítja hogy a csomagok megérkeznek a vevő oldalra.
+?	- mechanizmus ami biztosítja hogy a csomagok megérkeznek a vevő oldalra.
 
 UART infrastruktúra:
 Bus kapcsolat:
@@ -79,8 +79,20 @@ BUS TODO:
 		TODO SoftwareSerial
 --------	
 	UARTBUS (struct uartbus testesíti meg)
-	
 
+
+Funkciók:
+	- ping
+	- ub_host változó lekérés (sos, run_app, )
+	- ub_host változó frissítés (-||-)
+	- újraindítás
+	- reset
+	- has_app
+	- konstans lekérése (APP_START, MAX_PACKET_SIZE, DEV_ID, DEV_UUID)
+	- funkció mutató lekérése
+	- flash funkciók (írás, commit, kód memórai lekérése)
+	- {spec regiszter, ram} {olvasása, írása}
+	- tranzakciós kérés (wrap)
 	
 
 --------------------------------------------------------------------------------
