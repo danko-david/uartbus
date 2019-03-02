@@ -23,17 +23,11 @@ import eu.javaexperience.rpc.SimpleRpcRequest;
 import eu.javaexperience.rpc.SimpleRpcSession;
 import eu.javaexperience.rpc.SocketRpcServer;
 import eu.javaexperience.rpc.bidirectional.BidirectionalRpcDefaultProtocol;
+import static eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools.*;
 
 public class UartbusRpcServer
 {
 	protected static final Logger LOG = JavaExperienceLoggingFacility.getLogger(new Loggable("UarbusRpcServer"));
-	
-	protected static final CliEntry<String> WORK_DIR = CliEntry.createFirstArgParserEntry
-	(
-		(e) -> e,
-		"Working directory",
-		"d", "-working-directory"
-	);
 	
 	protected static final CliEntry<Integer> RPC_PORT = CliEntry.createFirstArgParserEntry
 	(
@@ -49,13 +43,6 @@ public class UartbusRpcServer
 		"s", "-serial-device"
 	);
 
-	protected static final CliEntry<Integer> SERIAL_BAUD = CliEntry.createFirstArgParserEntry
-	(
-		(e)->Integer.parseInt(e),
-		"Serial baud rate",
-		"b", "-baud"
-	);
-	
 	protected static final CliEntry[] PROG_CLI_ENTRIES =
 	{
 		WORK_DIR,

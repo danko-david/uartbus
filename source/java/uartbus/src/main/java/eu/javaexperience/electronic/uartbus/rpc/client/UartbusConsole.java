@@ -15,38 +15,11 @@ import eu.javaexperience.log.JavaExperienceLoggingFacility;
 import eu.javaexperience.log.Loggable;
 import eu.javaexperience.log.Logger;
 import eu.javaexperience.text.StringTools;
+import static eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools.*;
 
 public class UartbusConsole
 {
 	protected static final Logger LOG = JavaExperienceLoggingFacility.getLogger(new Loggable("UartbusConsole"));
-	
-	protected static final CliEntry<String> RPC_HOST = CliEntry.createFirstArgParserEntry
-	(
-		(e)->e,
-		"Rpc server IP",
-		"h", "-host"
-	);
-
-	protected static final CliEntry<Integer> RPC_PORT = CliEntry.createFirstArgParserEntry
-	(
-		(e)->Integer.parseInt(e),
-		"Rpc port",
-		"p", "-port"
-	);
-	
-	protected static final CliEntry<Integer> FROM = CliEntry.createFirstArgParserEntry
-	(
-		(e)->Integer.parseInt(e),
-		"Uartbus from address",
-		"f", "-from"
-	);
-	
-	protected static final CliEntry<Integer> TO = CliEntry.createFirstArgParserEntry
-	(
-		(e)->Integer.parseInt(e),
-		"Uartbus to address",
-		"t", "-to"
-	);
 	
 	protected static final CliEntry<byte[]> DATA = CliEntry.createFirstArgParserEntry
 	(

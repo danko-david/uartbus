@@ -12,7 +12,6 @@ import eu.javaexperience.electronic.uartbus.UartbusPacketConnector;
 import eu.javaexperience.reflect.Mirror;
 import eu.javaexperience.rpc.RpcSession;
 import eu.javaexperience.rpc.RpcSessionTools;
-import eu.javaexperience.rpc.RpcTools;
 
 public class UartbusRpcEndpoint implements UartbusConnection
 {

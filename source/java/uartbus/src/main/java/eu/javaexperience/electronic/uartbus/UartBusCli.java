@@ -37,6 +37,11 @@ public class UartBusCli
 		GccBuilderContext.main(args);
 	}
 	
+	public static void upload(String... args) throws Throwable
+	{
+		
+	}
+	
 	
 	//utilities to do:
 	//TODO code uploader
