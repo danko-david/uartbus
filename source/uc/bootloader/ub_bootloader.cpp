@@ -13,12 +13,11 @@
 #include <avr/interrupt.h>
 #include <avr/wdt.h>
 #include <stdlib.h>
-#include <stdarg.h>
 #include <alloca.h>
 #include "posix_errno.h"
 
 #include "ub.h"
-
+#include "rpc.h"
 
 #define UCSZ1   2
 #define UCSZ0   1
@@ -105,8 +104,6 @@ void USART_SendByte(uint8_t u8Data)
 //commit -> back to app mode
 bool send_packet(int16_t to, uint8_t* data, uint16_t size);
 bool send_packet_priv(int16_t to, uint8_t ns, uint8_t* data, uint8_t size);
-void blinkShort(uint8_t n);
-void blinkLong(uint8_t n);
 
 
 int8_t pack_value(int16_t v, uint8_t* arr, int size)
@@ -123,10 +120,10 @@ int8_t pack_value(int16_t v, uint8_t* arr, int size)
 	}
 	
 	//ensure data in big endian
-	if(O32_HOST_ORDER == O32_LITTLE_ENDIAN)
-	{
-		v = (v>>8) | (v<<8);
-	}
+//	if(O32_HOST_ORDER == O32_LITTLE_ENDIAN)
+//	{
+//		v = ((v&0xff00)>>8) | ((v&0xff)<<8);
+//	}
 	
 	arr[0] = neg?0x40:0x00;
 	
@@ -137,11 +134,13 @@ int8_t pack_value(int16_t v, uint8_t* arr, int size)
 	}
 	else if(v <= 8191)//2 byte
 	{
+		//TODO check size
 		arr[1] = v & 0x7f;
 		arr[0] |= 0x3f & (v >> 7);
 		return 2;
 	}
 	
+		//TODO check size
 	//else if(v <= 16384)//3 byte
 	arr[2] = v & 0x7f;
 	arr[1] = ((v >> 7) & 0xff) | 0x80;
@@ -198,10 +197,10 @@ int8_t unpack_value(int16_t* dst, uint8_t* arr, int size)
 	}
 	
 	//ensure data in the host's endian
-	if(O32_HOST_ORDER == O32_LITTLE_ENDIAN)
-	{
-		value = (value>>8) | (value<<8);
-	}
+//	if(O32_HOST_ORDER == O32_LITTLE_ENDIAN)
+//	{
+//		value = (value>>8) | (value<<8);
+//	}
 	
 	if(arr[0] & 0x40)
 	{
@@ -213,118 +212,12 @@ int8_t unpack_value(int16_t* dst, uint8_t* arr, int size)
 	return req;
 }
 
-
-
-//TODO minimize these functions
-struct rpc_request
-{
-	int16_t from;
-	int16_t to;
-	uint8_t* payload;
-	uint8_t size;
-	uint8_t procPtr;
-};
-
-/*
-bool il_send(int16_t to, uint8_t ns, uint8_t size, ...)
-{
-	uint8_t* d = (uint8_t*) alloca(size);
-	va_list v;
-	va_start(v, size);
-	for(uint8_t i=0;i<size;++i)
-	{
-		d[i] = (uint8_t) va_arg(v, int);
-	}
-	va_end(v);
-	return send_packet_priv(to, ns, d, size);
-}*/
-
-bool il_reply_arr(uint16_t to, uint8_t* o_data, uint8_t neg, uint8_t* data, uint8_t size)
-{
-	neg -= 1;//pop NS
-	uint8_t* d = (uint8_t*) alloca(size+neg);
-	for(uint8_t i=0;i<neg;++i)
-	{
-		d[i] = o_data[i-neg];
-	}
-	for(uint8_t i=0;i<size;++i)
-	{
-		d[neg+i] = data[i];
-	}
-	return send_packet_priv(to, o_data[-neg-1], d, size+neg);
-}
-
-bool il_reply(uint16_t to, uint8_t* o_data, uint8_t neg, uint8_t size, ...)
-{
-	neg -= 1;//pop NS
-	uint8_t* d = (uint8_t*) alloca(size+neg);
-	va_list v;
-	va_start(v, size);
-	for(uint8_t i=0;i<neg;++i)
-	{
-		d[i] = o_data[i-neg];
-	}
-	for(uint8_t i=0;i<size;++i)
-	{
-		d[neg+i] = (uint8_t) va_arg(v, int);
-	}
-	va_end(v);
-	return send_packet_priv(to, o_data[-neg-1], d, size+neg);
-}
-
-__attribute__((noinline)) uint8_t arr_size(void** arr)
-{
-	return (uint8_t) (((uint16_t) arr[0]));
-}
-
-
-/****************************** Dispatch utils ********************************/
-
-void dispatch_function_chain(void** chain, int16_t from, uint8_t* data, uint8_t size, uint8_t neg)
-{
-	if(0 != size)
-	{
-		uint8_t cs = arr_size(chain);
-		if(data[0] < cs)
-		{
-			void (*func)(int16_t from, uint8_t* data, uint8_t size, uint8_t neg)
-			= (void (*)(int16_t from, uint8_t* data, uint8_t size, uint8_t neg))
-			chain[data[0]+1];
-			if(NULL != func)
-			{
-				func(from, data+1, size-1, neg+1);
-				return;
-			}
-		}
-		il_reply(from, data, neg, 1, ENOSYS);
-	}
-	il_reply(from, data, neg, 1, EBADF);
-}
-
-void dispatch_descriptor_chain(void** chain, int16_t from, uint8_t* data, uint8_t size, uint8_t neg)
-{
-	if(0 != size)
-	{
-		uint8_t cs = arr_size(chain);
-		if(data[0] < cs)
-		{
-			void* fc = chain[data[0]+1];
-			if(NULL != fc)
-			{
-				dispatch_function_chain((void**) fc, from, data+1, size-1, neg+1);
-				return;
-			}
-		}
-		il_reply(from, data, neg, 1, ENOSYS);
-	}
-	il_reply(from, data, neg, 1, EBADF);
-}
-
 /*************************** RPC functions - Bus ******************************/
 
-void rpc_bus_ping(int16_t from, uint8_t* data, uint8_t size, uint8_t neg)
+void rpc_bus_ping(struct rpc_request* req)
 {
-	il_reply(from, data, neg, 0);
+	PORTB ^= 0xff;
+	il_reply(req, 0);
 }
 
 void* RPC_FUNCTIONS_BUS[] =
@@ -335,15 +228,15 @@ void* RPC_FUNCTIONS_BUS[] =
 
 /****************************** RPC bootloader ********************************/
 
-void rpc_bootloader_power_function(int16_t from, uint8_t* data, uint8_t size, uint8_t neg)
+void rpc_bootloader_power_function(struct rpc_request* req)
 {
-	if(0 == size)
+	if(0 == (req->size - req->procPtr))
 	{
-		il_reply(from, data, neg, 1, EINVAL);
+		il_reply(req, 1, EINVAL);
 		return;
 	}
 	
-	switch(data[0])
+	switch(req->payload[req->procPtr])
 	{
 		case 0: wdt_enable(WDTO_15MS);while(1){}
 		case 1: asm ("jmp 0x00");
@@ -351,46 +244,47 @@ void rpc_bootloader_power_function(int16_t from, uint8_t* data, uint8_t size, ui
 	}
 }
 
-void rpc_bootloader_get_var(int16_t from, uint8_t* data, uint8_t size, uint8_t neg)
+void rpc_bootloader_get_var(struct rpc_request* req)
 {
-	if(0 == size)
+	if(0 == (req->size - req->procPtr))
 	{
-		il_reply(from, data, neg, 1, EINVAL);
+		il_reply(req, 1, EINVAL);
 		return;
 	}
 	
 	uint8_t res;
-	switch(data[0])
+	switch(req->payload[req->procPtr])
 	{
 		case 0: res = app_run; break;
 		case 1: res = sos_signal; break;
 		case 2: res = reset_flag; break;
 		default: res = 0;break;
 	}
-	il_reply(from, data, neg, 1, res);
+	il_reply(req, 1, res);
 }
 
-void rpc_bootloader_set_var(int16_t from, uint8_t* data, uint8_t size, uint8_t neg)
+void rpc_bootloader_set_var(struct rpc_request* req)
 {
-	if(size < 2)
+	if((req->size - req->procPtr) < 2)
 	{
-		il_reply(from, data, neg, 1, EINVAL);
+		il_reply(req, 1, EINVAL);
 		return;
 	}
 	
-	uint8_t val = data[1];
-	switch(data[0])
+	uint8_t val = req->payload[req->procPtr+1];
+	switch(req->payload[req->procPtr])
 	{
 		case 0: app_run = (bool) val; break;
 		case 1: sos_signal =  (bool) val; break;
 //		case 2: reset_flag = data[2]; break;
 		default: break;
 	}
-	il_reply(from, data, neg, 0);
+	il_reply(req, 1, 0);
 }
 
-void rpc_bootloader_read_code(int16_t from, uint8_t* data, uint8_t size, uint8_t neg)
+void rpc_bootloader_read_code(struct rpc_request* req)
 {
+	uint8_t* data = req->payload+ req->procPtr;
 	uint16_t base = data[0] << 8 | data[1];
 	uint8_t s = (uint8_t) data[2];
 	if(s > 32)
@@ -408,7 +302,7 @@ void rpc_bootloader_read_code(int16_t from, uint8_t* data, uint8_t size, uint8_t
 		rec[i+2] = pgm_read_byte(base+i);
 	}
 
-	il_reply_arr(from, data, neg, rec, s+2);
+	il_reply_arr(req, rec, s+2);
 }
 
 /***************************** Flashing functions *****************************/
@@ -419,22 +313,22 @@ uint8_t flash_stage = 0;
 uint16_t flash_crnt_address = 0;
 uint8_t* flash_tmp = NULL;
 
-void blf_get_flash_stage(int16_t from, uint8_t* data, uint8_t size, uint8_t neg)
+void blf_get_flash_stage(struct rpc_request* req)
 {
-	il_reply(from, data, neg, 0, flash_stage);
+	il_reply(req, 1, flash_stage);
 }
 
-void blf_start_flash(int16_t from, uint8_t* data, uint8_t size, uint8_t neg)
+void blf_start_flash(struct rpc_request* req)
 {
 	if(1 == flash_stage)
 	{
-		il_reply(from, data, neg, 1, EALREADY);		
+		il_reply(req, 1, EALREADY);		
 	}
 	
 	flash_tmp = (uint8_t*) malloc(SPM_PAGESIZE);
 	if(NULL == flash_tmp)
 	{
-		il_reply(from, data, neg, 1, ENOMEM);
+		il_reply(req, 1, ENOMEM);
 		return;
 	}
 	
@@ -443,12 +337,12 @@ void blf_start_flash(int16_t from, uint8_t* data, uint8_t size, uint8_t neg)
 	flash_crnt_address = (uint16_t) APP_START_ADDRESS;
 	flash_stage = 1;
 
-	il_reply(from, data, neg, 1, 0);
+	il_reply(req, 1, 0);
 }
 
-void blf_get_next_addr(int16_t from, uint8_t* data, uint8_t size, uint8_t neg)
+void blf_get_next_addr(struct rpc_request* req)
 {
-	il_reply(from, data, neg, 2, ((flash_crnt_address >> 8) & 0xff), flash_crnt_address & 0xff); 
+	il_reply(req, 2, ((flash_crnt_address >> 8) & 0xff), flash_crnt_address & 0xff); 
 }
 
 __attribute__((section(".bootloader"))) void bootloader_main()
@@ -515,41 +409,43 @@ void fill_flash(uint8_t *buf, uint16_t size)
 	}
 }
 
-void blf_push_code(int16_t from, uint8_t* data, uint8_t size, uint8_t neg)
+void blf_push_code(struct rpc_request* req)
 {
+	uint8_t* data = req->payload + req->procPtr;
+	uint8_t size = req->size - req->procPtr;
 	if(0 == flash_stage)
 	{
-		il_reply(from, data, neg, 1, ENOTCONN);
+		il_reply(req, 1, ENOTCONN);
 	}
 	
 	if(size < 4)
 	{
-		il_reply(from, data, neg, 1, EBADMSG);
+		il_reply(req, 1, EBADMSG);
 		return;
 	}
 	
 	if(data[0] != ((flash_crnt_address >> 8) & 0xff) || data[1] != (flash_crnt_address & 0xff))
 	{
-		il_reply(from, data, neg, 1, ENXIO);
+		il_reply(req, 1, ENXIO);
 		return;
 	}
 	
-	//fill_flash(data, size);
-	for(int i=0;i<size;++i)
+	fill_flash(data, size);
+	/*for(int i=0;i<size;++i)
 	{
 		flash_tmp[i] = data[i];
 	}
 	flash_crnt_address += size;
+	*/
 	
-	
-	il_reply(from, data, neg, 3, 0, (flash_crnt_address >> 8) & 0xff, flash_crnt_address & 0xff);
+	il_reply(req, 3, 0, (flash_crnt_address >> 8) & 0xff, flash_crnt_address & 0xff);
 }
 
-void commit_flash(int16_t from, uint8_t* data, uint8_t size, uint8_t neg)
+void commit_flash(struct rpc_request* req)
 {
 	if(0 == flash_stage)
 	{
-		il_reply(from, data, neg, 1, EBADFD);
+		il_reply(req, 1, EBADFD);
 	}
 	
 	//something filled into the write buffer => writing page
@@ -567,7 +463,7 @@ void commit_flash(int16_t from, uint8_t* data, uint8_t size, uint8_t neg)
 	
 	flash_stage = 0;
 	
-	il_reply(from, data, neg, 1, 0);
+	il_reply(req, 1, 0);
 }
 
 void* BOOTLOADER_FLASH_FUNCTIONS[] =
@@ -580,9 +476,9 @@ void* BOOTLOADER_FLASH_FUNCTIONS[] =
 	(void*) commit_flash
 };
 
-void rpc_bootloader_flash(int16_t from, uint8_t* data, uint8_t size, uint8_t neg)
+void rpc_bootloader_flash(struct rpc_request* req)
 {
-	dispatch_function_chain(BOOTLOADER_FLASH_FUNCTIONS, from, data, size, neg);
+	dispatch_function_chain(BOOTLOADER_FLASH_FUNCTIONS, req);
 }
 
 void* RPC_FUNCTIONS_BOOTLOADER[] =
@@ -630,9 +526,9 @@ void* RPC_NS_FUNCTIONS[] =
 
 };
 
-void dispatch_root(int16_t from, uint8_t* data, uint8_t size, uint8_t neg)
+void dispatch_root(struct rpc_request* req)
 {
-	dispatch_descriptor_chain(RPC_NS_FUNCTIONS, from, data, size, neg);
+	dispatch_descriptor_chain(RPC_NS_FUNCTIONS, req);
 }
 
 /************************ UARTBus application code ****************************/
@@ -649,8 +545,7 @@ uint8_t send_data[MAX_PACKET_SIZE];
 
 bool bus_active = false;
 
-void (*app_dispatch)(int16_t from, int16_t to, uint8_t* data, uint8_t size) = NULL;
-
+void (*app_dispatch)(struct rpc_request* req) = NULL;
 
 static void ub_rec_byte(struct uartbus* a, uint8_t data_byte)
 {
@@ -673,41 +568,66 @@ bool send_packet_priv(int16_t to, uint8_t NS, uint8_t* data, uint8_t size)
 		return false;
 	}
 	
-	send_data[0] = (uint8_t) ((to >> 8) & 0xff);
+	uint8_t ep = 0;
+	int8_t add;
+	
+	if((add = pack_value(to, send_data, MAX_PACKET_SIZE)) < 1)
+	{
+		return false;
+	}
+	
+	ep += add;
+		
+	if((add = pack_value(BUS_ADDRESS, send_data+ep, MAX_PACKET_SIZE-ep)) < 1)
+	{
+		return false;
+	}
+	
+	ep += add;
+	
+	/*send_data[0] = (uint8_t) ((to >> 8) & 0xff);
 	send_data[1] = (uint8_t) (to & 0xff);
 	send_data[2] = (uint8_t) ((BUS_ADDRESS >> 8) & 0xff);
 	send_data[3] = (uint8_t) (BUS_ADDRESS & 0xff);
-	send_data[4] = NS;
+	send_data[4] = NS;*/
+	send_data[ep] = NS;
+	++ep;
+	
+	size = 0;
 	
 	for(int i=0;i<size;++i)
 	{
-		send_data[i+5] = data[i];
+		send_data[ep+i] = data[i];
 	}
-	send_data[size+5] = crc8(send_data, size+5);
-	send_size = size+6;
-
+	send_data[ep+size] = crc8(send_data, ep+size);
+	send_size = size+ep+1;
+	
 	return true;
 }
 
-void dispatch(int16_t from, int16_t to, int8_t ns, uint8_t* data, uint8_t size)
+void dispatch(struct rpc_request* req)
 {
-	if(0 == size || 0 == ns)
+	if(0 == req->size)
 	{
 		return;
 	}
-	else if(0 < ns && ns < 32)
+	
+	int ns = req->payload[req->procPtr];
+	
+	if(0 < ns && ns < 32)
 	{
-		dispatch_root(from, data-1, size+1, 0);
+		dispatch_root(req);
 	}
 	else if(NULL != app_dispatch && 32 == ns)
 	{
-		app_dispatch(from, to, data, size);
+		++req->procPtr;
+		app_dispatch(req);
 	}
 	else if(ns == 33)
 	{
-		send_packet_priv(from, 33, data, size);
+		send_packet_priv(req->from, 33, req->payload+1, req->size-1);
 	}
-	else if(ns == 34)
+/*	else if(ns == 34)
 	{
 		rpc_bootloader_read_code(from, data, size, 1);
 	}
@@ -717,13 +637,10 @@ void dispatch(int16_t from, int16_t to, int8_t ns, uint8_t* data, uint8_t size)
 		{
 			case 0: il_reply(from, data, 1, 1, arr_size(RPC_NS_FUNCTIONS)); break;
 			case 1: il_reply(from, data, 1, 1, arr_size(RPC_FUNCTIONS_BOOTLOADER)); break;
-	/*		
-			case 0: blinkShort(arr_size(RPC_NS_FUNCTIONS)); break;
-			case 1: blinkShort(arr_size(RPC_FUNCTIONS_BOOTLOADER)); break;
-*/			
 //			case 2: il_reply(from, data, -1, 1, 0); break;
 		}
 	}
+*/
 }
 
 static void ub_event(struct uartbus* a, enum uartbus_event event)
@@ -739,15 +656,35 @@ static void ub_event(struct uartbus* a, enum uartbus_event event)
 		if(crc8(received_data, received_ep-1) == received_data[received_ep-1])
 		{
 			//is size is acceptable?
-			if(received_ep > 5)
+			if(received_ep > 3)
 			{
-				uint16_t to = (uint16_t) (received_data[0] << 8 | received_data[1]);
-				uint16_t from = (uint16_t) (received_data[2] << 8 | received_data[3]);
-				//is we are the target, or group/broadcast?
-				if(to < 1 || BUS_ADDRESS == to)
+				uint8_t ep = 0;
+				int8_t add = 0;
+				
+				//TODO rewrite to variable size addresses;
+				struct rpc_request req;
+				if((add = unpack_value(&req.to, received_data, received_ep-1)) < 1)
 				{
-					PORTB ^= 0xff;
-					dispatch(from, to, received_data[4], 5+received_data, received_ep-6);
+					return;
+				}
+				
+				ep += add;
+				
+				if((add = unpack_value(&req.from, received_data+ep, received_ep-1-ep)) < 1)
+				{
+					return;
+				}
+				
+				ep += add;
+				
+				req.payload = received_data+ep;
+				req.size = received_ep-ep-1;
+				req.procPtr = 0;
+				
+				//is we are the target, or group/broadcast?
+				if(req.to < 1 || BUS_ADDRESS == req.to)
+				{
+					dispatch(&req);
 				}
 			}
 		}
@@ -796,13 +733,13 @@ void init_bus()
 	bus.serial_byte_received = ub_rec_byte;
 	bus.serial_event = ub_event;
 	bus.byte_time_us = static_ub_calc_baud_cycle_time(BAUD_RATE);
-	bus.bus_idle_time = static_ub_calc_timeout(BAUD_RATE, 15);
+	bus.bus_idle_time = static_ub_calc_timeout(BAUD_RATE, 2);
 	bus.do_send_byte = ub_do_send_byte;
 //	bus.do_receive_byte = ub_receive_byte;
 	bus.cfg = 0
 		|	ub_cfg_fairwait_after_send_high
 //		|	ub_cfg_fairwait_after_send_low
-//		|	ub_cfg_read_after_send
+		|	ub_cfg_read_after_send
 		|	ub_cfg_external_read
 	;
 	ub_init(&bus);
@@ -814,7 +751,7 @@ ISR(USART_RX_vect)
 	ub_out_rec_byte(&bus, UDR0);
 }
 
-void register_packet_dispatch(void (*addr)(int16_t from, int16_t to, uint8_t* data, uint8_t size))
+void register_packet_dispatch(void (*addr)(struct rpc_request* req))
 {
 	app_dispatch = addr;
 }
@@ -840,73 +777,6 @@ __attribute__((noinline)) void call_app()
 bool has_app()
 {
 	return 0xff != pgm_read_byte(APP_START_ADDRESS);
-}
-
-#define MORSE_DOT 100
-#define MORSE_DASH 300
-#define MORSE_ELEMENT_SPACE 100
-#define MORSE_CHARACTER_SPACE 300
-#define MORSE_WORD_SPACE 700
-
-void delay(uint32_t val)
-{
-	for(uint16_t i=0;i<val;++i)
-	{
-		_delay_ms(1);
-	}
-}
-
-void led_on_time(uint32_t time)
-{
-		PORTB |= 0x1 << 5;
-		delay(time);
-		PORTB &= ~(0x1 << 5);
-}
-
-void blinkShort(uint8_t n)
-{
-	for(int i=0;i<n;++i)
-	{
-		wdt_reset();
-		led_on_time(MORSE_DOT);
-		delay(MORSE_ELEMENT_SPACE);
-	}
-	
-	delay(MORSE_CHARACTER_SPACE);
-	wdt_reset();
-}
-
-void blinkLong(uint8_t n)
-{
-	for(int i=0;i<n;++i)
-	{
-		wdt_reset();
-		led_on_time(MORSE_DASH);
-		delay(MORSE_ELEMENT_SPACE);
-	}
-	
-	delay(MORSE_CHARACTER_SPACE);
-	wdt_reset();
-}
-
-
-void blinkSos()
-{
-	DDRB |= 0x1 << 5;
-	
-	for(int c=0;c<3;++c)
-	{
-		for(int i=0;i<3;++i)
-		{
-			wdt_reset();
-			led_on_time(c&1?MORSE_DASH:MORSE_DOT);
-			delay(i != 2?MORSE_ELEMENT_SPACE:MORSE_CHARACTER_SPACE);
-		}
-	}
-	
-	wdt_reset();
-	DDRB &= ~(0x1 << 5);
-	delay(MORSE_WORD_SPACE);
 }
 
 /********************************** Host tables *******************************/
@@ -1030,7 +900,7 @@ int main()
 			//blinkSos();//TODO sequence
 			if(afterMicro(&last_panic_signal_time, 2000000))
 			{
-				send_packet(-1, (uint8_t*) "app freez", 9);
+				send_packet(-1, (uint8_t*) "WDT restart", 11);
 			}
 		}
 	}
