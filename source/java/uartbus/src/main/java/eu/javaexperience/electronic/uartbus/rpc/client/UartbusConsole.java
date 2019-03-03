@@ -92,7 +92,11 @@ public class UartbusConsole
 		(
 			RPC_HOST.tryParseOrDefault(pa, "127.0.0.1"),
 			RPC_PORT.tryParseOrDefault(pa, 2112),
-			(e) -> System.out.println(UartbusTools.formatColonData(e))
+			(e) ->
+			{
+				boolean valid = UartbusTools.crc8(e, e.length-1) == e[e.length-1];
+				System.out.println((valid?"":"!")+UartbusTools.formatColonData(e));
+			}
 		);
 		
 		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));

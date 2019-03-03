@@ -93,7 +93,7 @@ Funkciók:
 	- flash funkciók (írás, commit, kód memórai lekérése)
 	- {spec regiszter, ram} {olvasása, írása}
 	- tranzakciós kérés (wrap)
-	
+	- blink_user_led
 
 --------------------------------------------------------------------------------
 

@@ -15,11 +15,6 @@ import eu.javaexperience.reflect.Mirror;
 
 public class UartbusPacketConnectorTest
 {
-	public static int byteToInt(byte val)
-	{
-		return 0xff & val;
-	}
-	
 	public static UartbusPacketConnector createLoopback(byte escape)
 	{
 		BlockingQueue<Byte> bs = new LinkedBlockingQueue<>();
@@ -45,7 +40,7 @@ public class UartbusPacketConnectorTest
 						return -1;
 					}
 					
-					return byteToInt(ret);
+					return 0xff & ret;
 				}
 				catch(Exception e)
 				{
@@ -122,8 +117,8 @@ public class UartbusPacketConnectorTest
 		conn.startListen();
 		conn.sendPacket(data);
 		
-		for(int i=0;i<100;++i)
-		while(null == ret[0])
+		int i=0;
+		while(++i<100 && null == ret[0])
 		{
 			Thread.sleep(50);
 		}
@@ -136,5 +131,6 @@ public class UartbusPacketConnectorTest
 		testByteLoopbackSquence((byte)0xff, new byte[] {});
 		testByteLoopbackSquence((byte)0xff, new byte[]{(byte)0xff, (byte)0xff});
 		testByteLoopbackSquence((byte)0xff, new byte[]{-1, 0, 0, -1});
+		testByteLoopbackSquence((byte)0xff, new byte[]{12, 5, (byte)192});
 	}
 }

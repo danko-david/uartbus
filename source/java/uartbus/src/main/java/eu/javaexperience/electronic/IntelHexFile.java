@@ -1,5 +1,6 @@
 package eu.javaexperience.electronic;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -9,6 +10,9 @@ import java.util.regex.Pattern;
 import eu.javaexperience.collection.ReadOnlyAndRwCollection;
 import eu.javaexperience.io.IOTools;
 import eu.javaexperience.reflect.Mirror;
+import eu.javaexperience.rpc.JavaClassRpcUnboundFunctionsInstance;
+import eu.javaexperience.rpc.RpcFacility;
+import eu.javaexperience.rpc.cli.RpcCliTools;
 import eu.javaexperience.text.Format;
 import eu.javaexperience.text.StringTools;
 
@@ -16,26 +20,9 @@ public class IntelHexFile
 {
 	protected static final String H = "[0-9a-zA-Z]";
 	protected static final Pattern IHEX_MINIMAL_LINE_PATTERN = Pattern.compile(H+"{10,}");
-	/*protected static String segment(String segmentName, String repeat)
-	{
-		return "(?<"+segmentName+">"+H+repeat+")";
-	}
-	
-	protected static final Pattern IHEX_LINE_PATTERN = Pattern.compile
-	(
-		"^:"
-		+segment("length", "{2,2}")
-		+segment("address", "{4,4}")
-		+segment("type", "{2,2}")
-		+segment("data", "*") //not +, EOF contains no data
-		+segment("chksum", "{2,2}")
-		+"$"
-	); */
 
 	public class IntelHexLine
 	{
-		
-		
 		public IntelHexLine(String line)
 		{
 			line = line.trim();
@@ -115,14 +102,55 @@ public class IntelHexFile
 	
 	public static void main(String[] args) throws Throwable
 	{
+		RpcFacility rpc = new JavaClassRpcUnboundFunctionsInstance<>(new IntelHexFilesCli(), IntelHexFilesCli.class);
+		if(0 == args.length)
+		{
+			System.err.println(RpcCliTools.generateCliHelp(rpc));
+			System.exit(1);
+		}
+		RpcCliTools.cliExecute(null, rpc, args);
+	}
+	
+	public static IntelHexFile loadFile(String file) throws IOException
+	{
 		ArrayList<String> lines = new ArrayList<>();
-		//lines.add(":100130003F0156702B5E712B722B732146013421C7");
-		IOTools.loadFillAllLine("/home/szupervigyor/projektek/electronics/avr_gcc/plain/main.hex", lines);
+		IOTools.loadFillAllLine(file, lines);
 		IntelHexFile ih = new IntelHexFile(lines.toArray(Mirror.emptyStringArray));
-		
 		ih.assertValid();
+		return ih;
+	}
+	
+	public int getDataSize()
+	{
+		int ret = 0;
+		for(IntelHexLine l:lines.getReadOnly())
+		{
+			ret += l.data.length;
+		}
+		return ret;
+	}
+	
+	public static class IntelHexFilesCli
+	{
+		public void validate(String file) throws Exception
+		{
+			try
+			{
+				IntelHexFile f = IntelHexFile.loadFile(file);
+			}
+			catch(Exception e)
+			{
+				System.out.println("Not valid.");
+				System.exit(1);
+			}
+			System.out.println("Valid.");
+			System.exit(0);
+		}
 		
-		
-		
+		public void size(String file) throws Exception
+		{
+			IntelHexFile f = IntelHexFile.loadFile(file);
+			System.out.println(f.getDataSize()+" bytes");
+		}
 	}
 }
