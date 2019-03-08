@@ -50,7 +50,7 @@ public class UartbusCliApps
 		
 		public static void printHelpAndExit(int exit)
 		{
-			System.err.println("Usage of UartbusConsole:\n");
+			System.err.println("Usage of UartbusPing:\n");
 			System.err.println(CliTools.renderListAllOption(PROG_CLI_ENTRIES));
 			System.exit(1);
 		}

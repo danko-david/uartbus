@@ -104,61 +104,63 @@ public class UartbusConsole
 		
 		while(null != (line = br.readLine()))
 		{
-			line = line.trim();
-			
-			if(line.startsWith(">"))
+			try
 			{
-				from = Integer.parseInt(StringTools.getSubstringAfterFirstString(line, ">"));
-				line = "?>";
-			}
-			else if(line.startsWith("<"))
-			{
-				to = Integer.parseInt(StringTools.getSubstringAfterFirstString(line, "<"));
-				line = "?<";
-			}
-			
-			if(line.startsWith("?"))
-			{
-				if(line.length() == 1)
+				line = line.trim();
+				
+				if(line.startsWith(">"))
 				{
-					printHelp();
+					from = Integer.parseInt(StringTools.getSubstringAfterFirstString(line, ">"));
+					line = "?>";
 				}
-				else if(line.length() == 2)
+				else if(line.startsWith("<"))
 				{
-					switch(line.charAt(1))
+					to = Integer.parseInt(StringTools.getSubstringAfterFirstString(line, "<"));
+					line = "?<";
+				}
+				
+				if(line.startsWith("?"))
+				{
+					if(line.length() == 1)
 					{
-					case '>':
-						System.out.println("From address: "+from);
-						break;
-	
-					case '<':
-						System.out.println("To address: "+to);
-						break;
-					default: 
+						printHelp();
+					}
+					else if(line.length() == 2)
+					{
+						switch(line.charAt(1))
+						{
+						case '>':
+							System.out.println("From address: "+from);
+							break;
+		
+						case '<':
+							System.out.println("To address: "+to);
+							break;
+						default: 
+							unrecognisedCmd(line);
+						}
+					}
+					else
+					{
 						unrecognisedCmd(line);
 					}
 				}
 				else
 				{
-					unrecognisedCmd(line);
+					byte[] data = null;
+					
+						data = UartbusTools.parseColonData(line);
+						
+						asm.writeAddressing(from, to);
+						asm.write(data);
+						asm.appendCrc8();
+						conn.sendPacket(asm.done());
 				}
 			}
-			else
+			catch(Exception e)
 			{
-				byte[] data = null;
-				try
-				{
-					data = UartbusTools.parseColonData(line);
-					
-					asm.writeAddressing(from, to);
-					asm.write(data);
-					asm.appendCrc8();
-					conn.sendPacket(asm.done());
-				}
-				catch(Exception e)
-				{
-					unrecognisedCmd(line);
-				}
+				System.out.println(e.getMessage());
+				unrecognisedCmd(line);
 			}
 		}
 	}

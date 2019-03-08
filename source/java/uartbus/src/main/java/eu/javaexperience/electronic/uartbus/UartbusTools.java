@@ -115,6 +115,10 @@ public class UartbusTools
 	
 	public static int calcPackReqBytes(boolean signed, BigInteger value)
 	{
+		if(signed && value.signum() < 0)
+		{
+			value = value.negate();
+		}
 		return calcPackReqBytes(signed, value.toByteArray());
 	}
 	
