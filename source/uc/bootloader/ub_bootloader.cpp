@@ -86,6 +86,9 @@ void USART_SendByte(uint8_t u8Data)
 
 	// Transmit data
 	UDR0 = u8Data;
+//	UCSR0A |= 1<<TXC0;
+	//while (!(UCSR0A & _BV(UDRE0))){}
+//	while((UCSR0A&(1<<UDRE0)) == 0);
 }
 
 /******************* On board software upgrade  functionalities ***************/
@@ -732,8 +735,8 @@ void init_bus()
 
 	bus.serial_byte_received = ub_rec_byte;
 	bus.serial_event = ub_event;
-	bus.byte_time_us = static_ub_calc_baud_cycle_time(BAUD_RATE);
-	bus.bus_idle_time = static_ub_calc_timeout(BAUD_RATE, 2);
+//	bus.byte_time_us = static_ub_calc_baud_cycle_time(BAUD_RATE);
+	bus.bus_idle_time = static_ub_calc_timeout(BAUD_RATE, 3);
 	bus.do_send_byte = ub_do_send_byte;
 //	bus.do_receive_byte = ub_receive_byte;
 	bus.cfg = 0

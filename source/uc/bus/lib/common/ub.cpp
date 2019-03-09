@@ -214,7 +214,7 @@ static uint8_t get_fairwait_conf_cycles(struct uartbus* bus)
 		ret |= 0x2;
 	}
 
-	return (ret+1)*2;
+	return (ret+1)*2+bus->wi;
 }
 
 //https://www.ccsinfo.com/forum/viewtopic.php?t=37015
@@ -308,15 +308,41 @@ __attribute__((noinline)) void ub_out_update_state(struct uartbus* bus)
 	}
 }
 
+void USART_SendByte(uint8_t u8Data);
+
 /**
  * return true on collision
  */
-static bool ub_check_and_handle_collision(struct uartbus* bus, int16_t data)
+static bool ub_check_and_handle_collision(struct uartbus* bus, uint8_t data)
 {
-	//TODO handle collision
+	//handle collision
 	//maybe we can insert random wait by modifing get_fairwait_conf_cycles
 	//to consider alternative wait cycle.
-	return data < 0 || data > 255 || (bus->to_send[bus->to_send_size] != data);
+	if(data < 0 || data > 255 || (bus->wi != data))
+	{
+		bus->status = ub_stat_sending_fairwait;
+		
+/*		bus->to_send_size = 0;
+		ub_update_last_activity_now(bus);
+		USART_SendByte(255);
+		ub_update_last_activity_now(bus);
+		USART_SendByte(0);
+		ub_update_last_activity_now(bus);
+		USART_SendByte(bus->wi);
+		ub_update_last_activity_now(bus);
+		USART_SendByte(data);
+		ub_update_last_activity_now(bus);/**/
+		bus->wi = 3+rand()%10;
+		ub_update_last_activity_now(bus);
+
+		return true;
+	}
+	else
+	{
+		bus->wi = ~0;
+	}
+	
+	return false;
 }
 
 /**
@@ -377,6 +403,7 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 	}
 
 	bus->status = ub_stat_sending;
+	bus->wi = ~0;
 
 	uint8_t (*send)(struct uartbus* bus, uint8_t) = bus->do_send_byte;
 	int16_t (*rec)(struct uartbus* bus) = bus->do_receive_byte;
@@ -384,9 +411,22 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 	uint8_t stat;
 	for(uint16_t i=0;i<size;++i)
 	{
+		if(bus->cfg & ub_cfg_read_with_interrupt)
+		{
+			while(ub_stat_sending == bus->status && bus->wi != ~0)
+			{
+				ub_out_update_state(bus);
+			}
+		}
+		
+		if(ub_stat_sending != bus->status)
+		{
+			return -2;
+		}
 		uint8_t val = addr[i];
-		bus->to_send_size = i;
+		bus->wi = val;
 		stat = send(bus, val);
+
 		if(0 != stat)
 		{
 			if(stat < 0)
@@ -399,9 +439,11 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 		//update the last acitivity time
 		ub_update_last_activity_now(bus);
 
-		if(!(bus->cfg & ub_cfg_read_with_interrupt))//TODO rename read_after_sent to read_blocking
+		if(!(bus->cfg & ub_cfg_read_with_interrupt))
 		{
 			//read value back in blocking mode if configured.
+			//TODO test this case with the arduino bindings which uses blocking
+			//read
 			bus->do_receive_byte(bus);
 /*			if(ub_check_and_handle_collision(bus, ))
 			{
@@ -410,9 +452,6 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 		}
 	}
 	
-	
-	//if i comment out this assignment, the device gonna flood the bus.
-	//Therefore good for testing of frame separation by time.
 	bus->to_send_size = 0;
 	
 	return 0;

@@ -107,6 +107,10 @@ public class UartbusConsole
 			try
 			{
 				line = line.trim();
+				if(0 == line.length())
+				{
+					continue;
+				}
 				
 				if(line.startsWith(">"))
 				{

@@ -11,6 +11,7 @@
 #include "stdint.h"
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdlib.h>
 
 //TODO this arduino dependency maybe can be removed.
 #ifdef ARDUINO
@@ -98,12 +99,9 @@ struct uartbus
 	
 	uint8_t* to_send;
 	
-	//until the start of the transmission, this stores the size of the packet
-	//to send, but under transamission it contains the last transmitted
-	//byte's index
-	volatile uint16_t to_send_size;
+	uint16_t to_send_size;
 
-	enum uartbus_status status;
+	volatile enum uartbus_status status;
 
 	//time to transmit 1 byte in microsec, 11 byte reqires 11 bit to transmit
 	//in microsecounds
@@ -114,8 +112,8 @@ struct uartbus
 	//	9600	=> 1145
 	//	57600	=> 190
 	//	115200	=> 96
-	//TODO not used by the library
-	uint16_t byte_time_us;
+	//not used by the library
+	//uint16_t byte_time_us;
 
 	uint16_t cfg;
 
@@ -125,7 +123,9 @@ struct uartbus
 	//last bus activity in millisec (overflow may occurs)
 	uint32_t last_bus_activity;
 
-	uint8_t fairwait_state;
+	//in the state `sending` it contains the last transmitted byte's index
+	//in case of collision (enter to fairwait) it constains the extra wait time.
+	volatile uint16_t wi;
 };
 
 uint16_t ub_calc_baud_cycle_time(uint32_t baud);
