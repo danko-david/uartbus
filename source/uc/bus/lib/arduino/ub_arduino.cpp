@@ -9,7 +9,7 @@ static void arduino_ub_rec_byte(struct uartbus* bus, uint8_t data_byte)
 
 	if(a->receive_ep == a->receive_size)
 	{
-		//brake the package manually
+		//brake the packet manually
 		a->receive_ep = 0;
 	}
 	else
@@ -39,6 +39,7 @@ static uint8_t arduino_ub_do_send_byte(struct uartbus* bus, uint8_t val)
 static int16_t arduino_ub_receive_byte(struct uartbus* bus)
 {
 	struct uartbus_arduino* a = (struct uartbus_arduino*) bus->user_data;
+	//while(0 == a->stream->available());
 	return a->stream->read();
 }
 
@@ -88,7 +89,6 @@ void arduino_ub_init
 	bus->cfg = 0
 //		|	ub_cfg_fairwait_after_send_low
 		|	ub_cfg_fairwait_after_send_high
-		|	ub_cfg_read_after_send
 	;
 	ub_init(bus);
 }

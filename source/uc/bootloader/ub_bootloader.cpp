@@ -1,6 +1,6 @@
 #define F_CPU 16000000
 
-#define BAUD_RATE 19200
+#define BAUD_RATE 115200
 #define USART_BAUDRATE BAUD_RATE
 
 #define BAUD USART_BAUDRATE
@@ -739,8 +739,7 @@ void init_bus()
 	bus.cfg = 0
 		|	ub_cfg_fairwait_after_send_high
 //		|	ub_cfg_fairwait_after_send_low
-		|	ub_cfg_read_after_send
-		|	ub_cfg_external_read
+		|	ub_cfg_read_with_interrupt
 	;
 	ub_init(&bus);
 	bus_active = true;

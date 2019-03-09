@@ -67,11 +67,11 @@ enum uartbus_cfg
 	 * */
 	ub_cfg_fairwait_after_send_low	= 1,
 	ub_cfg_fairwait_after_send_high = 2,
-
-	ub_cfg_read_after_send			= 4,
-
-	ub_cfg_interrupt_bad_send		= 8,
-	ub_cfg_external_read			= 16,
+	
+	//TODO invalidated: use or not the external read but we must get the sent values
+	//back anyway
+	ub_cfg_read_with_interrupt		= 4,
+	//TODO invalidated: we handle the collision anyway
 };
 
 struct uartbus
@@ -95,6 +95,13 @@ struct uartbus
 		(struct uartbus* bus, uint8_t);
 
 	void* user_data;
+	
+	uint8_t* to_send;
+	
+	//until the start of the transmission, this stores the size of the packet
+	//to send, but under transamission it contains the last transmitted
+	//byte's index
+	volatile uint16_t to_send_size;
 
 	enum uartbus_status status;
 
@@ -107,6 +114,7 @@ struct uartbus
 	//	9600	=> 1145
 	//	57600	=> 190
 	//	115200	=> 96
+	//TODO not used by the library
 	uint16_t byte_time_us;
 
 	uint16_t cfg;

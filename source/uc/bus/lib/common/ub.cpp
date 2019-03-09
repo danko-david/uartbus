@@ -90,7 +90,7 @@
 		}
 
 		//avr
-		//TODO extract from: /usr/share/arduino/hardware/arduino/cores/arduino/wiring.c
+		//extracted from: /usr/share/arduino/hardware/arduino/cores/arduino/wiring.c
 		uint32_t micros()
 		{
 			unsigned long m;
@@ -309,15 +309,33 @@ __attribute__((noinline)) void ub_out_update_state(struct uartbus* bus)
 }
 
 /**
+ * return true on collision
+ */
+static bool ub_check_and_handle_collision(struct uartbus* bus, int16_t data)
+{
+	//TODO handle collision
+	//maybe we can insert random wait by modifing get_fairwait_conf_cycles
+	//to consider alternative wait cycle.
+	return data < 0 || data > 255 || (bus->to_send[bus->to_send_size] != data);
+}
+
+/**
  * Call this method from the outside to dispatch received byte (if it's come
  * from other device)
  * */
 __attribute__((noinline)) void ub_out_rec_byte(struct uartbus* bus, uint8_t data)
 {
 	enum uartbus_status status = bus->status;
+	
+	//we receive the data back that we sending now
 	if(ub_stat_sending == status)
 	{
-		//we receive the data back that we sending now
+		if(bus->cfg & ub_cfg_read_with_interrupt)
+		{
+			//we return anyway but maybe we handle the collision
+			ub_check_and_handle_collision(bus, data);
+		}
+
 		return;
 	}
 
@@ -364,9 +382,10 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 	int16_t (*rec)(struct uartbus* bus) = bus->do_receive_byte;
 
 	uint8_t stat;
-	for(int i=0;i<size;++i)
+	for(uint16_t i=0;i<size;++i)
 	{
 		uint8_t val = addr[i];
+		bus->to_send_size = i;
 		stat = send(bus, val);
 		if(0 != stat)
 		{
@@ -380,20 +399,22 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 		//update the last acitivity time
 		ub_update_last_activity_now(bus);
 
-		if(bus->cfg & ub_cfg_read_after_send)
+		if(!(bus->cfg & ub_cfg_read_with_interrupt))//TODO rename read_after_sent to read_blocking
 		{
-			//if rereaded value mismatch: interrupt if specified so in config
-			int16_t re = bus->do_receive_byte(bus);
-			if(((int16_t)re) != val)
+			//read value back in blocking mode if configured.
+			bus->do_receive_byte(bus);
+/*			if(ub_check_and_handle_collision(bus, ))
 			{
-				if(bus->cfg & ub_cfg_interrupt_bad_send)
-				{
-					return -2;
-				}
-			}
+				return -2;
+			}*/
 		}
 	}
-
+	
+	
+	//if i comment out this assignment, the device gonna flood the bus.
+	//Therefore good for testing of frame separation by time.
+	bus->to_send_size = 0;
+	
 	return 0;
 }
 
@@ -402,6 +423,8 @@ void ub_init(struct uartbus* bus)
 	//we are "connecting" (getting synchronized to the bus) and we go busy
 	//'till we ensure, there's no transmission on the bus or we capture one.
 	bus->status = ub_stat_connecting;
+	bus->to_send = NULL;
+	bus->to_send_size = 0;
 	ub_update_last_activity_now(bus);
 }
 
@@ -413,17 +436,12 @@ enum uartbus_status ub_get_bus_state(struct uartbus* bus)
 #ifndef DONT_USE_SOFT_FP
 uint16_t ub_calc_baud_cycle_time(uint32_t baud)
 {
-	float val = baud;
-	val = 11000000.0/val;
-	return val;
+	return 11000000/baud;
 }
 
 uint32_t ub_calc_timeout(uint32_t baud, uint8_t cycles)
 {
-	float val = baud;
-	val = (11000000.0/baud);
-	val *= cycles;
-	return val;
+	return (11000000/baud)*cycles;
 }
 #endif
 
@@ -450,7 +468,7 @@ __attribute__((noinline)) uint8_t ub_manage_connection
 	uint8_t (*send_on_idle)(struct uartbus*, uint8_t** data, uint16_t* size)
 )
 {
-	if(!(bus->cfg & ub_cfg_external_read))
+	if(!(bus->cfg & ub_cfg_read_with_interrupt))
 	{
 		ub_try_receive(bus);
 	}
@@ -470,14 +488,18 @@ __attribute__((noinline)) uint8_t ub_manage_connection
 	}*/
 	if(ub_stat_idle == bus->status)
 	{
-		uint8_t* data;
-		uint16_t size;
-		if(0 != send_on_idle(bus, &data, &size))
+		if(0 == bus->to_send_size)
 		{
-			return 0;
+			if(0 != send_on_idle(bus, &bus->to_send, (uint16_t*)&bus->to_send_size))
+			{
+				return 0;
+			}
 		}
-
-		return ub_send_packet(bus, data, size);
+		
+		if(0 != bus->to_send_size)
+		{
+			return ub_send_packet(bus, bus->to_send, bus->to_send_size);
+		}
 	}
 
 	return 0;
