@@ -1,5 +1,6 @@
 package eu.javaexperience.electronic.uartbus;
 
+import java.io.IOException;
 import java.math.BigInteger;
 import java.util.Arrays;
 
@@ -239,6 +240,11 @@ public class UartbusTools
 	
 	public static BigInteger unpackValue(boolean signed, byte[] data, int startIndex)
 	{
+		return unpackValue(signed, data, startIndex, null);
+	}
+	
+	public static BigInteger unpackValue(boolean signed, byte[] data, int startIndex, int[] usedBytes)
+	{
 		int ahead = 0;
 		try
 		{
@@ -288,7 +294,47 @@ public class UartbusTools
 			ret = ret.negate().subtract(BigInteger.ONE);
 		}
 		
+		if(null != usedBytes && usedBytes.length > 0)
+		{
+			usedBytes[0] = ahead+1;
+		}
+		
 		return ret;
+	}
+	
+	public static void appendElements(PacketAssembler pa, Object... elements) throws IOException
+	{
+		for(Object o:elements)
+		{
+			if(null == o)
+			{
+				throw new NullPointerException("Can't serialize null");
+			}
+			else if(o instanceof byte[])
+			{
+				pa.write((byte[]) o);
+			}
+			else if(o instanceof Byte)
+			{
+				pa.writeByte((Byte) o);
+			}
+			else if(o instanceof Number)
+			{
+				pa.writePackedValue(true, (Number) o);
+			}
+			else if(o instanceof String)
+			{
+				pa.writeString(o.toString());
+			}
+			else if(o.getClass().isEnum())
+			{
+				pa.writeByte(((Enum)o).ordinal());
+			}
+			else
+			{
+				throw new RuntimeException("Can't serialize packet component ("+(null == o?"null":o.getClass())+"): "+o);
+			}
+		}
 	}
 	
 	public static byte[] toPacket(int to, int from, Object... elements)
@@ -297,25 +343,7 @@ public class UartbusTools
 		{
 			PacketAssembler pa = res.getResource();
 			pa.writeAddressing(from, to);
-			for(Object o:elements)
-			{
-				if(o instanceof byte[])
-				{
-					pa.write((byte[]) o);
-				}
-				else if(o instanceof Number)
-				{
-					pa.writePackedValue(true, (Number) o);
-				}
-				else if(o instanceof String)
-				{
-					pa.writeString(o.toString());
-				}
-				else
-				{
-					throw new RuntimeException("Can't serialize packet component ("+(null == o?"null":o.getClass())+"): "+o);
-				}
-			}
+			appendElements(pa, elements);
 			
 			pa.appendCrc8();
 			return pa.done();
@@ -325,5 +353,15 @@ public class UartbusTools
 			Mirror.propagateAnyway(e);
 			return null;
 		}
+	}
+
+	public static byte[] getValidPacket(byte[] e)
+	{
+		if(e.length > 0 && UartbusTools.crc8(e, e.length-1) == e[e.length-1])
+		{
+			return Arrays.copyOf(e, e.length-1);
+		}
+		
+		return null;
 	}
 }

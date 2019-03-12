@@ -8,8 +8,8 @@ Transmission control queue:
 UART infrastruktúra:
 Bus kapcsolat:
 //	- Bus connector létrehozása
-		- Mega-ra is kellene egy külön build, úgy látszik a soft-uart
-			néha hibás adatot küld a host gépre. (Teszt)
+//		- Mega-ra is kellene egy külön build, úgy látszik a soft-uart
+//			néha hibás adatot küld a host gépre. (Teszt)
 //	- RPC szerver létrehozása
 //	- CLI Bus console létrehozása
 	- tranzakció azonoító foglaló, felszabadító rendszer.
@@ -28,15 +28,8 @@ Programozás:
 		- Ezt felküldjük a bus-on keresztül a mikrovezérlőre.
 		- CLI: ub upload -t 3 app.cpp
 
-
-Bus Object API:
-	- busz rendszerből egy azt reprezentáló objektumot képezzünk
-		(Factory amiből eszköz objektumok hozhatóak létre)
-	- A BusNodeObject-en biztosítson a bootloader funkcióinak hívhatóságát
-	- a direkt hívás mellett lehessen tranzakciós módban is hívni.
-	- Egyéni funkció hivási lehetőség:
-		- tipusok támogatása: byte, int, short, char*, float
-
+	- olyan hostba tölthető alkalmazás amivel mikrovezérlőt programozhatunk
+		ISP-n
 
 
 Bootloader TODO:
@@ -50,6 +43,14 @@ Bootloader TODO:
 //	- felülírható callback, alkalmazásnak szánt csomagok fogadására az
 //		alkalmazás programban, illetve feladó függvény mellékelése ami a
 //		bootloaderben foglal helyet
+	- firmware update módban host adatokat lehessen írni:
+		- eszköz UUID
+		- eszköz tipusa (avr, ARM, 8051, 65XX)
+		- eszköz modell száma (deviceId)
+		- eszköz alapértelmezett cím
+		- baud ráta
+		- alkalmazás azonosító
+		- alkalmazás hossza
 	- send queue
 	- eszköz cím legyen átállítható.
 	- funkciók exportálása a táblába (rand, manage_conntection, nyers küldés,
@@ -57,16 +58,38 @@ Bootloader TODO:
 		megszakítás kezelő regisztrálása/funkciók kikérése
 	- megszakítások gyüjtése és software-es elosztása
 
-Arduino TODO:
-	- Egyedi csomagolt címzés
+Uartbus java infrastrucure:
+	Cli TODO:
+		- ki/be kapcsolható csomag értelmező (ilyen formába 10>20|$data|$crc)
+			cli kapcsolóként és konzolon is.
+		- feliratkozás csatornára, csak azok az adatok 
+		- sokkal később: saac integrálása és horgok script könyvtárba mentve.
+	Bus Object API:
+		- busz rendszerből egy azt reprezentáló objektumot képezzünk
+			(Factory amiből eszköz objektumok hozhatóak létre)
+		- A BusNodeObject-en biztosítson a bootloader funkcióinak hívhatóságát
+		- a direkt hívás mellett lehessen tranzakciós módban is hívni.
+		- Egyéni funkció hivási lehetőség:
+			- tipusok támogatása: byte, int, short, char*, float
+
+
+RPC TODO:
+	- csak broadcast esetén dispatcheljünk a bootloader funkciói között.
+
+
+
+//	- Egyedi csomagolt címzés
 
 
 BUS TODO:
-	- helyes időzítések tesztelése (ping-pong oscilloscope rajzolata, 2 byte
-		idő legyen csak kihagyva az kérés és a válasz között)
-	- ütközés helyes kezelése (rand beépítése a host-ba)
-	- megzavart adás újraküldése (teszt: egymást pingelő uc-k, kamu feladó
-		csomag beszúrássa)
+//	- helyes időzítések tesztelése (ping-pong oscilloscope rajzolata, 2 byte
+//		idő legyen csak kihagyva az kérés és a válasz között)
+	- ütközés-idők hangolása
+//	- ütközés helyes kezelése (rand beépítése a host-ba)
+	- csomagbeszési teszt: (csomag beszúrása 1>2|1:0, így ők ketten elkezdenek
+		ping-pongozni)
+//	- megzavart adás újraküldése (teszt: egymást pingelő uc-k, kamu feladó
+//		csomag beszúrássa)
 //	- adó buffer hozzáadaás
 //	- feladásnál és vételnél mellékeljük/ellenőrizzük a CRC8-at
 //	- ub_manage_connection-ból a visszaolvasást opcionálisra szervezzük ki,
@@ -74,7 +97,7 @@ BUS TODO:
 
 --------
 	Arduino UARTBUS (struct arduino_uartbus testesíti meg)
-		Stream adható meg neki amibe ír, ez lehet a Serial[,1,2,3]
+//		Stream adható meg neki amibe ír, ez lehet a Serial[,1,2,3]
 	vagy
 		TODO SoftwareSerial
 --------	

@@ -4,7 +4,7 @@ public class UbRpcNsHandler<T>
 {
 	protected short ns;
 	
-	public T create(UartBusModel bus)
+	public T create(UartBus bus)
 	{
 		//TODO
 		return null;

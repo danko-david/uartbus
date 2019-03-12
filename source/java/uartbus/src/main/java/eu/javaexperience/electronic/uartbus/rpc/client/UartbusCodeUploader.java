@@ -42,10 +42,10 @@ public class UartbusCodeUploader
 		System.exit(1);
 	}
 	
-	protected static UartBusModel connect(String... args) throws IOException
+	protected static UartBus connect(String... args) throws IOException
 	{
 		Map<String, List<String>> pa = CliTools.parseCliOpts(args);
-		return UartBusModel.fromTcp
+		return UartBus.fromTcp
 		(
 			RPC_HOST.tryParseOrDefault(pa, "127.0.0.1"),
 			RPC_PORT.tryParseOrDefault(pa, 2112),

@@ -1,0 +1,10 @@
+package eu.javaexperience.electronic.uartbus.rpc.client.device;
+
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+
+@Retention(RetentionPolicy.RUNTIME)
+public @interface UbIndex
+{
+	public short ns();
+}

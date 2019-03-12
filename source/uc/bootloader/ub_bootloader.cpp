@@ -30,6 +30,8 @@ volatile bool app_run;
 volatile bool sos_signal;
 volatile uint8_t reset_flag;
 
+void ub_manage();
+
 /*
 // not being used but here for completeness
 // Wait until a byte has been received and return received data 
@@ -571,6 +573,8 @@ bool send_packet_priv(int16_t to, uint8_t NS, uint8_t* data, uint8_t size)
 		return false;
 	}
 	
+	ub_manage();
+	
 	uint8_t ep = 0;
 	int8_t add;
 	
@@ -588,15 +592,8 @@ bool send_packet_priv(int16_t to, uint8_t NS, uint8_t* data, uint8_t size)
 	
 	ep += add;
 	
-	/*send_data[0] = (uint8_t) ((to >> 8) & 0xff);
-	send_data[1] = (uint8_t) (to & 0xff);
-	send_data[2] = (uint8_t) ((BUS_ADDRESS >> 8) & 0xff);
-	send_data[3] = (uint8_t) (BUS_ADDRESS & 0xff);
-	send_data[4] = NS;*/
 	send_data[ep] = NS;
 	++ep;
-	
-	size = 0;
 	
 	for(int i=0;i<size;++i)
 	{
@@ -680,8 +677,13 @@ static void ub_event(struct uartbus* a, enum uartbus_event event)
 				
 				ep += add;
 				
-				req.payload = received_data+ep;
 				req.size = received_ep-ep-1;
+				
+				req.payload = (uint8_t*) alloca(req.size);// = received_data+ep;
+				for(int i=0;i<req.size;++i)
+				{
+					req.payload[i] = received_data[ep+i];
+				}
 				req.procPtr = 0;
 				
 				//is we are the target, or group/broadcast?
@@ -841,6 +843,10 @@ void busSignalOnline(uint8_t powerOnMode, uint8_t softMode)
 	send_packet_priv(-1, 0, (uint8_t*) p, sizeof(p));
 }
 
+void ub_manage()
+{
+	ub_manage_connection(&bus, send_on_idle);
+}
 
 //boolean bit
 #define bb(x, y) x?0x1 <<y:0
@@ -879,7 +885,7 @@ int main()
 		|
 			bb(app_deployed, 0)
 	);
-	ub_manage_connection(&bus, send_on_idle);
+	ub_manage();
 	
 	//wait a little bit, we might get some instruction from the bus before
 	//entering application mode
@@ -888,7 +894,7 @@ int main()
 	while(1)
 	{
 		wdt_reset();
-		ub_manage_connection(&bus, send_on_idle);
+		ub_manage();
 		
 
 		wdt_reset();
@@ -897,14 +903,13 @@ int main()
 			call_app();
 		}
 		
-		if(sos_signal)
+		/*if(sos_signal)
 		{
-			//blinkSos();//TODO sequence
-			if(afterMicro(&last_panic_signal_time, 2000000))
+			if(afterMicro(&last_panic_signal_time, 2000000))//2 sec
 			{
-				send_packet(-1, (uint8_t*) "WDT restart", 11);
+				send_packet_priv(-1, 0, (uint8_t*) "WDT restart", 12);
 			}
-		}
+		}*/
 	}
 }
 
