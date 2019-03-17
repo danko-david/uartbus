@@ -2,9 +2,11 @@ package eu.javaexperience.electronic.uartbus;
 
 import eu.javaexperience.electronic.IntelHexFile;
 import eu.javaexperience.electronic.build.GccBuilderContext;
+import eu.javaexperience.electronic.uartbus.cli.apps.UartbusCollisionPacketloss;
+import eu.javaexperience.electronic.uartbus.cli.apps.UartbusConsole;
+import eu.javaexperience.electronic.uartbus.cli.apps.UartbusPacketloss;
+import eu.javaexperience.electronic.uartbus.cli.apps.UartbusPing;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusRpcServer;
-import eu.javaexperience.electronic.uartbus.rpc.client.UartbusCliApps.UartbusPing;
-import eu.javaexperience.electronic.uartbus.rpc.client.UartbusConsole;
 import eu.javaexperience.generic.annotations.Ignore;
 import eu.javaexperience.rpc.JavaClassRpcUnboundFunctionsInstance;
 import eu.javaexperience.rpc.RpcFacility;
@@ -37,6 +39,16 @@ public class UartBusCli
 	public static void ping(String... args) throws Throwable
 	{
 		UartbusPing.main(args);
+	}
+	
+	public static void packetloss(String... args) throws Throwable
+	{
+		UartbusPacketloss.main(args);
+	}
+	
+	public static void collisionPacketloss(String... args) throws Throwable
+	{
+		UartbusCollisionPacketloss.main(args);
 	}
 	
 	public static void compile(String... args) throws Throwable

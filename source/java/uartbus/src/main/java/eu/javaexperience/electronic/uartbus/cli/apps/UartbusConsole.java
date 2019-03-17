@@ -1,4 +1,4 @@
-package eu.javaexperience.electronic.uartbus.rpc.client;
+package eu.javaexperience.electronic.uartbus.cli.apps;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -11,6 +11,7 @@ import eu.javaexperience.cli.CliTools;
 import eu.javaexperience.electronic.uartbus.PacketAssembler;
 import eu.javaexperience.electronic.uartbus.UartbusTools;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusConnection;
+import eu.javaexperience.electronic.uartbus.rpc.client.UartbusRpcClientTools;
 import eu.javaexperience.log.JavaExperienceLoggingFacility;
 import eu.javaexperience.log.Loggable;
 import eu.javaexperience.log.Logger;

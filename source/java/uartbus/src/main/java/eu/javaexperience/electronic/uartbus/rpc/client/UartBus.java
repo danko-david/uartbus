@@ -16,6 +16,7 @@ import eu.javaexperience.electronic.uartbus.rpc.client.device.UbDevStdNsRoot;
 import eu.javaexperience.exceptions.IllegalOperationException;
 import eu.javaexperience.interfaces.simple.publish.SimplePublish1;
 import eu.javaexperience.io.IOTools;
+import eu.javaexperience.measurement.MeasurementSerie;
 import eu.javaexperience.multithread.notify.WaitForSingleEvent;
 import eu.javaexperience.patterns.behavioral.mediator.EventMediator;
 
@@ -28,7 +29,7 @@ public class UartBus implements Closeable
 	protected Thread receiverThread;
 	protected int fromAddress;
 	
-	protected final EventMediator<ReceivedBusPacket> onNewValidPackageReceived = new EventMediator<>();
+	protected final EventMediator<ParsedUartBusPacket> onNewValidPackageReceived = new EventMediator<>();
 	
 	protected final LinkedList<UartbusTransaction> pendingRequests = new LinkedList<>();
 	
@@ -37,12 +38,12 @@ public class UartBus implements Closeable
 		byte[] data = UartbusTools.getValidPacket(e);
 		if(null != data)
 		{
-			System.out.println("receive: "+UartbusTools.formatColonData(data));
-			onNewValidPackageReceived.dispatchEvent(new ReceivedBusPacket(data));
+			//System.out.println("receive: "+UartbusTools.formatColonData(data));
+			onNewValidPackageReceived.dispatchEvent(new ParsedUartBusPacket(data, false));
 		}
 		else
 		{ 
-			System.out.println("wrongPacket: "+UartbusTools.formatColonData(e));
+			//System.out.println("wrongPacket: "+UartbusTools.formatColonData(e));
 		}
 	};
 	
@@ -83,36 +84,6 @@ public class UartBus implements Closeable
 		synchronized(pendingRequests)
 		{
 			return pendingRequests.remove(req);
-		}
-	}
-	
-	protected class ReceivedBusPacket
-	{
-		public final byte[] original;
-		public final int from;
-		public final int to;
-		public final byte[] payload;
-		
-		/**
-		 * payload without the crc8
-		 * */
-		public ReceivedBusPacket(byte[] data)
-		{
-			this.original = data;
-			
-			int[] read = new int[1];
-			int ep = 0;
-			this.to = UartbusTools.unpackValue(true, data, ep, read).intValue();
-			ep += read[0];
-			this.from = UartbusTools.unpackValue(true, data, ep, read).intValue();
-			ep += read[0];
-			
-			payload = Arrays.copyOfRange(data, ep, data.length);
-		}
-		
-		public PacketReader readPayload()
-		{
-			return new PacketReader(payload);
 		}
 	}
 	
@@ -177,7 +148,7 @@ public class UartBus implements Closeable
 			addPendingRequest(this);
 			
 			byte[] send = toPacket();
-			System.out.println("send: "+UartbusTools.formatColonData(send));
+			//System.out.println("send: "+UartbusTools.formatColonData(send));
 			//synchronized (conn)
 			{
 				try {
@@ -253,7 +224,7 @@ public class UartBus implements Closeable
 			wait.evenOcurred();
 		}
 		
-		public boolean tryAcceptResponse(ReceivedBusPacket a)
+		public boolean tryAcceptResponse(ParsedUartBusPacket a)
 		{
 			//check response by address
 			if(a.to == this.from && a.from == this.to && a.payload.length >= path.length)
@@ -319,44 +290,60 @@ public class UartBus implements Closeable
 	public static void main(String[] args) throws Throwable
 	{
 		UartBus bus = fromTcp("127.0.0.1", 2112, 63);
-		UartBusDevice dev = bus.device(0);
+		UartBusDevice dev = bus.device(1);
 		UbDevStdNsRoot root = dev.getRpcRoot();
 		
 		//root.getBusFunctions().ping();
 		
 		//root.getBootloaderFunctions().getPowerFunctions().hardwareReset();
 		
-		if(true)
+		/*if(true)
 		{
 			return;
-		}
+		}*/
 		
-		for(int i=0;i<200;++i)
+		
+		MeasurementSerie ser = new MeasurementSerie();
+		
+		
+		for(int m=0;m<20;++m)
 		{
-			//ensure host is online
-			root.getBusFunctions().ping();
-			
-			System.out.println("pong");
-			
-			/*UartbusTransaction reboot = bus.subscribeResponse(-1, 1, new byte[]{0});
-			root.getBootloaderFunctions().getPowerFunctions().hardwareReset();
-			//this waits until reboot complete
-			reboot.ensureResponse(3, TimeUnit.SECONDS);
-			System.out.println("reboot done");
-			//remove SOS and start app
-			System.out.println(root.getBootloaderFunctions().getVar(UbBootloaderVariable.IS_SIGNALING_SOS));
-			root.getBootloaderFunctions().setVar(UbBootloaderVariable.IS_SIGNALING_SOS, (byte) 0);
-			System.out.println(root.getBootloaderFunctions().getVar(UbBootloaderVariable.IS_SIGNALING_SOS));
-			
-			System.out.println(root.getBootloaderFunctions().getVar(UbBootloaderVariable.IS_APPLICATION_RUNNING));
-			root.getBootloaderFunctions().setVar(UbBootloaderVariable.IS_APPLICATION_RUNNING, (byte) 0x1);
-			System.out.println(root.getBootloaderFunctions().getVar(UbBootloaderVariable.IS_APPLICATION_RUNNING));
-			
-			System.out.println("external reset done");
-			*/
-			root.getBusFunctions().ping();
-			
-			System.out.println("TRANSACTION END");
+			try
+			{
+				for(int i=0;i<1000;++i)
+				{
+					//ensure host is online
+					root.getBusFunctions().ping();
+					
+					System.out.println(i+". pong");
+					Thread.sleep(5);
+					
+					/*UartbusTransaction reboot = bus.subscribeResponse(-1, 1, new byte[]{0});
+					root.getBootloaderFunctions().getPowerFunctions().hardwareReset();
+					//this waits until reboot complete
+					reboot.ensureResponse(3, TimeUnit.SECONDS);
+					System.out.println("reboot done");
+					//remove SOS and start app
+					System.out.println(root.getBootloaderFunctions().getVar(UbBootloaderVariable.IS_SIGNALING_SOS));
+					root.getBootloaderFunctions().setVar(UbBootloaderVariable.IS_SIGNALING_SOS, (byte) 0);
+					System.out.println(root.getBootloaderFunctions().getVar(UbBootloaderVariable.IS_SIGNALING_SOS));
+					
+					System.out.println(root.getBootloaderFunctions().getVar(UbBootloaderVariable.IS_APPLICATION_RUNNING));
+					root.getBootloaderFunctions().setVar(UbBootloaderVariable.IS_APPLICATION_RUNNING, (byte) 0x1);
+					System.out.println(root.getBootloaderFunctions().getVar(UbBootloaderVariable.IS_APPLICATION_RUNNING));
+					
+					System.out.println("external reset done");
+					*/
+					root.getBusFunctions().ping();
+					
+					System.out.println("TRANSACTION END");
+				}
+			}
+			catch(Exception e)
+			{
+				continue;
+			}
+			break;
 		}
 		System.exit(0);
 	}

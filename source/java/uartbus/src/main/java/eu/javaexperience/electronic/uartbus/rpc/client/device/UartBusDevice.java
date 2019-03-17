@@ -123,4 +123,10 @@ public class UartBusDevice
 		
 		return null;
 	}
+
+	public void setTimeout(long timeout, TimeUnit unit)
+	{
+		this.timeout = timeout;
+		this.timeoutUnit = unit;
+	}
 }
