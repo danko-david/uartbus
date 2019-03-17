@@ -82,8 +82,7 @@ void arduino_ub_init
 	
 	bus->serial_byte_received = arduino_ub_rec_byte;
 	bus->serial_event = arduino_ub_event;
-//	bus->byte_time_us = ub_calc_baud_cycle_time(baudRate);
-	bus->bus_idle_time = ub_calc_timeout(baudRate, 2);
+	ub_init_baud(bus, baudRate, 3);
 	bus->do_send_byte = arduino_ub_do_send_byte;
 	bus->do_receive_byte = arduino_ub_receive_byte;
 	bus->cfg = 0
