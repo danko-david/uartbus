@@ -179,6 +179,26 @@ static void inline ub_update_last_activity_now(struct uartbus* bus)
 	bus->last_bus_activity = ub_impl_get_current_usec();
 }
 
+static uint8_t get_fairwait_conf_cycles(struct uartbus* bus)
+{
+	uint8_t ret = 0;
+	if(bus->cfg & ub_cfg_fairwait_after_send_low)
+	{
+		ret = 0x1;
+	}
+
+	if(bus->cfg & ub_cfg_fairwait_after_send_high)
+	{
+		ret |= 0x2;
+	}
+	return ret;
+}
+
+static uint8_t get_packet_timeout_cycles(struct uartbus* bus)
+{
+	return 	bus->packet_timeout+bus->wi;
+}
+
 __attribute__((noinline)) static bool is_slice_exceed
 (
 	struct uartbus* bus,
@@ -194,27 +214,12 @@ __attribute__((noinline)) static bool is_slice_exceed
 	}
 
 	//check for overflow and calculate back
+	uint32_t to = ((uint32_t)bus->byte_time_us)*get_packet_timeout_cycles(bus);
 	if(now < last)
 	{
-		return now + (UINT32_MAX - last) >= bus->bus_idle_time;
+		return now + (UINT32_MAX - last) >= to;
 	}
-	return now-last >= bus->bus_idle_time;
-}
-
-static uint8_t get_fairwait_conf_cycles(struct uartbus* bus)
-{
-	uint8_t ret = 0;
-	if(bus->cfg & ub_cfg_fairwait_after_send_low)
-	{
-		ret = 0x1;
-	}
-
-	if(bus->cfg & ub_cfg_fairwait_after_send_high)
-	{
-		ret |= 0x2;
-	}
-
-	return (ret+1)*2+bus->wi;
+	return now-last >= to;
 }
 
 //https://www.ccsinfo.com/forum/viewtopic.php?t=37015
@@ -261,20 +266,20 @@ __attribute__((noinline)) void ub_out_update_state(struct uartbus* bus)
 		//we really go idle
 		if(ub_stat_sending == status || ub_stat_sending_fairwait == status)
 		{
-			uint8_t fw = get_fairwait_conf_cycles(bus);
+			uint8_t fw = get_packet_timeout_cycles(bus);
 			/*Serial.print("until: ");
 			Serial.print(bus->last_bus_activity);
 			Serial.print(" + ");
 			Serial.print(fw);
 			Serial.print(" * ");
-			Serial.print(bus->bus_idle_time);
+			Serial.print(bus->byte_time_us);
 			Serial.print(" = ");
-			Serial.print(bus->last_bus_activity + fw*bus->bus_idle_time);
+			Serial.print(bus->last_bus_activity + fw*bus->byte_time_us);
 			Serial.print(", now: ");
 			Serial.println(ub_impl_get_current_usec());*/
 			if
 			(
-					bus->last_bus_activity + fw*bus->bus_idle_time
+					bus->last_bus_activity + fw*bus->byte_time_us
 				>
 					ub_impl_get_current_usec()
 			)
@@ -316,7 +321,7 @@ void USART_SendByte(uint8_t u8Data);
 static bool ub_check_and_handle_collision(struct uartbus* bus, uint8_t data)
 {
 	//handle collision
-	//maybe we can insert random wait by modifing get_fairwait_conf_cycles
+	//maybe we can insert random wait by modifing get_packet_timeout_cycles
 	//to consider alternative wait cycle.
 	if(data < 0 || data > 255 || (bus->wi != data))
 	{
@@ -452,6 +457,9 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 		}
 	}
 	
+	//fairwait;
+	bus->wi = get_fairwait_conf_cycles(bus);
+	
 	bus->to_send_size = 0;
 	
 	return 0;
@@ -472,7 +480,6 @@ enum uartbus_status ub_get_bus_state(struct uartbus* bus)
 	return bus->status;
 }
 
-#ifndef DONT_USE_SOFT_FP
 uint16_t ub_calc_baud_cycle_time(uint32_t baud)
 {
 	return 11000000/baud;
@@ -482,7 +489,17 @@ uint32_t ub_calc_timeout(uint32_t baud, uint8_t cycles)
 {
 	return (11000000/baud)*cycles;
 }
-#endif
+
+void ub_init_baud
+(
+	struct uartbus* bus,
+	uint16_t baud,
+	uint8_t timeoutCycle
+)
+{
+	bus->byte_time_us = ub_calc_baud_cycle_time(baud);
+	bus->packet_timeout = timeoutCycle;
+}
 
 void ub_try_receive(struct uartbus* bus)
 {

@@ -113,12 +113,14 @@ struct uartbus
 	//	57600	=> 190
 	//	115200	=> 96
 	//not used by the library
-	//uint16_t byte_time_us;
-
-	uint16_t cfg;
+	uint16_t byte_time_us;
+	
+	uint8_t packet_timeout;
+	
+	uint8_t cfg;
 
 	//time to the bus go idle (time to no activity)
-	uint32_t bus_idle_time;
+	//uint32_t bus_idle_time;
 
 	//last bus activity in millisec (overflow may occurs)
 	uint32_t last_bus_activity;
@@ -158,8 +160,15 @@ uint8_t ub_manage_connection
 	uint8_t (*send_on_idle)(struct uartbus*, uint8_t** data, uint16_t* size)
 );
 
-#define static_ub_calc_baud_cycle_time(baud) ((uint16_t) (11000000.0/baud))
+void ub_init_baud
+(
+	struct uartbus* bus,
+	uint16_t baud,
+	uint8_t timeoutCycles
+);
 
-#define static_ub_calc_timeout(baud, cycles) ((uint32_t) ((11000000.0/baud)*cycles))
+/*#define static_ub_calc_baud_cycle_time(baud) ((uint16_t) (11000000.0/baud))
+
+#define static_ub_calc_timeout(baud, cycles) ((uint32_t) ((11000000.0/baud)*cycles))*/
 
 #endif /* UB_H_ */

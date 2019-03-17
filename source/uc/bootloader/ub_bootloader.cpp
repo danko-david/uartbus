@@ -643,6 +643,62 @@ void dispatch(struct rpc_request* req)
 */
 }
 
+volatile bool received = false;
+
+static void try_dispatch_received_packet()
+{
+	if(!received)
+	{
+		return;
+	}
+	
+	received = false;
+
+	//is the packet flawless?
+	if(crc8(received_data, received_ep-1) == received_data[received_ep-1])
+	{
+		//is size is acceptable?
+		if(received_ep > 3)
+		{
+			uint8_t ep = 0;
+			int8_t add = 0;
+			
+			//TODO rewrite to variable size addresses;
+			struct rpc_request req;
+			if((add = unpack_value(&req.to, received_data, received_ep-1)) < 1)
+			{
+				return;
+			}
+			
+			ep += add;
+			
+			if((add = unpack_value(&req.from, received_data+ep, received_ep-1-ep)) < 1)
+			{
+				return;
+			}
+			
+			ep += add;
+			
+			req.size = received_ep-ep-1;
+			
+			req.payload = (uint8_t*) alloca(req.size);// = received_data+ep;
+			for(int i=0;i<req.size;++i)
+			{
+				req.payload[i] = received_data[ep+i];
+			}
+			req.procPtr = 0;
+			
+			//is we are the target, or group/broadcast?
+			if(req.to < 1 || BUS_ADDRESS == req.to)
+			{
+				dispatch(&req);
+			}
+		}
+	}
+	
+	received_ep = 0;
+}
+
 static void ub_event(struct uartbus* a, enum uartbus_event event)
 {
 	if(ub_event_receive_end == event)
@@ -651,50 +707,8 @@ static void ub_event(struct uartbus* a, enum uartbus_event event)
 		{
 			return;
 		}
-
-		//is the packet flawless?
-		if(crc8(received_data, received_ep-1) == received_data[received_ep-1])
-		{
-			//is size is acceptable?
-			if(received_ep > 3)
-			{
-				uint8_t ep = 0;
-				int8_t add = 0;
-				
-				//TODO rewrite to variable size addresses;
-				struct rpc_request req;
-				if((add = unpack_value(&req.to, received_data, received_ep-1)) < 1)
-				{
-					return;
-				}
-				
-				ep += add;
-				
-				if((add = unpack_value(&req.from, received_data+ep, received_ep-1-ep)) < 1)
-				{
-					return;
-				}
-				
-				ep += add;
-				
-				req.size = received_ep-ep-1;
-				
-				req.payload = (uint8_t*) alloca(req.size);// = received_data+ep;
-				for(int i=0;i<req.size;++i)
-				{
-					req.payload[i] = received_data[ep+i];
-				}
-				req.procPtr = 0;
-				
-				//is we are the target, or group/broadcast?
-				if(req.to < 1 || BUS_ADDRESS == req.to)
-				{
-					dispatch(&req);
-				}
-			}
-		}
 		
-		received_ep = 0;
+		received = true;
 	}
 }
 
@@ -737,8 +751,7 @@ void init_bus()
 
 	bus.serial_byte_received = ub_rec_byte;
 	bus.serial_event = ub_event;
-//	bus.byte_time_us = static_ub_calc_baud_cycle_time(BAUD_RATE);
-	bus.bus_idle_time = static_ub_calc_timeout(BAUD_RATE, 3);
+	ub_init_baud(&bus, BAUD_RATE, 3);
 	bus.do_send_byte = ub_do_send_byte;
 //	bus.do_receive_byte = ub_receive_byte;
 	bus.cfg = 0
@@ -846,6 +859,7 @@ void busSignalOnline(uint8_t powerOnMode, uint8_t softMode)
 void ub_manage()
 {
 	ub_manage_connection(&bus, send_on_idle);
+	try_dispatch_received_packet();
 }
 
 //boolean bit
