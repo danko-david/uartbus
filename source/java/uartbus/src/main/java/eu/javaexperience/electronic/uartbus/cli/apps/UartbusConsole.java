@@ -3,6 +3,7 @@ package eu.javaexperience.electronic.uartbus.cli.apps;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -15,6 +16,7 @@ import eu.javaexperience.electronic.uartbus.rpc.client.UartbusRpcClientTools;
 import eu.javaexperience.log.JavaExperienceLoggingFacility;
 import eu.javaexperience.log.Loggable;
 import eu.javaexperience.log.Logger;
+import eu.javaexperience.text.Format;
 import eu.javaexperience.text.StringTools;
 import static eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools.*;
 
@@ -43,7 +45,8 @@ public class UartbusConsole
 		FROM,
 		TO,
 		DATA,
-		EXIT
+		EXIT,
+		LOG_TIME
 	};
 	
 	public static void printHelpAndExit(int exit)
@@ -65,6 +68,8 @@ public class UartbusConsole
 		
 		int from = FROM.tryParseOrDefault(pa, -1);
 		int to = TO.tryParseOrDefault(pa, -1);
+		
+		boolean logTimes = LOG_TIME.hasOption(pa);
 		
 		//TODO recfator to proper untangled RPC call
 		UartbusConnection conn = UartbusRpcClientTools.connectTcp
@@ -96,7 +101,19 @@ public class UartbusConsole
 			(e) ->
 			{
 				boolean valid = UartbusTools.crc8(e, e.length-1) == e[e.length-1];
-				System.out.println((valid?"":"!")+UartbusTools.formatColonData(e));
+				StringBuilder sb = new StringBuilder();
+				if(logTimes)
+				{
+					sb.append(">[");
+					sb.append(getTime());
+					sb.append("] ");
+				}
+				if(!valid)
+				{
+					sb.append("!");
+				}
+				sb.append(UartbusTools.formatColonData(e));
+				System.out.println(sb.toString());
 			}
 		);
 		
@@ -154,12 +171,16 @@ public class UartbusConsole
 				{
 					byte[] data = null;
 					
-						data = UartbusTools.parseColonData(line);
-						
-						asm.writeAddressing(from, to);
-						asm.write(data);
-						asm.appendCrc8();
-						conn.sendPacket(asm.done());
+					data = UartbusTools.parseColonData(line);
+					
+					asm.writeAddressing(from, to);
+					asm.write(data);
+					asm.appendCrc8();
+					conn.sendPacket(asm.done());
+					if(logTimes)
+					{
+						System.out.println("<["+getTime()+"]");
+					}
 				}
 			}
 			catch(Exception e)
@@ -168,6 +189,11 @@ public class UartbusConsole
 				unrecognisedCmd(line);
 			}
 		}
+	}
+	
+	protected static String getTime()
+	{
+		return Format.UTC_SQL_TIMESTAMP_MS.format(new Date());
 	}
 	
 	protected static void unrecognisedCmd(String line)

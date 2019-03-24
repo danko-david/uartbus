@@ -327,16 +327,6 @@ static bool ub_check_and_handle_collision(struct uartbus* bus, uint8_t data)
 	{
 		bus->status = ub_stat_sending_fairwait;
 		
-/*		bus->to_send_size = 0;
-		ub_update_last_activity_now(bus);
-		USART_SendByte(255);
-		ub_update_last_activity_now(bus);
-		USART_SendByte(0);
-		ub_update_last_activity_now(bus);
-		USART_SendByte(bus->wi);
-		ub_update_last_activity_now(bus);
-		USART_SendByte(data);
-		ub_update_last_activity_now(bus);/**/
 		bus->wi = 3+rand()%10;
 		ub_update_last_activity_now(bus);
 
@@ -458,6 +448,8 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 	}
 	
 	//fairwait;
+	//enter fairwait now, this prevent over-waiting on the bus.
+	bus->status = ub_stat_sending_fairwait;
 	bus->wi = get_fairwait_conf_cycles(bus);
 	
 	bus->to_send_size = 0;

@@ -46,4 +46,11 @@ public class UartbusCliTools
 		"Working directory",
 		"d", "-working-directory"
 	);
+	
+	public static final CliEntry<Boolean> LOG_TIME = CliEntry.createFirstArgParserEntry
+	(
+		(e) -> true,
+		"Log times",
+		"l", "-log-times"
+	);
 }

@@ -121,13 +121,20 @@ public class UartbusCollisionPacketloss
 			RPC_PORT.tryParseOrDefault(pa, 2112),
 			(e) ->
 			{
-				if(UartbusTools.crc8(e, e.length-1) == e[e.length-1])
+				try
 				{
-					ParsedUartBusPacket packet = new ParsedUartBusPacket(e, true);
-					if(packet.to == from)
+					if(e.length > 1 && UartbusTools.crc8(e, e.length-1) == e[e.length-1])
 					{
-						MapTools.incrementCount(stat, packet.from);
+						ParsedUartBusPacket packet = new ParsedUartBusPacket(e, true);
+						if(packet.to == from)
+						{
+							MapTools.incrementCount(stat, packet.from);
+						}
 					}
+				}
+				catch(Exception ex)
+				{
+					ex.printStackTrace();
 				}
 			}
 		);
