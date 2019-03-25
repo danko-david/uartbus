@@ -125,9 +125,9 @@ struct uartbus
 	//last bus activity in millisec (overflow may occurs)
 	uint32_t last_bus_activity;
 
-	//in the state `sending` it contains the last transmitted byte's index
+	//in the state `sending` it contains the last transmitted byte
 	//in case of collision (enter to fairwait) it constains the extra wait time.
-	volatile uint16_t wi;
+	volatile int16_t wi;
 };
 
 uint16_t ub_calc_baud_cycle_time(uint32_t baud);

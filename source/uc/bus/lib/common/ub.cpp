@@ -196,7 +196,7 @@ static uint8_t get_fairwait_conf_cycles(struct uartbus* bus)
 
 static uint8_t get_packet_timeout_cycles(struct uartbus* bus)
 {
-	return 	bus->packet_timeout+bus->wi;
+	return bus->packet_timeout+bus->wi;
 }
 
 __attribute__((noinline)) static bool is_slice_exceed
@@ -212,9 +212,22 @@ __attribute__((noinline)) static bool is_slice_exceed
 	{
 		bus->last_bus_activity = now;
 	}
+	
+	uint8_t mul = 0;
+	
+	enum uartbus_status status = bus->status;
+	
+	if(ub_stat_receiving == status || ub_stat_sending == status)
+	{
+		mul = get_packet_timeout_cycles(bus);
+	}
+	else if(ub_stat_sending_fairwait == status)
+	{
+		mul = bus->wi;
+	}
 
 	//check for overflow and calculate back
-	uint32_t to = ((uint32_t)bus->byte_time_us)*get_packet_timeout_cycles(bus);
+	uint32_t to = ((uint32_t)bus->byte_time_us)*mul;
 	if(now < last)
 	{
 		return now + (UINT32_MAX - last) >= to;
@@ -264,19 +277,23 @@ __attribute__((noinline)) void ub_out_update_state(struct uartbus* bus)
 	{
 		//if we transmitted previously and cycles time exceed to go idle
 		//we really go idle
-		if(ub_stat_sending == status || ub_stat_sending_fairwait == status)
+		if(ub_stat_sending == status)
 		{
-			uint8_t fw = get_packet_timeout_cycles(bus);
-			/*Serial.print("until: ");
-			Serial.print(bus->last_bus_activity);
-			Serial.print(" + ");
-			Serial.print(fw);
-			Serial.print(" * ");
-			Serial.print(bus->byte_time_us);
-			Serial.print(" = ");
-			Serial.print(bus->last_bus_activity + fw*bus->byte_time_us);
-			Serial.print(", now: ");
-			Serial.println(ub_impl_get_current_usec());*/
+			if(0 == get_fairwait_conf_cycles(bus))
+			{
+				bus->status = ub_stat_idle;
+			}
+			else
+			{
+				bus->status = ub_stat_sending_fairwait;
+			}
+			
+			ub_update_last_activity_now(bus);
+			return;
+		}
+		if(/*ub_stat_sending == status ||*/ ub_stat_sending_fairwait == status)
+		{
+			/*uint8_t fw = get_packet_timeout_cycles(bus);
 			if
 			(
 					bus->last_bus_activity + fw*bus->byte_time_us
@@ -287,7 +304,7 @@ __attribute__((noinline)) void ub_out_update_state(struct uartbus* bus)
 				bus->status = ub_stat_sending_fairwait;
 				return;
 			}
-			
+			*/
 			ub_update_last_activity_now(bus);
 			bus->status = ub_stat_idle;
 
@@ -302,8 +319,13 @@ __attribute__((noinline)) void ub_out_update_state(struct uartbus* bus)
 			//if there's no more byte to receive, of course we will not
 			//notified by the ub_out_rec_byte function, so we use this function
 			//to notify the client
-			bus->status = ub_stat_idle;
+			//bus->status = ub_stat_idle;
 			bus->serial_event(bus, ub_event_receive_end);
+			
+			//insert a short one byte wait to prevent packet time frame
+			//concateration
+			bus->wi = 1;//-(bus->packet_timeout-1);
+			bus->status = ub_stat_sending_fairwait;
 		}
 
 		if(ub_stat_connecting == status)

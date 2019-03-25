@@ -754,8 +754,8 @@ void init_bus()
 	ub_init_baud(&bus, BAUD_RATE, 3);
 	bus.do_send_byte = ub_do_send_byte;
 	bus.cfg = 0
-//		|	ub_cfg_fairwait_after_send_high
-		|	ub_cfg_fairwait_after_send_low
+		|	ub_cfg_fairwait_after_send_high
+//		|	ub_cfg_fairwait_after_send_low
 		|	ub_cfg_read_with_interrupt
 	;
 	ub_init(&bus);
