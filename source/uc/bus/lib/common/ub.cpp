@@ -213,7 +213,7 @@ __attribute__((noinline)) static bool is_slice_exceed
 		bus->last_bus_activity = now;
 	}
 	
-	uint8_t mul = 0;
+	uint8_t mul = 1;
 	
 	enum uartbus_status status = bus->status;
 	
@@ -270,6 +270,10 @@ uint8_t crc8(uint8_t* data, uint8_t length)
 __attribute__((noinline)) void ub_out_update_state(struct uartbus* bus)
 {
 	enum uartbus_status status = bus->status;
+	if(ub_stat_idle == status)
+	{
+		return;
+	}
 
 	bool exceed = is_slice_exceed(bus, false);
 
@@ -473,8 +477,10 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 	
 	//fairwait;
 	//enter fairwait now, this prevent over-waiting on the bus.
-	//bus->status = ub_stat_sending_fairwait;
-	//bus->wi = get_fairwait_conf_cycles(bus);
+	//enter to fairwait and set wait, if we keep in sending state we might miss
+	//ths start of the packet we gonna receive from ther device
+	bus->status = ub_stat_sending_fairwait;
+	bus->wi = get_fairwait_conf_cycles(bus)+1;
 	
 	bus->to_send_size = 0;
 	
