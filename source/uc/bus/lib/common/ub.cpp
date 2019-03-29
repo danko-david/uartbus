@@ -279,12 +279,14 @@ __attribute__((noinline)) void ub_out_update_state(struct uartbus* bus)
 		//we really go idle
 		if(ub_stat_sending == status)
 		{
-			if(0 == get_fairwait_conf_cycles(bus))
+			uint8_t fw = get_fairwait_conf_cycles(bus);
+			if(0 == fw)
 			{
 				bus->status = ub_stat_idle;
 			}
 			else
 			{
+				bus->wi = fw;
 				bus->status = ub_stat_sending_fairwait;
 			}
 			
