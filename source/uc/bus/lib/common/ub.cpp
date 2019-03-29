@@ -270,6 +270,10 @@ uint8_t crc8(uint8_t* data, uint8_t length)
 __attribute__((noinline)) void ub_out_update_state(struct uartbus* bus)
 {
 	enum uartbus_status status = bus->status;
+	if(ub_stat_idle == status)
+	{
+		return;
+	}
 
 	if(ub_stat_idle == status)
 	{
@@ -282,7 +286,7 @@ __attribute__((noinline)) void ub_out_update_state(struct uartbus* bus)
 	{
 		//if we transmitted previously and cycles time exceed to go idle
 		//we really go idle
-		if(ub_stat_sending == status)
+/*		if(ub_stat_sending == status)
 		{
 			uint8_t fw = get_packet_timeout_cycles(bus);
 			if(0 == fw)
@@ -298,7 +302,7 @@ __attribute__((noinline)) void ub_out_update_state(struct uartbus* bus)
 			ub_update_last_activity_now(bus);
 			return;
 		}
-
+*/
 		if(/*ub_stat_sending == status ||*/ ub_stat_sending_fairwait == status)
 		{
 			/*uint8_t fw = get_packet_timeout_cycles(bus);
@@ -480,6 +484,8 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 
 	//fairwait;
 	//enter fairwait now, this prevent over-waiting on the bus.
+	//enter to fairwait and set wait, if we keep in sending state we might miss
+	//ths start of the packet we gonna receive from ther device
 	bus->status = ub_stat_sending_fairwait;
 	bus->wi = get_fairwait_conf_cycles(bus)+1;
 
