@@ -212,11 +212,11 @@ __attribute__((noinline)) static bool is_slice_exceed
 	{
 		bus->last_bus_activity = now;
 	}
-	
-	uint8_t mul = 0;
-	
+
+	uint8_t mul = 1;
+
 	enum uartbus_status status = bus->status;
-	
+
 	if(ub_stat_receiving == status || ub_stat_sending == status)
 	{
 		mul = get_packet_timeout_cycles(bus);
@@ -271,6 +271,11 @@ __attribute__((noinline)) void ub_out_update_state(struct uartbus* bus)
 {
 	enum uartbus_status status = bus->status;
 
+	if(ub_stat_idle == status)
+	{
+		return;
+	}
+
 	bool exceed = is_slice_exceed(bus, false);
 
 	if(exceed)
@@ -279,18 +284,21 @@ __attribute__((noinline)) void ub_out_update_state(struct uartbus* bus)
 		//we really go idle
 		if(ub_stat_sending == status)
 		{
-			if(0 == get_fairwait_conf_cycles(bus))
+			uint8_t fw = get_packet_timeout_cycles(bus);
+			if(0 == fw)
 			{
 				bus->status = ub_stat_idle;
 			}
 			else
 			{
+				bus->wi = fw;
 				bus->status = ub_stat_sending_fairwait;
 			}
-			
+
 			ub_update_last_activity_now(bus);
 			return;
 		}
+
 		if(/*ub_stat_sending == status ||*/ ub_stat_sending_fairwait == status)
 		{
 			/*uint8_t fw = get_packet_timeout_cycles(bus);
@@ -321,11 +329,12 @@ __attribute__((noinline)) void ub_out_update_state(struct uartbus* bus)
 			//to notify the client
 			//bus->status = ub_stat_idle;
 			bus->serial_event(bus, ub_event_receive_end);
-			
+
 			//insert a short one byte wait to prevent packet time frame
 			//concateration
 			bus->wi = 1;//-(bus->packet_timeout-1);
 			bus->status = ub_stat_sending_fairwait;
+			ub_update_last_activity_now(bus);
 		}
 
 		if(ub_stat_connecting == status)
@@ -468,14 +477,14 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 			}*/
 		}
 	}
-	
+
 	//fairwait;
 	//enter fairwait now, this prevent over-waiting on the bus.
 	bus->status = ub_stat_sending_fairwait;
-	bus->wi = get_fairwait_conf_cycles(bus);
-	
+	bus->wi = get_fairwait_conf_cycles(bus)+1;
+
 	bus->to_send_size = 0;
-	
+
 	return 0;
 }
 
