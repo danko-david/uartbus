@@ -471,8 +471,8 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 	
 	//fairwait;
 	//enter fairwait now, this prevent over-waiting on the bus.
-	bus->status = ub_stat_sending_fairwait;
-	bus->wi = get_fairwait_conf_cycles(bus);
+	//bus->status = ub_stat_sending_fairwait;
+	//bus->wi = get_fairwait_conf_cycles(bus);
 	
 	bus->to_send_size = 0;
 	
