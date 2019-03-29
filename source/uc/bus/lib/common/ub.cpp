@@ -196,7 +196,7 @@ static uint8_t get_fairwait_conf_cycles(struct uartbus* bus)
 
 static uint8_t get_packet_timeout_cycles(struct uartbus* bus)
 {
-	return bus->packet_timeout+bus->wi;
+	return bus->packet_timeout;
 }
 
 __attribute__((noinline)) static bool is_slice_exceed
@@ -286,24 +286,8 @@ __attribute__((noinline)) void ub_out_update_state(struct uartbus* bus)
 	{
 		//if we transmitted previously and cycles time exceed to go idle
 		//we really go idle
-/*		if(ub_stat_sending == status)
-		{
-			uint8_t fw = get_packet_timeout_cycles(bus);
-			if(0 == fw)
-			{
-				bus->status = ub_stat_idle;
-			}
-			else
-			{
-				bus->wi = fw;
-				bus->status = ub_stat_sending_fairwait;
-			}
 
-			ub_update_last_activity_now(bus);
-			return;
-		}
-*/
-		if(/*ub_stat_sending == status ||*/ ub_stat_sending_fairwait == status)
+		if(ub_stat_sending_fairwait == status)
 		{
 			/*uint8_t fw = get_packet_timeout_cycles(bus);
 			if
@@ -362,7 +346,7 @@ static bool ub_check_and_handle_collision(struct uartbus* bus, uint8_t data)
 	{
 		bus->status = ub_stat_sending_fairwait;
 		
-		bus->wi = 3+rand()%10;
+		bus->wi = get_packet_timeout_cycles(bus)+3+rand()%10;
 		ub_update_last_activity_now(bus);
 
 		return true;
@@ -487,7 +471,7 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 	//enter to fairwait and set wait, if we keep in sending state we might miss
 	//ths start of the packet we gonna receive from ther device
 	bus->status = ub_stat_sending_fairwait;
-	bus->wi = get_fairwait_conf_cycles(bus)+1;
+	bus->wi = get_packet_timeout_cycles(bus)+get_fairwait_conf_cycles(bus)+1;
 
 	bus->to_send_size = 0;
 
