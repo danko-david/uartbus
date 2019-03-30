@@ -110,6 +110,27 @@ void USART_SendByte(uint8_t u8Data)
 bool send_packet(int16_t to, uint8_t* data, uint16_t size);
 bool send_packet_priv(int16_t to, uint8_t ns, uint8_t* data, uint8_t size);
 
+int16_t rpc_response(struct rpc_request* req, uint8_t args, struct response_part** parts)
+{
+	int neg = req->procPtr-1;
+	
+	int size = rpc_append_size(args, parts);
+	if(size < 0)
+	{
+		return size;
+	}
+	
+	uint8_t* d = (uint8_t*) alloca(size+neg);
+	
+	for(uint8_t i=0;i<neg;++i)
+	{
+		d[i] = req->payload[i+1];
+	}
+	
+	rpc_append_arr(d+neg, size, args, parts);
+	
+	return send_packet_priv(req->from, req->payload[0], d, size+neg);
+}
 
 int8_t pack_value(int16_t v, uint8_t* arr, int size)
 {
@@ -510,12 +531,6 @@ void* RPC_FUNCTIONS_TRANSACTION[] =
 	(void*) 0,
 };
 
-/************************ On board debug functionalities **********************/
-
-void* RPC_FUNCTIONS_TRANSMISSION[] =
-{
-	(void*) 0,
-};
 
 /************************* RPC namespace  dispatch ****************************/
 
@@ -527,8 +542,6 @@ void* RPC_NS_FUNCTIONS[] =
 	RPC_FUNCTIONS_BOOTLOADER,
 	RPC_FUNCTIONS_DEBUG,
 	RPC_FUNCTIONS_TRANSACTION,//transaction management
-	RPC_FUNCTIONS_TRANSMISSION
-
 };
 
 void dispatch_root(struct rpc_request* req)
@@ -665,6 +678,7 @@ static void try_dispatch_received_packet()
 			
 			//TODO rewrite to variable size addresses;
 			struct rpc_request req;
+			req.reply = rpc_response;
 			if((add = unpack_value(&req.to, received_data, received_ep-1)) < 1)
 			{
 				return;
