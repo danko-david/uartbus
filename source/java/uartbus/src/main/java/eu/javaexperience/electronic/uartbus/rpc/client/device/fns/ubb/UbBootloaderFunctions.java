@@ -2,6 +2,7 @@ package eu.javaexperience.electronic.uartbus.rpc.client.device.fns.ubb;
 
 import eu.javaexperience.electronic.uartbus.rpc.client.device.UbDeviceNs;
 import eu.javaexperience.electronic.uartbus.rpc.client.device.UbIndex;
+import eu.javaexperience.electronic.uartbus.rpc.client.device.UbRetransmittable;
 
 public interface UbBootloaderFunctions extends UbDeviceNs
 {
@@ -17,6 +18,7 @@ public interface UbBootloaderFunctions extends UbDeviceNs
 	public UbbPowerFunctions getPowerFunctions();
 	
 	@UbIndex(ns=1)
+	@UbRetransmittable
 	public byte getVar(UbBootloaderVariable var);
 	
 	@UbIndex(ns=2)
@@ -24,6 +26,7 @@ public interface UbBootloaderFunctions extends UbDeviceNs
 	
 	//TODO return value
 	@UbIndex(ns=3)
+	@UbRetransmittable
 	public void readProgramCode(long address);
 	
 	@UbIndex(ns=4)

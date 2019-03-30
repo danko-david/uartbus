@@ -1,6 +1,16 @@
 package eu.javaexperience.electronic.uartbus.rpc;
 
+import static eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools.FROM;
+import static eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools.RPC_HOST;
+import static eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools.RPC_PORT;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+
 import eu.javaexperience.cli.CliEntry;
+import eu.javaexperience.cli.CliTools;
+import eu.javaexperience.electronic.uartbus.rpc.client.UartBus;
 
 public class UartbusCliTools
 {
@@ -53,4 +63,15 @@ public class UartbusCliTools
 		"Log times",
 		"l", "-log-times"
 	);
+	
+	public static UartBus cliBusConnect(Map<String, List<String>> cliArgs) throws IOException
+	{
+		return UartBus.fromTcp
+		(
+			RPC_HOST.tryParseOrDefault(cliArgs, "127.0.0.1"),
+			RPC_PORT.tryParseOrDefault(cliArgs, 2112),
+			FROM.tryParseOrDefault(cliArgs, 63)
+		);
+	}
+	
 }

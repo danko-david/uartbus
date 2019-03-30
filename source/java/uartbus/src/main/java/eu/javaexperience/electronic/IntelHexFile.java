@@ -1,5 +1,6 @@
 package eu.javaexperience.electronic;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -60,6 +61,12 @@ public class IntelHexFile
 			}
 			
 			return (byte) (((ret)^0xff)+1);
+		}
+		
+		@Override
+		public String toString()
+		{
+			return "IntelHexLine: :"+Format.toHex(raw);
 		}
 		
 		int lenght;
@@ -152,5 +159,82 @@ public class IntelHexFile
 			IntelHexFile f = IntelHexFile.loadFile(file);
 			System.out.println(f.getDataSize()+" bytes");
 		}
+	}
+	
+	public static class CodeSegment
+	{
+		public long startAddress;
+		public long endAddress;
+		public byte[] data;
+		
+		public CodeSegment(long startAddress)
+		{
+			this.endAddress = this.startAddress = startAddress;
+			baos = new ByteArrayOutputStream();
+		}
+		
+		protected ByteArrayOutputStream baos;
+		
+		public void appendCode(byte[] data) throws IOException
+		{
+			baos.write(data);
+			endAddress += data.length;
+		}
+		
+		public boolean isMiddleOf(long addr)
+		{
+			return startAddress < addr && addr < endAddress;
+		}
+		
+		public void endCodeWrite()
+		{
+			data = baos.toByteArray();
+			baos = null;
+		}
+	}
+
+	public List<CodeSegment> getCode() throws IOException
+	{
+		List<CodeSegment> ret = new ArrayList<>();
+		for(IntelHexLine l:lines.getReadOnly())
+		{
+			if(1 == l.recordType)
+			{
+				break;
+			}
+			
+			if(0 != l.recordType)
+			{
+				throw new RuntimeException("Unknown intel hexfile record: "+l.recordType);
+			}
+			
+			long s = l.address;
+			
+			
+			CodeSegment seg = null;
+			for(CodeSegment cs: ret)
+			{
+				if(cs.isMiddleOf(s))
+				{
+					throw new RuntimeException("Data intersect with the previous code: "+l.toString());
+				}
+			}
+			
+			if(null == seg)
+			{
+				seg = new CodeSegment(s);
+				ret.add(seg);
+			}
+			
+			seg.appendCode(l.data);
+			
+		}
+		
+		for(CodeSegment cs:ret)
+		{
+			cs.endCodeWrite();
+		}
+		
+		return ret;
 	}
 }

@@ -18,8 +18,9 @@ public class UartBusDevice
 	protected UartBus bus;
 	protected int address;
 	
-	public long timeout = 3;
+	public long timeout = 1;
 	public TimeUnit timeoutUnit = TimeUnit.SECONDS;
+	public int retryCount = 3;
 
 	protected final ProxyHelpedLazyImplementation<UbDeviceNs, UbDeviceNsLazyImpl, UbDevStdNsRoot> handler;
 	
@@ -107,21 +108,40 @@ public class UartBusDevice
 		}
 		
 		Type ret = method.getReturnType();
-		try(UartbusTransaction tr = bus.newTransaction(address, path, pa.done()))
+		TransactionException trex = null;
+		boolean mayRetransmit = null != method.getAnnotation(UbRetransmittable.class);
+		for(int i=0;i<retryCount;++i)
 		{
-			if(NoReturn.class != ret)
+			try(UartbusTransaction tr = bus.newTransaction(address, path, pa.done()))
 			{
-				byte[] res = tr.ensureResponse(timeout, timeoutUnit, method.toString());
+				if(NoReturn.class == ret)
+				{
+					return null;
+				}
 				
-				return UbRpcTools.extractOrThrowResult
-				(
-					ret,
-					Arrays.copyOfRange(res, path.length, res.length)
-				);
+				try
+				{
+					byte[] res = tr.ensureResponse(timeout, timeoutUnit, method.toString());
+					
+					return UbRpcTools.extractOrThrowResult
+					(
+						ret,
+						Arrays.copyOfRange(res, path.length, res.length)
+					);
+				}
+				catch(TransactionException ex)
+				{
+					if(!mayRetransmit)
+					{
+						throw ex;
+					}
+					trex = ex;
+				}
 			}
 		}
-		
-		return null;
+		TransactionException te = new TransactionException("Device not responded after "+retryCount+" attempt.");
+		te.addSuppressed(trex);
+		throw te;
 	}
 
 	public void setTimeout(long timeout, TimeUnit unit)
