@@ -6,9 +6,10 @@ import static eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools.RPC_PORT;
 import static eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools.TO;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
 
 import eu.javaexperience.cli.CliEntry;
 import eu.javaexperience.cli.CliTools;
@@ -16,12 +17,20 @@ import eu.javaexperience.datastorage.TransactionException;
 import eu.javaexperience.electronic.IntelHexFile;
 import eu.javaexperience.electronic.IntelHexFile.CodeSegment;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools;
+import eu.javaexperience.electronic.uartbus.rpc.client.UartBus.UartbusTransaction;
 import eu.javaexperience.electronic.uartbus.rpc.client.device.UartBusDevice;
 import eu.javaexperience.electronic.uartbus.rpc.client.device.UbDevStdNsRoot;
+import eu.javaexperience.electronic.uartbus.rpc.client.device.fns.ubb.UbBootloaderFunctions;
+import eu.javaexperience.electronic.uartbus.rpc.client.device.fns.ubb.UbBootloaderFunctions.UbBootloaderVariable;
+import eu.javaexperience.electronic.uartbus.rpc.client.device.fns.ubb.UbbFlashFunctions;
+import eu.javaexperience.interfaces.simple.SimpleGet;
 import eu.javaexperience.log.JavaExperienceLoggingFacility;
 import eu.javaexperience.log.Loggable;
 import eu.javaexperience.log.Logger;
-import eu.javaexperience.measurement.MeasurementSerie;
+import eu.javaexperience.nativ.posix.PosixErrnoException;
+import eu.javaexperience.reflect.Mirror;
+import eu.javaexperience.struct.GenericStruct2;
+import eu.javaexperience.text.Format;
 
 public class UartbusCodeUploader
 {
@@ -73,14 +82,87 @@ public class UartbusCodeUploader
 		{
 		case 0: System.err.println("Ihex file doesn't contains any code.");System.exit(3);
 		case 1: break;
-		default: System.err.println("Ihex file contains multiple code segments.");System.exit(4);
+		default:
+		
+		System.err.println("Ihex file contains multiple code segments.");
+		for(CodeSegment cs:css)
+		{
+			System.out.println(Long.toHexString(cs.startAddress)+": "+Format.toHex(cs.data));
+		}
+		
+		System.exit(4);
 		}
 		
 		return css.get(0);
 	}
 	
+	public static <R> R transaction(int retry, SimpleGet<R> tr)
+	{
+		TransactionException trex = null;
+		for(int i=0;i<retry;++i)
+		{
+			try
+			{
+				return tr.get();
+			}
+			catch(TransactionException ex)
+			{
+				trex = ex;
+				continue;
+			}
+		}
+		
+		throw trex;
+	}
+	
+	protected static void restartDevice(UartBusDevice dev, boolean flawed)
+	{
+		if(flawed)
+		{
+			System.err.println("Something flawed, restarting device.");
+		}
+		UbDevStdNsRoot root = dev.getRpcRoot();
+		try
+		{
+			UartbusTransaction reboot = dev.getBus().subscribeResponse(-1, 1, new byte[]{0});
+			root.getBootloaderFunctions().getPowerFunctions().hardwareReset();
+			//this waits until reboot complete
+			reboot.ensureResponse(3, TimeUnit.SECONDS);
+			System.out.println("reboot done");
+		}
+		catch(Exception e)
+		{
+			System.err.println("Can't restart device or we just missed the restart signal.");
+			Mirror.propagateAnyway(e);
+		}
+		
+		transaction(dev.retryCount, new SimpleGet<Void>()
+		{
+			@Override
+			public Void get()
+			{
+				root.getBootloaderFunctions().setVar(UbBootloaderVariable.IS_SIGNALING_SOS, (byte) 0);
+				return null;
+			}
+		});
+		
+		if(!flawed)
+		{
+			transaction(dev.retryCount, new SimpleGet<Void>()
+			{
+				@Override
+				public Void get()
+				{
+					root.getBootloaderFunctions().setVar(UbBootloaderVariable.IS_APPLICATION_RUNNING, (byte) 1);
+					return null;
+				}
+			});
+		}
+	}
+	
 	public static void main(String[] args) throws Throwable
 	{
+		args = new String[]{"-t", "1", "-c", "/home/szupervigyor/projektek/electronics/uartbus/source/uc/utils/ub_app/app.hex"};
 		JavaExperienceLoggingFacility.addStdOut();
 		Map<String, List<String>> pa = CliTools.parseCliOpts(args);
 		String un = CliTools.getFirstUnknownParam(pa, PROG_CLI_ENTRIES);
@@ -112,21 +194,204 @@ public class UartbusCodeUploader
 		
 		try
 		{
+			//Retransmittable call, so don't need to handle retransmission 
 			root.getBusFunctions().ping();
 		}
 		catch(TransactionException e)
 		{
+			e.printStackTrace();
 			System.err.println("Requested bus device ("+to+") not responding in the bus, maybe not attached.");
 			System.exit(2);
 		}
 		
+		final int retry = dev.retryCount;
 		
+		UbBootloaderFunctions boot = root.getBootloaderFunctions();
+		UbbFlashFunctions flash = boot.getFlashFunctions();
 		
+		//TODO
+		if(0 != flash.getFlashStage())
+		{
+			throw new RuntimeException("Bus device is already in programming state, before we started the process. Maybe other code upload in progress. Or just try restart the device.");
+		}
 		
+		//start
+		transaction(retry, new SimpleGet<Void>()
+		{
+			@Override
+			public Void get()
+			{
+				try
+				{
+					if(0 != flash.getFlashStage())
+					{
+						return null;
+					}
+				
+					flash.getStartFlash();
+					return null;
+				} catch (PosixErrnoException e)
+				{
+					e.printStackTrace();
+				}
+				return null;
+			}
+		});
+		
+		try
+		{
+			transaction(retry, new SimpleGet<Void>()
+			{
+				@Override
+				public Void get()
+				{
+					try
+					{
+						if(0 != flash.getFlashStage())
+						{
+							return null;
+						}
+					
+						flash.getStartFlash();
+						return null;
+					} catch (PosixErrnoException e)
+					{
+						Mirror.propagateAnyway(e);
+					}
+					return null;
+				}
+			});
+			
+			//verify start address match
+			
+			final short start = flash.getNextAddress();
+			
+			if(start != code.startAddress)
+			{
+				throw new RuntimeException("Application section and code start address mismatch: APP_START region: "+start+", upload code start address: "+code.startAddress);
+			}
+			
+			while(true)
+			{
+				Boolean ret = transaction(retry, new SimpleGet<Boolean>()
+				{
+					@Override
+					public Boolean get()
+					{
+						short addr = flash.getNextAddress();
+						if(code.startAddress+code.data.length <= addr)
+						{
+							//done
+							return true;
+						}
+						
+						int off = (int) (addr-code.startAddress);
+						
+						byte[] cp = code.getCodePiece(off, 16);
+						System.out.println("Uploading: "+Long.toHexString(addr)+": "+Format.toHex(cp));
+						try
+						{
+							flash.pushCode(addr, cp);
+						}
+						catch (PosixErrnoException e)
+						{
+							e.printStackTrace();
+						}
+						
+						return false;
+					}
+				});
+				
+				if(ret)
+				{
+					break;
+				}
+			}
+			
+			transaction(retry, new SimpleGet<Void>()
+			{
+				@Override
+				public Void get()
+				{
+					try
+					{
+						flash.commitFlash();
+						System.out.println("Committing flash modification done.");
+					}
+					catch (PosixErrnoException e)
+					{
+						Mirror.propagateAnyway(e);
+					}
+					return null;
+				}
+			});
+			
+			short[] addr = new short[1];
+			addr[0] = start;
+			
+			System.out.println("Verifying uploaded code.");
+			
+			while(true)
+			{
+				Boolean ret = transaction(retry, new SimpleGet<Boolean>()
+				{
+					@Override
+					public Boolean get()
+					{
+						if(code.startAddress+code.data.length <= addr[0])
+						{
+							//done
+							return true;
+						}
+						
+						int off = (int) (addr[0]-code.startAddress);
+						
+						byte[] cp = code.getCodePiece(off, 16);
+						
+						GenericStruct2<Short, byte[]> c = boot.readProgramCode(addr[0], (byte) 16);
+						if(addr[0] != c.a)
+						{
+							throw new RuntimeException("Different address returned, that the requested. Req: "+addr[0]+", ret: "+c.a);
+						}
+						
+						if(Arrays.equals(cp, c.b))
+						{
+							System.out.println("Verifying "+Long.toHexString(addr[0])+": OK");
+						}
+						else
+						{
+							System.out.println("Verifying "+Long.toHexString(addr[0])+": Code mismatch:");
+							System.out.println("Actual:   "+Format.toHex(c.b));
+							System.out.println("Expected: "+Format.toHex(cp));
+							throw new RuntimeException("Uploaded code verification failed.");
+						}
+						
+						addr[0] += 16;
+						
+						return false;
+					}
+				});
+				
+				if(ret)
+				{
+					break;
+				}
+			}
+			
+			
+		}
+		catch(Exception e)
+		{
+			e.printStackTrace();
+			//something flawed, reset the target device.
+			restartDevice(dev, true);
+			return;
+		}
+		
+		restartDevice(dev, false);
 		
 		//TODO check code start address
 		
-
 		System.exit(0);
 		
 		//load intel hex file, verify the content

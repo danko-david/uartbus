@@ -1,13 +1,13 @@
 
-#include "ub_app.h"
+#include "ub_app_wrapper.h"
 
-static bool initialized = false;
+static volatile bool initialized = false;
 
 __attribute__ ((weak)) void setup(){};
 
 __attribute__ ((weak)) void loop(){};
 
-//app_start section starts at 0xFFF
+//app_start section starts at 0x2000
 __attribute__((noinline, section(".app_start"))) int main() 
 {
 	if(!initialized)
@@ -17,6 +17,7 @@ __attribute__((noinline, section(".app_start"))) int main()
 		initialized = true;
 	}
 	loop();
+
 }
 
 void (*register_packet_dispatch)(void (*)(int16_t, int16_t, uint8_t*, uint8_t));
@@ -31,10 +32,6 @@ uint8_t (*get_max_packet_size)();
 __attribute__((noinline)) void*** getHostTableAddress()
 {
 	asm("jmp " SX(HOST_TABLE_ADDRESS));
-	//asm("jmp " HOST_TABLE_ADDRESS);
-	//asm("jmp %[addr]": [addr]"I"(HOST_TABLE_ADDRESS));
-	//return asdf();
-	//return ((void***(*)())0xCFE)();
 }
 
 void init_ub_app()

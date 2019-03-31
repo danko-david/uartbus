@@ -1,5 +1,6 @@
 package eu.javaexperience.electronic.uartbus;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Arrays;
 
@@ -72,5 +73,59 @@ public class PacketReader
 		
 		throw new RuntimeException("No string in the buffer");
 	}
+
+	public short readSShort()
+	{
+		short ret = 0;
+		ret |= ((short) data[ep]) << 8;
+		ret |= (data[ep+1] & 0xff);
+		ep += 2;
+		return ret;
+	}
+
+	public int readSInt()
+	{
+		int ret = 0;
+		ret |= ((int) data[ep]) << 24;
+		ret |= ((int) data[ep+1]) << 16;
+		ret |= ((int) data[ep+2]) << 8;
+		ret |= data[ep+3] & 0xff;
+		ep += 4;
+		return ret;
+	}
+
+	public long readSLong()
+	{
+		long ret = 0;
+		ret |= ((long) data[ep]) << 56;
+		ret |= ((long) data[ep+1]) << 48;
+		ret |= ((long) data[ep+2]) << 40;
+		ret |= ((long) data[ep+3]) << 32;
+		ret |= ((long) data[ep+4]) << 24;
+		ret |= ((long) data[ep+5]) << 16;
+		ret |= ((long) data[ep+6]) << 8;
+		ret |= data[ep+7] & 0xff;
+		ep += 8;
+		return ret;
+	}
 	
+	public float readFloat()
+	{
+		return Float.intBitsToFloat(readSInt());
+	}
+	
+	public double readDouble()
+	{
+		return Double.longBitsToDouble(readSLong());
+	}
+
+	public BigInteger readVsNumber()
+	{
+		return readInt(true);
+	}
+	
+	public BigInteger readVuNumber()
+	{
+		return readInt(false);
+	}
 }

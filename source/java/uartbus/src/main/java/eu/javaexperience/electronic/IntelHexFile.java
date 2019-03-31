@@ -191,6 +191,11 @@ public class IntelHexFile
 			data = baos.toByteArray();
 			baos = null;
 		}
+
+		public byte[] getCodePiece(int offset, int length)
+		{
+			return Arrays.copyOfRange(data, offset, offset+length);
+		}
 	}
 
 	public List<CodeSegment> getCode() throws IOException
@@ -205,7 +210,8 @@ public class IntelHexFile
 			
 			if(0 != l.recordType)
 			{
-				throw new RuntimeException("Unknown intel hexfile record: "+l.recordType);
+				continue;
+				//throw new RuntimeException("Unknown intel hexfile record: "+l.recordType);
 			}
 			
 			long s = l.address;
@@ -218,6 +224,13 @@ public class IntelHexFile
 				{
 					throw new RuntimeException("Data intersect with the previous code: "+l.toString());
 				}
+				
+				if(s == cs.endAddress)
+				{
+					seg = cs;
+					break;
+				}
+				
 			}
 			
 			if(null == seg)

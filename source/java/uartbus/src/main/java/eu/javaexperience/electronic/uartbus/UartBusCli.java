@@ -7,6 +7,7 @@ import eu.javaexperience.electronic.uartbus.cli.apps.UartbusConsole;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusPacketloss;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusPing;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusRpcServer;
+import eu.javaexperience.electronic.uartbus.rpc.client.UartbusCodeUploader;
 import eu.javaexperience.generic.annotations.Ignore;
 import eu.javaexperience.rpc.JavaClassRpcUnboundFunctionsInstance;
 import eu.javaexperience.rpc.RpcFacility;
@@ -58,7 +59,7 @@ public class UartBusCli
 	
 	public static void upload(String... args) throws Throwable
 	{
-		
+		UartbusCodeUploader.main(args);
 	}
 	
 	public static void ihex(String... args) throws Throwable
@@ -66,9 +67,5 @@ public class UartBusCli
 		IntelHexFile.main(args);
 	}
 	
-	
-	//utilities to do:
-	//TODO code uploader
-	
-	
+	//TODO discover, restart (--soft), appdump
 }

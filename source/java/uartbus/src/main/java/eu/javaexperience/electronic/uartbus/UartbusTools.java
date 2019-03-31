@@ -310,13 +310,21 @@ public class UartbusTools
 			{
 				throw new NullPointerException("Can't serialize null");
 			}
-			else if(o instanceof byte[])
+			else if(o instanceof Boolean)
 			{
-				pa.write((byte[]) o);
+				pa.writeByte(o == Boolean.FALSE?0:1);
 			}
 			else if(o instanceof Byte)
 			{
 				pa.writeByte((Byte) o);
+			}
+			else if(o instanceof Short)
+			{
+				pa.writeShort((Short)o);
+			}
+			else if(o instanceof byte[])
+			{
+				pa.write((byte[]) o);
 			}
 			else if(o instanceof Number)
 			{

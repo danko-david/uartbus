@@ -341,7 +341,7 @@ uint8_t* flash_tmp = NULL;
 
 void blf_get_flash_stage(struct rpc_request* req)
 {
-	il_reply(req, 1, flash_stage);
+	il_reply(req, 2, 0, flash_stage);
 }
 
 void blf_start_flash(struct rpc_request* req)
@@ -676,7 +676,6 @@ static void try_dispatch_received_packet()
 			uint8_t ep = 0;
 			int8_t add = 0;
 			
-			//TODO rewrite to variable size addresses;
 			struct rpc_request req;
 			req.reply = rpc_response;
 			if((add = unpack_value(&req.to, received_data, received_ep-1)) < 1)
@@ -892,7 +891,7 @@ int main()
 	}
 	else
 	{
-		app_run = true;
+		app_run = false;//true;
 		sos_signal = false;
 	}
 	
@@ -927,16 +926,16 @@ int main()
 		wdt_reset();
 		if(app_run && has_app())
 		{
-			call_app();
+//			call_app();
 		}
 		
-		/*if(sos_signal)
+		if(sos_signal)
 		{
 			if(afterMicro(&last_panic_signal_time, 2000000))//2 sec
 			{
 				send_packet_priv(-1, 0, (uint8_t*) "WDT restart", 12);
 			}
-		}*/
+		}
 	}
 }
 

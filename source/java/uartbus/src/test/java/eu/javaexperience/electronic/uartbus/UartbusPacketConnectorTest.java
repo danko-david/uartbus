@@ -100,17 +100,21 @@ public class UartbusPacketConnectorTest
 		);
 	}
 	
+	protected static class ByteArrayHolder
+	{
+		volatile byte[] data = null;
+	}
+	
 	public static void testByteLoopbackSquence(byte escape, byte[] data) throws Exception
 	{
 		UartbusPacketConnector conn = createLoopback(escape);
-		byte[][] ret = new byte[1][0];
-		ret[0] = null;
+		ByteArrayHolder h = new ByteArrayHolder();
 		conn.setPacketHook(new SimplePublish1<byte[]>()
 		{
 			@Override
 			public void publish(byte[] arg0)
 			{
-				ret[0] = arg0;
+				h.data = arg0;
 			}
 		});
 		
@@ -118,11 +122,11 @@ public class UartbusPacketConnectorTest
 		conn.sendPacket(data);
 		
 		int i=0;
-		while(++i<100 && null == ret[0])
+		while(++i<100 && null == h.data)
 		{
 			Thread.sleep(50);
 		}
-		Assert.assertArrayEquals(data, ret[0]);
+		Assert.assertArrayEquals(data, h.data);
 	}
 	
 	@Test

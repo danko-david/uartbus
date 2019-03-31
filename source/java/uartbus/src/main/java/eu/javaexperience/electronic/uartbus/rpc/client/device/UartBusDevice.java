@@ -18,9 +18,9 @@ public class UartBusDevice
 	protected UartBus bus;
 	protected int address;
 	
-	public long timeout = 1;
-	public TimeUnit timeoutUnit = TimeUnit.SECONDS;
-	public int retryCount = 3;
+	public long timeout = 200;
+	public TimeUnit timeoutUnit = TimeUnit.MILLISECONDS;
+	public int retryCount = 5;
 
 	protected final ProxyHelpedLazyImplementation<UbDeviceNs, UbDeviceNsLazyImpl, UbDevStdNsRoot> handler;
 	
@@ -125,7 +125,7 @@ public class UartBusDevice
 					
 					return UbRpcTools.extractOrThrowResult
 					(
-						ret,
+						method,
 						Arrays.copyOfRange(res, path.length, res.length)
 					);
 				}
@@ -148,5 +148,10 @@ public class UartBusDevice
 	{
 		this.timeout = timeout;
 		this.timeoutUnit = unit;
+	}
+
+	public UartBus getBus()
+	{
+		return bus;
 	}
 }
