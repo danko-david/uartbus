@@ -4,10 +4,13 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import eu.javaexperience.collection.ComparatorTools;
 import eu.javaexperience.collection.ReadOnlyAndRwCollection;
 import eu.javaexperience.io.IOTools;
 import eu.javaexperience.reflect.Mirror;
@@ -163,6 +166,9 @@ public class IntelHexFile
 	
 	public static class CodeSegment
 	{
+		public static final Comparator<CodeSegment> ORDER_BY_START_ADDRESS =
+			(a, b)->Long.compare(a.startAddress, b.startAddress);
+			
 		public long startAddress;
 		public long endAddress;
 		public byte[] data;
@@ -194,6 +200,7 @@ public class IntelHexFile
 
 		public byte[] getCodePiece(int offset, int length)
 		{
+			length = Math.min(length, data.length-offset);
 			return Arrays.copyOfRange(data, offset, offset+length);
 		}
 	}
@@ -240,7 +247,63 @@ public class IntelHexFile
 			}
 			
 			seg.appendCode(l.data);
+		}
+		
+		for(CodeSegment cs:ret)
+		{
+			cs.endCodeWrite();
+		}
+		
+		return ret;
+	}
+	
+	public static List<CodeSegment> concatSegments(List<CodeSegment> codes, int maxGap, byte paddingByte) throws IOException
+	{
+		if(codes.size() < 2)
+		{
+			return codes;
+		}
+		
+		byte[] padding = new byte[] {paddingByte};
+		
+		Collections.sort(codes, CodeSegment.ORDER_BY_START_ADDRESS);
+		
+		List<CodeSegment> ret = new ArrayList<>();
+		for(CodeSegment c:codes)
+		{
+			long s = c.startAddress;
 			
+			CodeSegment seg = null;
+			for(CodeSegment cs: ret)
+			{
+				if(cs.isMiddleOf(s))
+				{
+					throw new RuntimeException("Data intersect with the previous code: "+cs.toString());
+				}
+				
+				if(s+maxGap > cs.endAddress)
+				{
+					seg = cs;
+					break;
+				}
+			}
+			
+			if(null == seg)
+			{
+				seg = new CodeSegment(s);
+				ret.add(seg);
+			}
+			
+			long diff = c.startAddress - seg.endAddress;
+			if(diff != 0)
+			{
+				for(int i=0;i<diff;++i)
+				{
+					seg.appendCode(padding);
+				}
+			}
+			
+			seg.appendCode(c.data);
 		}
 		
 		for(CodeSegment cs:ret)

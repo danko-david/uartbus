@@ -4,7 +4,7 @@
 #include <util/delay.h>
 
 #include "ub_app_wrapper.h"
-
+#include "rpc.h"
 /********************************* App section ********************************/
 
 void software_reset()
@@ -15,8 +15,10 @@ void software_reset()
 	asm ("jmp 0x00");
 }
 
-void packet_received(int16_t from, int16_t to, uint8_t* data, uint8_t ep)
+void packet_received(struct rpc_request* req)
 {
+	uint8_t* data = req->payload + req->procPtr;
+	uint8_t ep = req->size - req->procPtr;
 	if(0 == ep)
 	{
 		return;
@@ -38,8 +40,6 @@ void packet_received(int16_t from, int16_t to, uint8_t* data, uint8_t ep)
 
 void setup()
 {
-	DDRB = 0xFF;
-	PORTB ^= 0xFF;
-	//register_packet_dispatch(packet_received);
+	register_packet_dispatch(packet_received);
 }
 

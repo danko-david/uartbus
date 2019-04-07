@@ -67,5 +67,6 @@ public class UartBusCli
 		IntelHexFile.main(args);
 	}
 	
-	//TODO discover, restart (--soft), appdump
+	//TODO discover, restart (--soft), appdump,
+	//grab (wait device appears in the bus and disable application run.
 }

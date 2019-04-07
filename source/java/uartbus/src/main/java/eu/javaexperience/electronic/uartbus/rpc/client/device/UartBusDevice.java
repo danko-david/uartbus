@@ -18,7 +18,7 @@ public class UartBusDevice
 	protected UartBus bus;
 	protected int address;
 	
-	public long timeout = 200;
+	public long timeout = 100;
 	public TimeUnit timeoutUnit = TimeUnit.MILLISECONDS;
 	public int retryCount = 5;
 

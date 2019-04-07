@@ -6,7 +6,12 @@
  *		1,2,3 serial are avilable only in mega
  */
 
-#include "ub_arduino.h"
+//TODO rewrite this stuff to plain AVR code instead of using arduino
+// I guess arduino can't keep the timing because of the indirect Serial port
+// management and that's results missed packets and brokens, when a packet size
+// is longer (over 10 bytes).
+
+#include "ub.h"
 
 #define NET_TRAFFIC_LED 13
 
@@ -64,9 +69,9 @@
 	#define PACKET_ESCAPE 0xff
 #endif
 
-struct uartbus_arduino BUS;
+struct uartbus BUS;
 
-byte encode[MAX_PACKET_SIZE*2+2];
+uint8_t encode[MAX_PACKET_SIZE*2+2];
 
 void flashLed()
 {

@@ -8,11 +8,15 @@
 #include <stddef.h>
 #include <stdlib.h>
 
+
+void register_packet_dispatch(void (*addr)(struct rpc_request* req));
+
+/*
 extern void (*register_packet_dispatch)(void (*)(int16_t, int16_t, uint8_t*, uint8_t));
 extern bool (*may_send_packet)();
 extern bool (*send_packet)(int16_t, uint8_t* , uint16_t);
 extern uint8_t (*get_max_packet_size)();
-
+*/
 void init_ub_app();
 
 __attribute__ ((weak)) void setup();

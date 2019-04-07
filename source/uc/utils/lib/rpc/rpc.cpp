@@ -47,10 +47,11 @@ int16_t rpc_append_arr(uint8_t* dst, uint8_t size, uint8_t args, struct response
 
 bool il_reply_arr(struct rpc_request* req, uint8_t* data, uint8_t size)
 {
-	struct response_part* arr[1];
 	struct response_part e;
 	e.size = size;
 	e.data = data;
+	
+	struct response_part* arr[1];
 	arr[0] = &e;
 	
 	req->reply(req, 1, arr);

@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import javax.swing.text.html.HTMLDocument.HTMLReader.BlockAction;
+
 import eu.javaexperience.cli.CliEntry;
 import eu.javaexperience.cli.CliTools;
 import eu.javaexperience.datastorage.TransactionException;
@@ -77,7 +79,7 @@ public class UartbusCodeUploader
 		//check file
 		file.assertValid();
 				
-		List<CodeSegment> css = file.getCode();
+		List<CodeSegment> css = IntelHexFile.concatSegments(file.getCode(), 100, (byte) 0xff);
 		switch(css.size())
 		{
 		case 0: System.err.println("Ihex file doesn't contains any code.");System.exit(3);
@@ -117,46 +119,55 @@ public class UartbusCodeUploader
 	
 	protected static void restartDevice(UartBusDevice dev, boolean flawed)
 	{
-		if(flawed)
-		{
-			System.err.println("Something flawed, restarting device.");
-		}
-		UbDevStdNsRoot root = dev.getRpcRoot();
+		final long OT = dev.timeout;
+		dev.timeout = 1000;
 		try
 		{
-			UartbusTransaction reboot = dev.getBus().subscribeResponse(-1, 1, new byte[]{0});
-			root.getBootloaderFunctions().getPowerFunctions().hardwareReset();
-			//this waits until reboot complete
-			reboot.ensureResponse(3, TimeUnit.SECONDS);
-			System.out.println("reboot done");
-		}
-		catch(Exception e)
-		{
-			System.err.println("Can't restart device or we just missed the restart signal.");
-			Mirror.propagateAnyway(e);
-		}
-		
-		transaction(dev.retryCount, new SimpleGet<Void>()
-		{
-			@Override
-			public Void get()
+			if(flawed)
 			{
-				root.getBootloaderFunctions().setVar(UbBootloaderVariable.IS_SIGNALING_SOS, (byte) 0);
-				return null;
+				System.err.println("Something flawed, restarting device.");
 			}
-		});
-		
-		if(!flawed)
-		{
+			UbDevStdNsRoot root = dev.getRpcRoot();
+			try
+			{
+				UartbusTransaction reboot = dev.getBus().subscribeResponse(-1, 1, new byte[]{0});
+				root.getBootloaderFunctions().getPowerFunctions().hardwareReset();
+				//this waits until reboot complete
+				reboot.ensureResponse(3, TimeUnit.SECONDS);
+				System.out.println("reboot done");
+			}
+			catch(Exception e)
+			{
+				System.err.println("Can't restart device or we just missed the restart signal.");
+				Mirror.propagateAnyway(e);
+			}
+			
 			transaction(dev.retryCount, new SimpleGet<Void>()
 			{
 				@Override
 				public Void get()
 				{
-					root.getBootloaderFunctions().setVar(UbBootloaderVariable.IS_APPLICATION_RUNNING, (byte) 1);
+					root.getBootloaderFunctions().setVar(UbBootloaderVariable.IS_SIGNALING_SOS, (byte) 0);
 					return null;
 				}
 			});
+			
+			if(!flawed)
+			{
+				transaction(dev.retryCount, new SimpleGet<Void>()
+				{
+					@Override
+					public Void get()
+					{
+						root.getBootloaderFunctions().setVar(UbBootloaderVariable.IS_APPLICATION_RUNNING, (byte) 1);
+						return null;
+					}
+				});
+			}
+		}
+		finally
+		{
+			dev.timeout = OT;
 		}
 	}
 	
@@ -344,11 +355,13 @@ public class UartbusCodeUploader
 							return true;
 						}
 						
+						final int blockSize = 8;
+						
 						int off = (int) (addr[0]-code.startAddress);
 						
-						byte[] cp = code.getCodePiece(off, 16);
+						byte[] cp = code.getCodePiece(off, blockSize);
 						
-						GenericStruct2<Short, byte[]> c = boot.readProgramCode(addr[0], (byte) 16);
+						GenericStruct2<Short, byte[]> c = boot.readProgramCode(addr[0], (byte) cp.length);
 						if(addr[0] != c.a)
 						{
 							throw new RuntimeException("Different address returned, that the requested. Req: "+addr[0]+", ret: "+c.a);
@@ -366,7 +379,7 @@ public class UartbusCodeUploader
 							throw new RuntimeException("Uploaded code verification failed.");
 						}
 						
-						addr[0] += 16;
+						addr[0] += blockSize;
 						
 						return false;
 					}
@@ -385,7 +398,7 @@ public class UartbusCodeUploader
 			e.printStackTrace();
 			//something flawed, reset the target device.
 			restartDevice(dev, true);
-			return;
+			System.exit(0);
 		}
 		
 		restartDevice(dev, false);

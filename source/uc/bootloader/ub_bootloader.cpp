@@ -177,7 +177,6 @@ int8_t pack_value(int16_t v, uint8_t* arr, int size)
 
 //-8192 - 8191 //we might use one more bit from the beginning to double the
 //available adresses and max out the int16_t type
-//TODO watch out! this code is for little endian arch
 int8_t unpack_value(int16_t* dst, uint8_t* arr, int size)
 {
 	int16_t value = 0;
@@ -246,10 +245,16 @@ void rpc_bus_ping(struct rpc_request* req)
 	il_reply(req, 0);
 }
 
+void rpc_bus_replay(struct rpc_request* req)
+{
+	il_reply_arr(req, req->payload+req->procPtr, req->size - req->procPtr);
+}
+
 void* RPC_FUNCTIONS_BUS[] =
 {
-	(void*) 1,
-	(void*) rpc_bus_ping
+	(void*) 2,
+	(void*) rpc_bus_ping,
+	(void*) rpc_bus_replay
 };
 
 /****************************** RPC bootloader ********************************/
@@ -302,7 +307,7 @@ void rpc_bootloader_set_var(struct rpc_request* req)
 	{
 		case 0: app_run = (bool) val; break;
 		case 1: sos_signal =  (bool) val; break;
-//		case 2: reset_flag = data[2]; break;
+		case 2: reset_flag = (uint8_t) val; break;
 		default: break;
 	}
 	il_reply(req, 1, 0);
@@ -412,11 +417,11 @@ void fill_flash(uint8_t *buf, uint16_t size)
 	for(uint16_t i = 0;i<size;++i)
 	{
 		//filling flash temporary write storage from the given buffer.
-		flash_tmp[flash_crnt_address % (SPM_PAGESIZE-1)] = buf[i];
+		flash_tmp[flash_crnt_address % SPM_PAGESIZE] = buf[i];
 		++flash_crnt_address;
 		
 		//if page fullfilled => flush it.		
-		if(0 == flash_crnt_address % (SPM_PAGESIZE-1))
+		if(0 == flash_crnt_address % SPM_PAGESIZE)
 		{
 			boot_program_page
 			(
@@ -424,13 +429,6 @@ void fill_flash(uint8_t *buf, uint16_t size)
 				flash_tmp,
 				SPM_PAGESIZE
 			);
-		}
-		
-		//buffer is bigger than the native page size => offsetting iteration
-		if(i == SPM_PAGESIZE)
-		{
-			i = 0;
-			size -= SPM_PAGESIZE;
 		}
 	}
 }
@@ -444,7 +442,7 @@ void blf_push_code(struct rpc_request* req)
 		il_reply(req, 1, ENOTCONN);
 	}
 	
-	if(size < 4)
+	if(size < 3)
 	{
 		il_reply(req, 1, EBADMSG);
 		return;
@@ -456,13 +454,7 @@ void blf_push_code(struct rpc_request* req)
 		return;
 	}
 	
-	fill_flash(data, size);
-	/*for(int i=0;i<size;++i)
-	{
-		flash_tmp[i] = data[i];
-	}
-	flash_crnt_address += size;
-	*/
+	fill_flash(data+2, size-2);
 	
 	il_reply(req, 3, 0, (flash_crnt_address >> 8) & 0xff, flash_crnt_address & 0xff);
 }
@@ -522,6 +514,9 @@ void* RPC_FUNCTIONS_BOOTLOADER[] =
 void* RPC_FUNCTIONS_DEBUG[] =
 {
 	(void*) 0,
+	//get sram value
+	//set sram value
+	//free (available) mem
 };
 
 /********************* On board transaction functionalities *******************/
@@ -581,12 +576,11 @@ static void ub_rec_byte(struct uartbus* a, uint8_t data_byte)
 
 bool send_packet_priv(int16_t to, uint8_t NS, uint8_t* data, uint8_t size)
 {
-	if(0 != send_size || size >= MAX_PACKET_SIZE-6)
+	//1 from 1 to 1 NS 1 CRC
+	if(0 != send_size || size >= MAX_PACKET_SIZE-4)
 	{
 		return false;
 	}
-	
-	ub_manage();
 	
 	uint8_t ep = 0;
 	int8_t add;
@@ -627,7 +621,7 @@ void dispatch(struct rpc_request* req)
 	
 	int ns = req->payload[req->procPtr];
 	
-	if(0 < ns && ns < 32)
+	if(req->from >= 0 && 0 < ns && ns < 32)
 	{
 		dispatch_root(req);
 	}
@@ -636,24 +630,10 @@ void dispatch(struct rpc_request* req)
 		++req->procPtr;
 		app_dispatch(req);
 	}
-	else if(ns == 33)
+	//rewrite app dispatch ot dispatch ns >= 32	
+	else if(ns > 32)//these are also user space channels, dispatch them.
 	{
-		send_packet_priv(req->from, 33, req->payload+1, req->size-1);
 	}
-/*	else if(ns == 34)
-	{
-		rpc_bootloader_read_code(from, data, size, 1);
-	}
-	else if(ns == 35)
-	{
-		switch(data[0])
-		{
-			case 0: il_reply(from, data, 1, 1, arr_size(RPC_NS_FUNCTIONS)); break;
-			case 1: il_reply(from, data, 1, 1, arr_size(RPC_FUNCTIONS_BOOTLOADER)); break;
-//			case 2: il_reply(from, data, -1, 1, 0); break;
-		}
-	}
-*/
 }
 
 volatile bool received = false;
@@ -891,7 +871,7 @@ int main()
 	}
 	else
 	{
-		app_run = false;//true;
+		app_run = true;
 		sos_signal = false;
 	}
 	
@@ -921,12 +901,11 @@ int main()
 	{
 		wdt_reset();
 		ub_manage();
-		
-
 		wdt_reset();
+		
 		if(app_run && has_app())
 		{
-//			call_app();
+			call_app();
 		}
 		
 		if(sos_signal)

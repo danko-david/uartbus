@@ -169,7 +169,8 @@ Bootloader pitfalls:
 
 		
 	- lap kiírása: 2:4:3:$addess:$data
-		- 2:4:3:48:0:143:239:132:185:133:177:128:149:133:185:8:149
+		- 2:4:3:32:0:143:239:132:185:133:177:128:149:133:185:8:149
+			//8F EF 84 B9 ...
 		- empty: 2:4:3:48:0:255:255:255:255:255:255:255:255:255:255:255:255
 		- válasz: 2:4:3:0:$next_address
 	- commit 2:4:4
@@ -177,6 +178,8 @@ Bootloader pitfalls:
 //			- disable sos 2:2:1:0
 			- enable app 2:2:0:1
 	- reboot (light reset) 2:0:1
+	
+	2:3:32:0:20
 
 
 - b_get_var: 2:1:(0 = app_run, 1=sos)

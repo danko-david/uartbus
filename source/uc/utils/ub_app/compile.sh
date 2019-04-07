@@ -11,11 +11,16 @@ set -e
 #notice: function have to aligned to even address, otherwise it can be linked
 avr-gcc -mmcu=$1 \
 	-I"$(dirname "$0")"\
+	-I../lib/rpc/\
+	-I../../commons/\
+        -ffunction-sections\
+        -fdata-sections\
+        -fno-exceptions\
 	-DF_CPU=16000000\
 	-DHOST_TABLE_ADDRESS=0x1fe0\
 	-Wl,--section-start=.text=0x2020\
 	-Wl,--section-start=.app_start=0x2000\
-	-Os -o app.o $2 ub_app_wrapper.cpp
+	-Os -o app.o $2 ../lib/rpc/rpc.cpp ub_app_wrapper.cpp
 
 avr-objcopy -R .eeprom -O ihex app.o app.hex
 avr-objdump -S --disassemble  app.o > app.asm
