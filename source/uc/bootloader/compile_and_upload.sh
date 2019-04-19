@@ -26,7 +26,7 @@ avr-gcc -o ubb.o ub_bootloader.cpp ../bus/lib/common/ub.cpp ../utils/lib/rpc/rpc
 
 avr-objcopy -O ihex -R .eeprom ubb.o ubb.hex
 #wc ubb.hex
-size ubb.hex
+size ubb.o
 avr-objdump -S --disassemble  ubb.o > ubb.asm
 avr-nm --size-sort ubb.o > ubb.sizes
 

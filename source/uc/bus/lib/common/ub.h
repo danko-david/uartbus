@@ -13,7 +13,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-//TODO this arduino dependency maybe can be removed.
+//TODO this arduino dependency MUST be removed.
 #ifdef ARDUINO
 	#if ARDUINO >= 100
 		#include "Arduino.h"
@@ -29,6 +29,7 @@
 /* Endianess detection
  * http://forum.arduino.cc/index.php?topic=254143.0
  **/
+/*
 static const union { unsigned char bytes[4]; uint32_t value; } o32_host_order =
     { { 0, 1, 2, 3 } };
 
@@ -40,7 +41,7 @@ enum
 };
 
 #define O32_HOST_ORDER (o32_host_order.value)
-/******/
+*****/
 
 enum uartbus_status
 {
@@ -95,6 +96,12 @@ struct uartbus
 	uint8_t (*do_send_byte)
 		(struct uartbus* bus, uint8_t);
 
+	uint32_t (*currentUsec)
+		();
+
+	int8_t (*rand)
+		();
+
 	void* user_data;
 	
 	uint8_t* to_send;
@@ -134,7 +141,7 @@ uint16_t ub_calc_baud_cycle_time(uint32_t baud);
 
 uint32_t ub_calc_timeout(uint32_t baud, uint8_t cycles);
 
-uint32_t ub_impl_get_current_usec();
+//uint32_t ub_impl_get_current_usec();
 
 uint8_t crc8(uint8_t* data, uint8_t length);
 

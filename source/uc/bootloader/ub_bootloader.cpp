@@ -22,47 +22,168 @@
 #define UCSZ1   2
 #define UCSZ0   1
 
-uint32_t micros();
+#ifdef __linux__
+	#include <sys/time.h>
+	uint32_t ub_impl_get_current_usec()
+	{
+		struct timeval tv;
+		struct timezone tz;
+		int stat = gettimeofday(&tv, &tz);
+		uint32_t now =
+		//	(tv.tv_sec*1000 + tv.tv_usec);//% ((uint32_t) ~0);
+			tv.tv_usec;
+		//printf("now: %d\n", now);
+		return now;
+	}
+	//empty call
+	void ub_init_infrastructure(){};
+#else
+
+	#ifndef  ARDUINO
+		#include <avr/interrupt.h>
+		#ifndef sbi
+			#define sbi(sfr, bit) (_SFR_BYTE(sfr) |= _BV(bit))
+		#endif
+		#define clockCyclesPerMicrosecond() ( F_CPU / 1000000L )
+		#define clockCyclesToMicroseconds(a) ( (a) / clockCyclesPerMicrosecond() )
+		#define microsecondsToClockCycles(a) ( (a) * clockCyclesPerMicrosecond() )
+		#define MICROSECONDS_PER_TIMER0_OVERFLOW (clockCyclesToMicroseconds(64 * 256))
+		#define MILLIS_INC (MICROSECONDS_PER_TIMER0_OVERFLOW / 1000)
+		#define FRACT_INC ((MICROSECONDS_PER_TIMER0_OVERFLOW % 1000) >> 3)
+		#define FRACT_MAX (1000 >> 3)
+
+		volatile unsigned long timer0_overflow_count = 0;
+		volatile unsigned long timer0_millis = 0;
+		static unsigned char timer0_fract = 0;
+
+		#if defined(__AVR_ATtiny24__) || defined(__AVR_ATtiny44__) || defined(__AVR_ATtiny84__)
+		ISR(TIM0_OVF_vect)
+		#else
+		ISR(TIMER0_OVF_vect)
+		#endif
+		{
+			// copy these to local variables so they can be stored in registers
+			// (volatile variables must be read from memory on every access)
+			unsigned long m = timer0_millis;
+			unsigned char f = timer0_fract;
+
+			m += MILLIS_INC;
+			f += FRACT_INC;
+			if (f >= FRACT_MAX) {
+				f -= FRACT_MAX;
+				m += 1;
+			}
+
+			timer0_fract = f;
+			timer0_millis = m;
+			timer0_overflow_count++;
+		}
+
+		//avr
+		//extracted from: /usr/share/arduino/hardware/arduino/cores/arduino/wiring.c
+		uint32_t micros()
+		{
+			unsigned long m;
+			uint8_t oldSREG = SREG, t;
+	
+			cli();
+			m = timer0_overflow_count;
+		#if defined(TCNT0)
+			t = TCNT0;
+		#elif defined(TCNT0L)
+			t = TCNT0L;
+		#else
+			#error TIMER 0 not defined
+		#endif
+
+		  
+		#ifdef TIFR0
+			if ((TIFR0 & _BV(TOV0)) && (t < 255))
+				m++;
+		#else
+			if ((TIFR & _BV(TOV0)) && (t < 255))
+				m++;
+		#endif
+
+			SREG = oldSREG;
+	
+			return ((m << 8) + t) * (64 / clockCyclesPerMicrosecond());
+		}
+
+		void ub_init_infrastructure()
+		{
+			// this needs to be called before setup() or some functions won't
+			// work there
+			sei();
+
+			// on the ATmega168, timer 0 is also used for fast hardware pwm
+			// (using phase-correct PWM would mean that timer 0 overflowed half as often
+			// resulting in different millis() behavior on the ATmega8 and ATmega168)
+		#if defined(TCCR0A) && defined(WGM01)
+			sbi(TCCR0A, WGM01);
+			sbi(TCCR0A, WGM00);
+		#endif  
+
+			// set timer 0 prescale factor to 64
+		#if defined(__AVR_ATmega128__)
+			// CPU specific: different values for the ATmega128
+			sbi(TCCR0, CS02);
+		#elif defined(TCCR0) && defined(CS01) && defined(CS00)
+			// this combination is for the standard atmega8
+			sbi(TCCR0, CS01);
+			sbi(TCCR0, CS00);
+		#elif defined(TCCR0B) && defined(CS01) && defined(CS00)
+			// this combination is for the standard 168/328/1280/2560
+			sbi(TCCR0B, CS01);
+			sbi(TCCR0B, CS00);
+		#elif defined(TCCR0A) && defined(CS01) && defined(CS00)
+			// this combination is for the __AVR_ATmega645__ series
+			sbi(TCCR0A, CS01);
+			sbi(TCCR0A, CS00);
+		#else
+			#error Timer 0 prescale factor 64 not set correctly
+		#endif
+
+			// enable timer 0 overflow interrupt
+		#if defined(TIMSK) && defined(TOIE0)
+			sbi(TIMSK, TOIE0);
+		#elif defined(TIMSK0) && defined(TOIE0)
+			sbi(TIMSK0, TOIE0);
+		#else
+			#error	Timer 0 overflow interrupt not set correctly
+		#endif
+			
+		}
+	#else
+		void ub_init_infrastructure(){}
+	#endif
+	//arduino
+	__attribute__((noinline))  uint32_t ub_impl_get_current_usec()
+	{
+		return micros();
+	}
+#endif
 
 /******************************* GLOBAL variables *****************************/
 
 volatile bool app_run;
-volatile bool sos_signal;
 volatile uint8_t reset_flag;
 
 void ub_manage();
 
-/*
-// not being used but here for completeness
-// Wait until a byte has been received and return received data 
-int16_t USART_ReceiveByte(uint16_t timeoutCycles)
+struct ubb_global
 {
-	timeoutCycles |= 0x1;
-	for(uint16_t i=0;i<timeoutCycles;++i)
-	{
-		if(UCSR0A & _BV(RXC0))
-		{
-			uint8_t ch = UDR0;
-			//if((UCSR0A & _BV(FE0)))//TODO on frameing error
-			//{
-			//	return -1;
-			//}
-			
-			return ch;
-		}
-	}
-	return -1;
-}
-*/
+	struct uartbus bus;
+};
 
-/*
-static int16_t ub_receive_byte(struct uartbus* bus)
+#define UBB ((struct ubb_global*)*((struct ubb_global**) RAMEND))
+
+/*struct ubb_global* G()
 {
-	//OLD_TODO add timeout
-	//OLD_TODO calculate timeout depending from the byte time
-	return USART_ReceiveByte(1024);
-}
-*/
+	return
+		//GLOB;
+		*((struct ubb_global**) RAMEND);
+}*/
 
 /***************************** USART functions ********************************/
 
@@ -288,7 +409,7 @@ void rpc_bootloader_get_var(struct rpc_request* req)
 	switch(req->payload[req->procPtr])
 	{
 		case 0: res = app_run; break;
-		case 1: res = sos_signal; break;
+//		case 1: res = sos_signal; break;
 		case 2: res = reset_flag; break;
 		default: res = 0;break;
 	}
@@ -308,7 +429,7 @@ void rpc_bootloader_set_var(struct rpc_request* req)
 	switch(req->payload[req->procPtr])
 	{
 		case 0: app_run = (bool) val; break;
-		case 1: sos_signal =  (bool) val; break;
+//		case 1: sos_signal =  (bool) val; break;
 		case 2: reset_flag = (uint8_t) val; break;
 		default: break;
 	}
@@ -359,7 +480,7 @@ void blf_start_flash(struct rpc_request* req)
 		il_reply(req, 1, EALREADY);		
 	}
 	
-	flash_tmp = (uint8_t*) malloc(SPM_PAGESIZE);
+	flash_tmp = 0;//(uint8_t*) malloc(SPM_PAGESIZE);
 	if(NULL == flash_tmp)
 	{
 		il_reply(req, 1, ENOMEM);
@@ -367,7 +488,7 @@ void blf_start_flash(struct rpc_request* req)
 	}
 	
 	app_run = false;
-	sos_signal = false;
+//	sos_signal = false;
 	flash_crnt_address = (uint16_t) APP_START_ADDRESS;
 	flash_stage = 1;
 
@@ -481,7 +602,7 @@ void commit_flash(struct rpc_request* req)
 		);
 	}
 	
-	free(flash_tmp);
+	//free(flash_tmp);
 	
 	flash_stage = 0;
 	
@@ -553,14 +674,11 @@ void dispatch_root(struct rpc_request* req)
 
 #define MAX_PACKET_SIZE 48
 
-struct uartbus bus;
 int received_ep;
 uint8_t received_data[MAX_PACKET_SIZE];
 
 uint8_t send_size;
 uint8_t send_data[MAX_PACKET_SIZE];
-
-bool bus_active = false;
 
 void (*app_dispatch)(struct rpc_request* req) = NULL;
 
@@ -629,14 +747,9 @@ void dispatch(struct rpc_request* req)
 	{
 		dispatch_root(req);
 	}
-	else if(NULL != app_dispatch && 32 == ns)
+	else if(NULL != app_dispatch && 32 <= ns)
 	{
-		++req->procPtr;
 		app_dispatch(req);
-	}
-	//rewrite app dispatch ot dispatch ns >= 32	
-	else if(ns > 32)//these are also user space channels, dispatch them.
-	{
 	}
 }
 
@@ -742,26 +855,32 @@ uint8_t get_max_packet_size()
 	return MAX_PACKET_SIZE;
 }
 
-void init_bus()
+int8_t rando()
+{
+	return 0;
+}
+
+void init_bus(struct uartbus* bus)
 {
 	received_ep = 0;
 
-	bus.serial_byte_received = ub_rec_byte;
-	bus.serial_event = ub_event;
-	ub_init_baud(&bus, BAUD_RATE, 3);
-	bus.do_send_byte = ub_do_send_byte;
-	bus.cfg = 0
+	bus->rand = rando;
+	bus->currentUsec = micros;
+	bus->serial_byte_received = ub_rec_byte;
+	bus->serial_event = ub_event;
+	ub_init_baud(bus, BAUD_RATE, 3);
+	bus->do_send_byte = ub_do_send_byte;
+	bus->cfg = 0
 		|	ub_cfg_fairwait_after_send_high
 //		|	ub_cfg_fairwait_after_send_low
 		|	ub_cfg_read_with_interrupt
 	;
-	ub_init(&bus);
-	bus_active = true;
+	ub_init(bus);
 }
 
 ISR(USART_RX_vect)
 {
-	ub_out_rec_byte(&bus, UDR0);
+	ub_out_rec_byte(&UBB->bus, UDR0);
 }
 
 void register_packet_dispatch(void (*addr)(struct rpc_request* req))
@@ -771,11 +890,11 @@ void register_packet_dispatch(void (*addr)(struct rpc_request* req))
 
 /*************************** Host software utilities **************************/
 
-int init_board(void)
+int init_board(struct uartbus* bus)
 {
 	ub_init_infrastructure();
 	USART_Init();
-	init_bus();
+	init_bus(bus);
 }
 
 //https://stackoverflow.com/questions/6686675/gcc-macro-expansion-arguments-inside-string
@@ -842,7 +961,7 @@ bool afterMicro(uint32_t* last_time, uint32_t timeMicro)
 	return false;
 }
 
-uint32_t last_panic_signal_time = 0;
+//uint32_t last_panic_signal_time = 0;
 
 void busSignalOnline(uint8_t powerOnMode, uint8_t softMode)
 {
@@ -854,16 +973,23 @@ void busSignalOnline(uint8_t powerOnMode, uint8_t softMode)
 
 void ub_manage()
 {
-	ub_manage_connection(&bus, send_on_idle);
+	ub_manage_connection(&UBB->bus, send_on_idle);
 	try_dispatch_received_packet();
 }
 
 //boolean bit
 #define bb(x, y) x?0x1 <<y:0
 
-int main()
+void ub_main()
 {
+	struct ubb_global GLOBAL;
+	{
+		struct ubb_global** g = (struct ubb_global**) RAMEND;
+		g[0] = &GLOBAL;
+	}
+	
 	DDRB = 0xFF; //DEBUG
+
 	reset_flag = MCUSR;
 	//watchdog reset and not external or power-on 
 	bool wdt_reset = MCUSR == 8;
@@ -871,26 +997,26 @@ int main()
 	if(wdt_reset)
 	{
 		app_run = false;
-		sos_signal = true;
+//		sos_signal = true;
 	}
 	else
 	{
 		app_run = true;
-		sos_signal = false;
+//		sos_signal = false;
 	}
 	
 	MCUSR = 0;
 	
 	has_app();
-	init_board();
+	init_board(&GLOBAL.bus);
 	has_app();
 	
 	bool app_deployed = has_app();
 	busSignalOnline
 	(
 		reset_flag,
-			bb(sos_signal, 2)
-		|
+//			bb(sos_signal, 2)
+//		|
 			bb(app_run, 1)
 		|
 			bb(app_deployed, 0)
@@ -898,13 +1024,13 @@ int main()
 	
 	//wait a little bit, we might get some instruction from the bus before
 	//entering application mode
-	last_panic_signal_time = micros();
-	while(!afterMicro(&last_panic_signal_time, 500000))
 	{
-		ub_manage();
+		uint32_t t = micros();
+		while(1)//(afterMicro(&t, 500000))
+		{
+			ub_manage();
+		}
 	}
-	last_panic_signal_time = micros();
-	
 	wdt_enable(WDTO_1S);
 	while(1)
 	{
@@ -916,15 +1042,21 @@ int main()
 		{
 			call_app();
 		}
-		
-		if(sos_signal)
-		{
-			if(afterMicro(&last_panic_signal_time, 2000000))//2 sec
-			{
-				send_packet_priv(-1, 0, (uint8_t*) "WDT restart", 12);
-			}
-		}
 	}
+	
+	abort();
+}
+
+void call1()
+{
+	ub_main();
+}
+
+//this stack frame gonna be rewritten if i outsource all global variables to a
+//struct. See in ub_main where RAMEND appears.
+int main()
+{
+	call1();
 }
 
 
