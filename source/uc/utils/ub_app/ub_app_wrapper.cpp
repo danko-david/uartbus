@@ -18,16 +18,16 @@ int main(){}
 
 #include <avr/io.h>
 
-static volatile bool initialized = false;
+//static volatile bool initialized = false;
 
 //app_start section starts at 0x2000
 __attribute__((noinline, section(".app_start"))) void ub_app()
 {
-	if(!initialized)
+//	if(!initialized)
 	{
 		init_ub_app();
 		setup();
-		initialized = true;
+//		initialized = true;
 	}
 	loop();
 	asm ("ret");
@@ -40,11 +40,21 @@ bool (*send_packet)(int16_t, uint8_t* , uint16_t);
 uint8_t (*get_max_packet_size)();
 */
 
+bool send_packet(int16_t to, uint8_t* data, uint16_t size)
+{
+	void*** fns = (void***) getHostTableAddress()[0];
+	
+	bool (*reg)(int16_t, uint8_t*, uint16_t) =
+		(bool (*)(int16_t, uint8_t*, uint16_t)) fns[2];
+		
+	reg(to, data, size);
+}
+
 void register_packet_dispatch(void (*addr)(struct rpc_request* req))
 {
 	void*** fns = (void***) getHostTableAddress()[0];
 	
-	 void (*reg)(void (*addr)(struct rpc_request* req)) =
+	void (*reg)(void (*addr)(struct rpc_request* req)) =
 		(void (*)(void (*addr)(struct rpc_request* req))) fns[0];
 		
 	reg(addr);

@@ -11,8 +11,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import javax.swing.text.html.HTMLDocument.HTMLReader.BlockAction;
-
 import eu.javaexperience.cli.CliEntry;
 import eu.javaexperience.cli.CliTools;
 import eu.javaexperience.datastorage.TransactionException;
@@ -173,7 +171,7 @@ public class UartbusCodeUploader
 	
 	public static void main(String[] args) throws Throwable
 	{
-		args = new String[]{"-t", "1", "-c", "/home/szupervigyor/projektek/electronics/uartbus/source/uc/utils/ub_app/app.hex"};
+		//args = new String[]{"-t", "1", "-c", "/home/szupervigyor/projektek/electronics/uartbus/source/uc/utils/ub_app/app.hex"};
 		JavaExperienceLoggingFacility.addStdOut();
 		Map<String, List<String>> pa = CliTools.parseCliOpts(args);
 		String un = CliTools.getFirstUnknownParam(pa, PROG_CLI_ENTRIES);
@@ -227,28 +225,6 @@ public class UartbusCodeUploader
 		}
 		
 		//start
-		transaction(retry, new SimpleGet<Void>()
-		{
-			@Override
-			public Void get()
-			{
-				try
-				{
-					if(0 != flash.getFlashStage())
-					{
-						return null;
-					}
-				
-					flash.getStartFlash();
-					return null;
-				} catch (PosixErrnoException e)
-				{
-					e.printStackTrace();
-				}
-				return null;
-			}
-		});
-		
 		try
 		{
 			transaction(retry, new SimpleGet<Void>()
@@ -364,7 +340,7 @@ public class UartbusCodeUploader
 						GenericStruct2<Short, byte[]> c = boot.readProgramCode(addr[0], (byte) cp.length);
 						if(addr[0] != c.a)
 						{
-							throw new RuntimeException("Different address returned, that the requested. Req: "+addr[0]+", ret: "+c.a);
+							throw new RuntimeException("Different address returned, than the requested. Req: "+addr[0]+", ret: "+c.a);
 						}
 						
 						if(Arrays.equals(cp, c.b))

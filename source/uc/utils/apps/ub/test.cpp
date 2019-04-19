@@ -9,10 +9,14 @@
 
 void software_reset()
 {
-	//wdt_enable(WDTO_15MS);
-	//MCUSR = ~8;
-	//while(1){}
 	asm ("jmp 0x00");
+}
+
+void hardware_reset()
+{
+	wdt_enable(WDTO_15MS);
+	MCUSR = ~8;
+	while(1){}
 }
 
 void packet_received(struct rpc_request* req)
@@ -27,14 +31,20 @@ void packet_received(struct rpc_request* req)
 	if(0 == data[0])
 	{
 		PORTB = 0x0;
+		il_reply(req, 1, 0);
 	}
 	else if(1 == data[0])
 	{
 		PORTB = 0xff;
+		il_reply(req, 1, 0);
 	}
 	else if(2 == data[0])
 	{
 		software_reset();
+	}
+	else if(3 == data[0])
+	{
+		hardware_reset();
 	}
 }
 

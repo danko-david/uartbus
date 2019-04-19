@@ -258,7 +258,7 @@ void* RPC_FUNCTIONS_BUS[] =
 };
 
 /****************************** RPC bootloader ********************************/
-
+//2:0:x
 void rpc_bootloader_power_function(struct rpc_request* req)
 {
 	if(0 == (req->size - req->procPtr))
@@ -275,6 +275,7 @@ void rpc_bootloader_power_function(struct rpc_request* req)
 	}
 }
 
+//2:1:x
 void rpc_bootloader_get_var(struct rpc_request* req)
 {
 	if(0 == (req->size - req->procPtr))
@@ -294,6 +295,7 @@ void rpc_bootloader_get_var(struct rpc_request* req)
 	il_reply(req, 1, res);
 }
 
+//2:2:x
 void rpc_bootloader_set_var(struct rpc_request* req)
 {
 	if((req->size - req->procPtr) < 2)
@@ -313,6 +315,7 @@ void rpc_bootloader_set_var(struct rpc_request* req)
 	il_reply(req, 1, 0);
 }
 
+//2:3:x
 void rpc_bootloader_read_code(struct rpc_request* req)
 {
 	uint8_t* data = req->payload+ req->procPtr;
@@ -464,10 +467,11 @@ void commit_flash(struct rpc_request* req)
 	if(0 == flash_stage)
 	{
 		il_reply(req, 1, EBADFD);
+		return;
 	}
 	
 	//something filled into the write buffer => writing page
-	if(0 != flash_crnt_address % (SPM_PAGESIZE-1))
+	if(0 != ((flash_crnt_address-1) % (SPM_PAGESIZE-1)))
 	{
 		boot_program_page
 		(
@@ -891,10 +895,15 @@ int main()
 		|
 			bb(app_deployed, 0)
 	);
-	ub_manage();
 	
 	//wait a little bit, we might get some instruction from the bus before
 	//entering application mode
+	last_panic_signal_time = micros();
+	while(!afterMicro(&last_panic_signal_time, 500000))
+	{
+		ub_manage();
+	}
+	last_panic_signal_time = micros();
 	
 	wdt_enable(WDTO_1S);
 	while(1)
