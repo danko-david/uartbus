@@ -281,9 +281,10 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 	int16_t (*rec)(struct uartbus* bus) = bus->do_receive_byte;
 
 	uint8_t stat;
+	bool interrupt = bus->cfg & ub_cfg_read_with_interrupt;
 	for(uint16_t i=0;i<size;++i)
 	{
-		if(bus->cfg & ub_cfg_read_with_interrupt)
+		if(interrupt)
 		{
 			while(ub_stat_sending == bus->status && bus->wi != ~0)
 			{
@@ -321,6 +322,14 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 			{
 				return -2;
 			}*/
+		}
+	}
+	
+	if(interrupt)
+	{
+		while(ub_stat_sending == bus->status && bus->wi != ~0)
+		{
+			ub_out_update_state(bus);
 		}
 	}
 
