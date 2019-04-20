@@ -20,14 +20,22 @@ int main(){}
 
 //static volatile bool initialized = false;
 
-//app_start section starts at 0x2000
-__attribute__((noinline, section(".app_start"))) void ub_app()
+extern void __do_copy_data();
+extern void __do_clear_bss();
+
+static void init_app_section()
 {
-//	if(!initialized)
+	__do_copy_data();
+	__do_clear_bss();
+}
+
+//app_start section starts at 0x2000
+__attribute__((noinline, section(".app_start"))) void ub_app(bool first)
+{
+	if(first)
 	{
 		init_ub_app();
 		setup();
-//		initialized = true;
 	}
 	loop();
 	asm ("ret");

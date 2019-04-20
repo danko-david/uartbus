@@ -171,20 +171,6 @@ volatile uint8_t reset_flag;
 
 void ub_manage();
 
-struct ubb_global
-{
-	struct uartbus bus;
-};
-
-#define UBB ((struct ubb_global*)*((struct ubb_global**) RAMEND))
-
-/*struct ubb_global* G()
-{
-	return
-		//GLOB;
-		*((struct ubb_global**) RAMEND);
-}*/
-
 /***************************** USART functions ********************************/
 
 void USART_Init(void)
@@ -480,7 +466,7 @@ void blf_start_flash(struct rpc_request* req)
 		il_reply(req, 1, EALREADY);		
 	}
 	
-	flash_tmp = 0;//(uint8_t*) malloc(SPM_PAGESIZE);
+	flash_tmp = (uint8_t*)RAMSTART;//(uint8_t*) malloc(SPM_PAGESIZE);
 	if(NULL == flash_tmp)
 	{
 		il_reply(req, 1, ENOMEM);
@@ -502,10 +488,6 @@ void blf_get_next_addr(struct rpc_request* req)
 
 __attribute__((section(".bootloader"))) void bootloader_main()
 {
-	//return;
-	//__do_global_ctors();
-//	asm ("call 0x9c");
-//	main();
 	asm ("jmp 0x0");
 }
 
@@ -674,6 +656,7 @@ void dispatch_root(struct rpc_request* req)
 
 #define MAX_PACKET_SIZE 48
 
+struct uartbus bus;
 int received_ep;
 uint8_t received_data[MAX_PACKET_SIZE];
 
@@ -857,30 +840,30 @@ uint8_t get_max_packet_size()
 
 int8_t rando()
 {
-	return 0;
+	return rand()%256;
 }
 
-void init_bus(struct uartbus* bus)
+void init_bus()
 {
 	received_ep = 0;
 
-	bus->rand = rando;
-	bus->currentUsec = micros;
-	bus->serial_byte_received = ub_rec_byte;
-	bus->serial_event = ub_event;
-	ub_init_baud(bus, BAUD_RATE, 3);
-	bus->do_send_byte = ub_do_send_byte;
-	bus->cfg = 0
+	bus.rand = rando;
+	bus.currentUsec = micros;
+	bus.serial_byte_received = ub_rec_byte;
+	bus.serial_event = ub_event;
+	ub_init_baud(&bus, BAUD_RATE, 3);
+	bus.do_send_byte = ub_do_send_byte;
+	bus.cfg = 0
 		|	ub_cfg_fairwait_after_send_high
 //		|	ub_cfg_fairwait_after_send_low
 		|	ub_cfg_read_with_interrupt
 	;
-	ub_init(bus);
+	ub_init(&bus);
 }
 
 ISR(USART_RX_vect)
 {
-	ub_out_rec_byte(&UBB->bus, UDR0);
+	ub_out_rec_byte(&bus, UDR0);
 }
 
 void register_packet_dispatch(void (*addr)(struct rpc_request* req))
@@ -890,20 +873,25 @@ void register_packet_dispatch(void (*addr)(struct rpc_request* req))
 
 /*************************** Host software utilities **************************/
 
-int init_board(struct uartbus* bus)
+int init_board(void)
 {
 	ub_init_infrastructure();
 	USART_Init();
-	init_bus(bus);
+	init_bus();
 }
 
 //https://stackoverflow.com/questions/6686675/gcc-macro-expansion-arguments-inside-string
 #define S(x) #x
 #define SX(x) S(x)
 
-__attribute__((noinline)) void call_app()
+__attribute__((noinline)) void call_app(bool first)
 {
-	asm("call " SX(APP_START_ADDRESS));
+	//void (*app)(bool) = (void (*)(bool)) APP_START_ADDRESS;
+	//app(first);
+	//asm("call " SX(APP_START_ADDRESS));
+	asm("jmp " SX(APP_START_ADDRESS));
+	asm ("ret");
+
 }
 
 bool has_app()
@@ -973,23 +961,16 @@ void busSignalOnline(uint8_t powerOnMode, uint8_t softMode)
 
 void ub_manage()
 {
-	ub_manage_connection(&UBB->bus, send_on_idle);
+	ub_manage_connection(&bus, send_on_idle);
 	try_dispatch_received_packet();
 }
 
 //boolean bit
 #define bb(x, y) x?0x1 <<y:0
 
-void ub_main()
+int main()
 {
-	struct ubb_global GLOBAL;
-	{
-		struct ubb_global** g = (struct ubb_global**) RAMEND;
-		g[0] = &GLOBAL;
-	}
-	
 	DDRB = 0xFF; //DEBUG
-
 	reset_flag = MCUSR;
 	//watchdog reset and not external or power-on 
 	bool wdt_reset = MCUSR == 8;
@@ -997,18 +978,16 @@ void ub_main()
 	if(wdt_reset)
 	{
 		app_run = false;
-//		sos_signal = true;
 	}
 	else
 	{
 		app_run = true;
-//		sos_signal = false;
 	}
 	
 	MCUSR = 0;
 	
 	has_app();
-	init_board(&GLOBAL.bus);
+	init_board();
 	has_app();
 	
 	bool app_deployed = has_app();
@@ -1026,12 +1005,13 @@ void ub_main()
 	//entering application mode
 	{
 		uint32_t t = micros();
-		while(1)//(afterMicro(&t, 500000))
+		while(afterMicro(&t, 500000))
 		{
 			ub_manage();
 		}
 	}
 	wdt_enable(WDTO_1S);
+	bool first = true;
 	while(1)
 	{
 		wdt_reset();
@@ -1040,23 +1020,12 @@ void ub_main()
 		
 		if(app_run && has_app())
 		{
-			call_app();
+			call_app(first);
+			first = false;
 		}
 	}
 	
 	abort();
-}
-
-void call1()
-{
-	ub_main();
-}
-
-//this stack frame gonna be rewritten if i outsource all global variables to a
-//struct. See in ub_main where RAMEND appears.
-int main()
-{
-	call1();
 }
 
 

@@ -19,11 +19,14 @@ void hardware_reset()
 	while(1){}
 }
 
+uint8_t val = 0;
+
 void packet_received(struct rpc_request* req)
 {
+	++req->procPtr;
 	uint8_t* data = req->payload + req->procPtr;
 	uint8_t ep = req->size - req->procPtr;
-	if(0 == ep)
+	if(0 == ep || 32 != data[-1])
 	{
 		return;
 	}
@@ -45,6 +48,15 @@ void packet_received(struct rpc_request* req)
 	else if(3 == data[0])
 	{
 		hardware_reset();
+	}
+	else if(4 == data[0])
+	{
+		val = data[1];
+		il_reply(req, 1, 0);
+	}
+	else if(5 == data[0])
+	{
+		il_reply(req, 1, val);
 	}
 }
 

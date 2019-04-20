@@ -3,6 +3,8 @@
 **/*.o
 **/*.d
 **/*.a
+**/*.map
+**/*.out
 **/.settings/
 **/.project
 **/.classpath
