@@ -64,12 +64,21 @@ public class UartbusCollisionPacketloss
 		if(0 != sent)
 		{
 			int loss = sent - received;
-			
-			System.out.print("Statistic for bus device "+device+": ");
-			System.out.print("\tSent packets: "+sent);
-			System.out.print("\tReceived packets: "+received);
-			System.out.print("\tLost packets: "+loss);
-			System.out.println("\tPacket loss ratio: "+Format.formatDouble(((100.0*loss)/ (sent)))+" %");
+			if(0 == device)
+			{
+				System.out.print("Statistic of collisions:");
+				System.out.print("\tSent packets: "+sent);
+				System.out.print("\tCollided packets: "+received);
+				System.out.println("\tCollision ratio: "+Format.formatDouble(((100.0*received)/ (sent)))+" %");
+			}
+			else
+			{
+				System.out.print("Statistic for bus device "+device+": ");
+				System.out.print("\tSent packets: "+sent);
+				System.out.print("\tReceived packets: "+received);
+				System.out.print("\tLost packets: "+loss);
+				System.out.println("\tPacket loss ratio: "+Format.formatDouble(((100.0*loss)/ (sent)))+" %");
+			}
 		}
 	}
 	
@@ -130,6 +139,10 @@ public class UartbusCollisionPacketloss
 						{
 							MapTools.incrementCount(stat, packet.from);
 						}
+					}
+					else
+					{
+						MapTools.incrementCount(stat, 0);
 					}
 				}
 				catch(Exception ex)

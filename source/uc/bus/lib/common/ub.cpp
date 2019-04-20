@@ -204,7 +204,7 @@ static bool ub_check_and_handle_collision(struct uartbus* bus, uint8_t data)
 	{
 		bus->status = ub_stat_sending_fairwait;
 		
-		bus->wi = get_packet_timeout_cycles(bus)+3+bus->rand()%10;
+		bus->wi = get_packet_timeout_cycles(bus)+3+bus->rand();
 		ub_update_last_activity_now(bus);
 
 		return true;
@@ -290,12 +290,13 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 			{
 				ub_out_update_state(bus);
 			}
+			
+			if(ub_stat_sending != bus->status)
+			{
+				return -2;
+			}
 		}
 		
-		if(ub_stat_sending != bus->status)
-		{
-			return -2;
-		}
 		uint8_t val = addr[i];
 		bus->wi = val;
 		stat = send(bus, val);
@@ -330,6 +331,11 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 		while(ub_stat_sending == bus->status && bus->wi != ~0)
 		{
 			ub_out_update_state(bus);
+		}
+		
+		if(ub_stat_sending != bus->status)
+		{
+			return -2;
 		}
 	}
 

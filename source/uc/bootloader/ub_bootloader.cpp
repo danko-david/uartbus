@@ -840,7 +840,7 @@ uint8_t get_max_packet_size()
 
 int8_t rando()
 {
-	return rand()%256;
+	return rand()%16;
 }
 
 void init_bus()
@@ -1000,6 +1000,7 @@ int main()
 		|
 			bb(app_deployed, 0)
 	);
+	srand(micros());
 	
 	//wait a little bit, we might get some instruction from the bus before
 	//entering application mode

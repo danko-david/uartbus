@@ -169,7 +169,7 @@ uint8_t received_data[MAX_PACKET_SIZE];
 
 int8_t rando()
 {
-	return rand()%256;
+	return rand()%16;
 }
 
 
