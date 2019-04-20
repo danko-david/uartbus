@@ -23,12 +23,13 @@ MAIN_SKETCH = uartbus_connector.cpp
 #MCU = atmega328p
 
 # compile flags
-GENERAL_FLAGS = -c -g -Os -Wall -ffunction-sections -fdata-sections -mmcu=$(MCU) -DF_CPU=$(F_CPU)L -MMD -DUSB_VID=null -DUSB_PID=null -DARDUINO=106 $(EXT_FLAGS)
+GENERAL_FLAGS = -c -g -Os -Wall -ffunction-sections -fdata-sections -mmcu=$(MCU) -DF_CPU=$(F_CPU)L -MMD -DUSB_VID=null -DUSB_PID=null -DARDUINO=105 $(EXT_FLAGS)
 CPP_FLAGS = $(GENERAL_FLAGS) -fno-exceptions
 CC_FLAGS  = $(GENERAL_FLAGS)
 
 # location of include files
-INCLUDE_FILES = "-I$(ARDUINO_DIR)hardware/arduino/cores/arduino" "-I$(ARDUINO_DIR)hardware/arduino/variants/standard" "-I../../../../bus/lib/arduino" "-I../../../../bus/lib/common"
+
+INCLUDE_FILES = "-I$(ARDUINO_DIR)hardware/arduino/cores/" "-I$(ARDUINO_DIR)hardware/arduino/cores/arduino" "-I$(ARDUINO_DIR)hardware/arduino/variants/mega" "-I../../../../bus/lib/arduino" "-I../../../../bus/lib/common"
 
 # library sources
 LIBRARY_DIR = "$(ARDUINO_DIR)hardware/arduino/cores/arduino/"
@@ -44,7 +45,7 @@ build:
 	$(CC) $(CC_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)wiring_pulse.c -o wiring_pulse.c.o 
 	$(CC) $(CC_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)wiring_shift.c -o wiring_shift.c.o
 	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)CDC.cpp -o CDC.cpp.o 
-	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)HardwareSerial.cpp -o HardwareSerial.cpp.o 
+	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) -include HardwareSerial.h $(LIBRARY_DIR)HardwareSerial.cpp -o HardwareSerial.cpp.o 
 	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)HID.cpp -o HID.cpp.o 
 	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)IPAddress.cpp -o IPAddress.cpp.o 
 	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)main.cpp -o main.cpp.o 
@@ -56,32 +57,12 @@ build:
 	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)WMath.cpp -o WMath.cpp.o 
 	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)WString.cpp -o WString.cpp.o
 	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) ../../../../bus/lib/common/ub.cpp -o ub.cpp.o
-	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) ../../../../bus/lib/arduino/ub_arduino.cpp -o ub_arduino.cpp.o 
+#	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) ../../../../bus/lib/arduino/ub_arduino.cpp -o ub_arduino.cpp.o 
 	$(AR) rcs core.a *.{c,cpp}.o
-#	$(AR) rcs core.a malloc.c.o 
-#	$(AR) rcs core.a realloc.c.o 
-#	$(AR) rcs core.a WInterrupts.c.o 
-#	$(AR) rcs core.a wiring.c.o 
-#	$(AR) rcs core.a wiring_analog.c.o 
-#	$(AR) rcs core.a wiring_digital.c.o 
-#	$(AR) rcs core.a wiring_pulse.c.o 
-#	$(AR) rcs core.a wiring_shift.c.o 
-#	$(AR) rcs core.a CDC.cpp.o 
-#	$(AR) rcs core.a HardwareSerial.cpp.o 
-#	$(AR) rcs core.a HID.cpp.o 
-#	$(AR) rcs core.a IPAddress.cpp.o 
-#	$(AR) rcs core.a main.cpp.o 
-#	$(AR) rcs core.a new.cpp.o 
-#	$(AR) rcs core.a Print.cpp.o 
-#	$(AR) rcs core.a Stream.cpp.o 
-#	$(AR) rcs core.a Tone.cpp.o 
-#	$(AR) rcs core.a USBCore.cpp.o 
-#	$(AR) rcs core.a WMath.cpp.o 
-#	$(AR) rcs core.a WString.cpp.o 
 	$(CC) -Os -Wl,--gc-sections -mmcu=$(MCU) -o $(MAIN_SKETCH).elf $(MAIN_SKETCH).e core.a -lm 
 	$(OBJ_COPY) -O ihex -j .eeprom --set-section-flags=.eeprom=alloc,load --no-change-warnings --change-section-lma .eeprom=0 $(MAIN_SKETCH).elf $(MAIN_SKETCH).eep 
 	$(OBJ_COPY) -O ihex -R .eeprom $(MAIN_SKETCH).elf $(MAIN_SKETCH).hex
-	
-	
+	avr-objdump -S --disassemble $(MAIN_SKETCH).elf > $(MAIN_SKETCH).asm
+
 clean:
 	rm *.{e,o,d,a,hex,eep,elf}

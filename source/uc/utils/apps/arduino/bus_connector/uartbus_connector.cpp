@@ -6,7 +6,8 @@
  *		1,2,3 serial are avilable only in mega
  */
 
-#include "ub_arduino.h"
+#include "ub.h"
+#include "Arduino.h"
 
 #define NET_TRAFFIC_LED 13
 
@@ -32,7 +33,7 @@
 #endif
 
 
-
+/*
 #ifdef BUS_SERIAL_SOFT
 	#include <AltSoftSerial.h>
 	AltSoftSerial SERIAL_BUS;
@@ -53,7 +54,7 @@
 #ifdef BUS_SERIAL3
 	#define SERIAL_BUS Serial3
 #endif
-
+*/
 
 
 #ifndef MAX_PACKET_SIZE
@@ -64,7 +65,210 @@
 	#define PACKET_ESCAPE 0xff
 #endif
 
-struct uartbus_arduino BUS;
+
+/**************************** queue management ********************************/
+
+void* mem_alloc(size_t s)
+{
+	cli();
+	void* ret = malloc(s);
+	sei();
+	return ret;
+}
+
+void mem_free(void* a)
+{
+	cli();
+	free(a);
+	sei();
+}
+
+struct queue_entry
+{
+	struct queue_entry* next;
+	uint8_t size;
+	uint8_t data[MAX_PACKET_SIZE];
+};
+
+struct queue
+{
+	struct queue_entry* head;
+	struct queue_entry* tail;
+};
+
+struct queue* new_queue()
+{
+	struct queue* ret = (struct queue*) mem_alloc(sizeof(struct queue));
+	memset(ret, 0, sizeof(struct queue));
+	return ret;
+}
+
+struct queue_entry* new_queue_entry()
+{
+	struct queue_entry* ret = (struct queue_entry*) mem_alloc(sizeof(struct queue_entry));
+	ret->next = NULL;
+	ret->size = 0;
+	return ret;
+}
+
+void free_queue_entry(struct queue_entry* ent)
+{
+	mem_free(ent);
+}
+
+void queue_push(struct queue* q, struct queue_entry* ent)
+{
+	cli();
+	if(NULL == q->head)
+	{
+		q->head = ent;
+		q->tail = ent;
+	}
+	else
+	{
+		q->tail->next = ent;
+		q->tail = ent;
+	}
+	sei();
+}
+
+struct queue_entry* queue_take(struct queue* q)
+{
+	struct queue_entry* ret = q->head;
+	if(NULL != ret)
+	{
+		cli();
+		q->head = ret->next;
+		if(NULL == ret->next)
+		{
+			q->tail = NULL;
+		}
+		sei();
+	}
+	return ret;
+}
+
+void queue_enqueue_content(struct queue* q, uint8_t* data, uint8_t size)
+{
+	struct queue_entry* add = new_queue_entry();
+	add->size = size;
+	memcpy(add->data, data, size);
+	queue_push(q, add);
+}
+
+/******************************** UARTBus *************************************/
+
+
+struct queue* from_bus;
+struct queue* from_serial;
+
+struct uartbus bus;
+int received_ep;
+bool received = false;
+uint8_t received_data[MAX_PACKET_SIZE];
+
+int8_t rando()
+{
+	return rand()%256;
+}
+
+
+void USART_Init(void)
+{
+	UCSR3A = _BV(U2X3); //Double speed mode USART3
+	UCSR3B = _BV(RXEN3) | _BV(TXEN3) | _BV(RXCIE3);
+	UCSR3C = _BV(UCSZ00) | _BV(UCSZ01);
+	UBRR3L = (uint8_t)( (F_CPU + BAUD * 4L) / (BAUD * 8L) - 1 );
+}
+
+void USART_SendByte(uint8_t u8Data)
+{
+	// Wait until last byte has been transmitted
+	while (!(UCSR3A & _BV(UDRE3))){}
+
+	// Transmit data
+	UDR3 = u8Data;
+}
+
+ISR(USART3_RX_vect)
+{
+	ub_out_rec_byte(&bus, UDR3);
+}
+
+static void ub_rec_byte(struct uartbus* a, uint8_t data_byte)
+{
+	if(received_ep == MAX_PACKET_SIZE)
+	{
+		//brake the package manually
+		received_ep = 0;
+	}
+	else
+	{
+		received_data[received_ep++] = data_byte;
+	}
+}
+
+static uint8_t ub_do_send_byte(struct uartbus* bus, uint8_t val)
+{
+	USART_SendByte(val);
+	return 0;
+}
+
+static void ub_event(struct uartbus* a, enum uartbus_event event)
+{
+	if(ub_event_receive_end == event)
+	{
+		if(0 == received_ep)
+		{
+			return;
+		}
+		
+		//TODO push the stuff in oher way
+		queue_enqueue_content(from_bus, received_data, received_ep);
+		
+		received_ep = 0;
+	}
+}
+
+//yet another memory allocation beacuse of the wrong memory ownership design...
+uint8_t send_data[MAX_PACKET_SIZE];
+
+static uint8_t send_on_idle(struct uartbus* bus, uint8_t** data, uint16_t* size)
+{
+	struct queue_entry* send = queue_take(from_serial);
+
+	if(NULL != send)
+	{
+		memcpy(send_data, send->data, send->size);
+		*data = send_data;
+		*size = send->size;
+		free_queue_entry(send);
+		return 0;
+	}
+	return 1;
+}
+
+void init_bus()
+{
+	received_ep = 0;
+
+	bus.rand = rando;
+	bus.currentUsec = micros;
+	bus.serial_byte_received = ub_rec_byte;
+	bus.serial_event = ub_event;
+	ub_init_baud(&bus, BAUD, 3);
+	bus.do_send_byte = ub_do_send_byte;
+	bus.cfg = 0
+		|	ub_cfg_fairwait_after_send_high
+//		|	ub_cfg_fairwait_after_send_low
+		|	ub_cfg_read_with_interrupt
+	;
+	ub_init(&bus);
+}
+
+
+
+/********************************** serial ************************************/
 
 byte encode[MAX_PACKET_SIZE*2+2];
 
@@ -73,31 +277,36 @@ void flashLed()
 	digitalWrite(NET_TRAFFIC_LED, !digitalRead(NET_TRAFFIC_LED));
 }
 
-void relaySerial(uint8_t* data, uint8_t size)
-{
-	uint8_t e = 0;
-	
+void serialWriteEscape(uint8_t* data, uint8_t size)
+{	
 	for(uint8_t i=0;i<size;++i)
 	{
 		if(data[i] == PACKET_ESCAPE)
 		{
-			encode[e++] = PACKET_ESCAPE;
+			SERIAL_PC.write(PACKET_ESCAPE);
 		}
-		encode[e++] = data[i];
+		SERIAL_PC.write(data[i]);
 	}
 	
-	encode[e++] = PACKET_ESCAPE;
-	encode[e++] = ~PACKET_ESCAPE;
+	SERIAL_PC.write(PACKET_ESCAPE);
+	SERIAL_PC.write(~PACKET_ESCAPE);
 	
 	flashLed();
-	SERIAL_PC.write((uint8_t*) encode, (uint8_t) e);
 }
 
-void onPacketReceived(struct uartbus_arduino* bus, uint8_t* data, uint16_t size)
+void relaySerial()
 {
-	if(size > 0)
+	//pop data and relay
+	struct queue_entry* send = queue_take
+	(
+		from_bus
+		//from_serial
+	);
+
+	if(NULL != send)
 	{
-		relaySerial(data, size);
+		serialWriteEscape(send->data, send->size);
+		free_queue_entry(send);
 	}
 }
 
@@ -116,7 +325,7 @@ void readSerial()
 			if(b == (byte)~PACKET_ESCAPE)
 			{
 				flashLed();
-				arduino_ub_send_packet(&BUS, decode, ep);
+				queue_enqueue_content(from_serial, decode, ep);
 				ep = 0;
 			}
 			else
@@ -139,20 +348,35 @@ void readSerial()
 	}
 }
 
+//TODO fromhere
+
+
+void ub_manage()
+{
+	ub_manage_connection(&bus, send_on_idle);
+}
+
 void setup()
 {
-	pinMode(NET_TRAFFIC_LED, OUTPUT);
+	pinMode(LED_BUILTIN, OUTPUT);
+
+	from_bus = new_queue();
+	from_serial = new_queue();
+
+	USART_Init();
+	
 	
 	SERIAL_PC.begin(BAUD);
-	SERIAL_BUS.begin(BAUD);
-	ub_init_infrastructure();
-	arduino_ub_init(&BUS, &SERIAL_BUS, BAUD, MAX_PACKET_SIZE, onPacketReceived, NULL);
+	
+	init_bus();
+	sei();
 }
 
 void loop()
 {
-	arduino_ub_manage_bus(&BUS);
+	ub_manage();
 	readSerial();
+	relaySerial();
 }
 
 
