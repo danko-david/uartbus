@@ -967,9 +967,28 @@ void ub_manage()
 
 //boolean bit
 #define bb(x, y) x?0x1 <<y:0
+/*
+ISR(INT0_vect)
+{
+	ub_predict_transmission_start(&bus);
+}
+*/
 
 int main()
 {
+/*	DDRD = 1<<PD2;		// Set PD2 as input (Using for interupt INT0)
+	PORTD = 1<<PD2;		// Enable PD2 pull-up resistor
+ 
+	DataDDR = 0xFF;		// Configure Dataport as output
+	DataPort = 0x01;	// Initialise Dataport to 1
+ 
+	GICR = 1<<INT0;					// Enable INT0
+	MCUCR = 1<<ISC01 | 1<<ISC00;	// Trigger INT0 on rising edge
+*/
+
+
+
+
 	DDRB = 0xFF; //DEBUG
 	reset_flag = MCUSR;
 	//watchdog reset and not external or power-on 

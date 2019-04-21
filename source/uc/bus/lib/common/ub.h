@@ -106,7 +106,7 @@ struct uartbus
 	
 	uint8_t* to_send;
 	
-	uint16_t to_send_size;
+	volatile uint16_t to_send_size;
 
 	volatile enum uartbus_status status;
 
@@ -155,6 +155,8 @@ void ub_out_rec_byte(struct uartbus* bus, uint8_t data);
 void ub_init(struct uartbus*);
 
 void ub_init_infrastructure();
+
+void ub_predict_transmission_start(struct uartbus* bus);
 
 enum uartbus_status ub_get_bus_state(struct uartbus* bus);
 

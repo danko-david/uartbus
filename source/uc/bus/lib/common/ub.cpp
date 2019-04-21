@@ -49,7 +49,7 @@ static uint8_t get_fairwait_conf_cycles(struct uartbus* bus)
 	{
 		ret |= 0x2;
 	}
-	return ret;
+	return 1+ret;
 }
 
 static uint8_t get_packet_timeout_cycles(struct uartbus* bus)
@@ -182,6 +182,15 @@ __attribute__((noinline)) void ub_out_update_state(struct uartbus* bus)
 			bus->status = ub_stat_sending_fairwait;
 			ub_update_last_activity_now(bus);
 		}
+		
+		if(ub_stat_sending == status)
+		{
+			//a successfull send, so we might send the next packet
+			bus->to_send_size = 0;
+			bus->wi = get_fairwait_conf_cycles(bus);
+			bus->status = ub_stat_sending_fairwait;
+			ub_update_last_activity_now(bus);
+		}
 
 		if(ub_stat_connecting == status)
 		{
@@ -249,12 +258,7 @@ __attribute__((noinline)) void ub_out_rec_byte(struct uartbus* bus, uint8_t data
 		bus->status = ub_stat_idle;
 	}
 
-	if(ub_stat_idle == status || ub_stat_sending_fairwait == status)
-	{
-		bus->status = ub_stat_receiving;
-		//if we idle we notifies the start only
-		bus->serial_event(bus, ub_event_receive_start);
-	}
+	ub_predict_transmission_start(bus);
 
 	bus->serial_byte_received(bus, data);
 }
@@ -340,13 +344,18 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 	}
 
 	//fairwait;
-	//enter fairwait now, this prevent over-waiting on the bus.
+	//REJECTED IDEA: enter fairwait now, this prevent over-waiting on the bus.
 	//enter to fairwait and set wait, if we keep in sending state we might miss
-	//ths start of the packet we gonna receive from ther device
-	bus->status = ub_stat_sending_fairwait;
-	bus->wi = get_packet_timeout_cycles(bus)+get_fairwait_conf_cycles(bus)+1;
-
-	bus->to_send_size = 0;
+	//the start of the packet we gonna receive from ther device
+	
+	//we can even collide with other transmission if other device start sending
+	//beneath the send state. In this case we - using the previous
+	//implementation - think we succeed the sending, BUT actually the other
+	//device broke THIS transmission. This results this device don't gonna
+	//retransmit and the package are broken => packet lost.
+	
+	//bus->status = ub_stat_sending_fairwait;
+	//bus->wi = get_packet_timeout_cycles(bus)+get_fairwait_conf_cycles(bus)+1;
 
 	return 0;
 }
@@ -401,6 +410,16 @@ void ub_try_receive(struct uartbus* bus)
 		{
 			ub_out_rec_byte(bus, (uint8_t) re);
 		}
+	}
+}
+
+__attribute__((noinline)) void ub_predict_transmission_start(struct uartbus* bus)
+{
+	if(ub_stat_idle == bus->status || ub_stat_sending_fairwait == bus->status)
+	{
+		bus->status = ub_stat_receiving;
+		//if we idle we notifies the start only
+		bus->serial_event(bus, ub_event_receive_start);
 	}
 }
 
