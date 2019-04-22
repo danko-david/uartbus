@@ -164,14 +164,13 @@ struct queue* from_serial;
 
 struct uartbus bus;
 int received_ep;
-bool received = false;
+
 uint8_t received_data[MAX_PACKET_SIZE];
 
-int8_t rando()
+uint8_t rando()
 {
-	return rand()%16;
+	return rand()%256;
 }
-
 
 void USART_Init(void)
 {
@@ -216,18 +215,50 @@ static uint8_t ub_do_send_byte(struct uartbus* bus, uint8_t val)
 
 static void ub_event(struct uartbus* a, enum uartbus_event event)
 {
-	if(ub_event_receive_end == event)
+	if
+	(
+			ub_event_send_collision == event
+		||
+			ub_event_receive_start == event
+		||
+			ub_event_send_end == event
+	)
 	{
-		if(0 == received_ep)
-		{
-			return;
-		}
-		
-		//TODO push the stuff in oher way
-		queue_enqueue_content(from_bus, received_data, received_ep);
-		
 		received_ep = 0;
 	}
+
+
+	if(ub_event_receive_end == event)
+	{
+		if(0 != received_ep)
+		{
+			queue_enqueue_content(from_bus, received_data, received_ep);
+			received_ep = 0;
+		}
+	}
+	
+	//os send end or collision
+/*	if
+	(
+			event == ub_event_receive_end
+		||
+			event == ub_event_send_end
+		||
+			event == ub_event_send_collision
+	)
+	{
+		PORTB |= _BV(PB5);
+		PCMSK2 |= _BV(PCINT16);
+	}
+	
+	//or send start
+	if(ub_event_receive_start == event || ub_event_send_start == event)
+	{
+		PORTB &= ~_BV(PB5);
+		PCMSK2 &= ~_BV(PCINT16);
+	}
+
+*/
 }
 
 //yet another memory allocation beacuse of the wrong memory ownership design...

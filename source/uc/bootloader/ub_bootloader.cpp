@@ -171,6 +171,11 @@ volatile uint8_t reset_flag;
 
 void ub_manage();
 
+uint8_t rando()
+{
+	return (rand() %256);
+}
+
 /***************************** USART functions ********************************/
 
 void USART_Init(void)
@@ -195,9 +200,6 @@ void USART_SendByte(uint8_t u8Data)
 
 	// Transmit data
 	UDR0 = u8Data;
-//	UCSR0A |= 1<<TXC0;
-	//while (!(UCSR0A & _BV(UDRE0))){}
-//	while((UCSR0A&(1<<UDRE0)) == 0);
 }
 
 /******************* On board software upgrade  functionalities ***************/
@@ -344,24 +346,87 @@ int8_t unpack_value(int16_t* dst, uint8_t* arr, int size)
 	return req;
 }
 
-/*************************** RPC functions - Bus ******************************/
+/************************** RPC functions - Basic *****************************/
 
-void rpc_bus_ping(struct rpc_request* req)
+//1:0
+void rpc_basic_ping(struct rpc_request* req)
 {
-	PORTB ^= 0xff;
 	il_reply(req, 0);
 }
 
-void rpc_bus_replay(struct rpc_request* req)
+//1:1
+void rpc_basic_replay(struct rpc_request* req)
 {
 	il_reply_arr(req, req->payload+req->procPtr, req->size - req->procPtr);
 }
 
-void* RPC_FUNCTIONS_BUS[] =
+//1:2:x
+void rpc_basic_user_led(struct rpc_request* req)
 {
-	(void*) 2,
-	(void*) rpc_bus_ping,
-	(void*) rpc_bus_replay
+	if(0 != (req->size - req->procPtr))
+	{
+		switch(req->payload[req->procPtr])
+		{
+			case 0: PORTB &= ~_BV(PB5); break;
+			case 1: PORTB |= _BV(PB5); break;
+			case 2: PORTB ^= _BV(PB5); break;
+		}
+	}
+	il_reply(req, 1, PORTB & _BV(PB5)?1:0);
+}
+
+//https://www.avrfreaks.net/forum/extracting-bytes-long
+union LONG_BYTES
+{
+	int16_t int16;
+	uint16_t uint16;
+	int32_t int32;
+	uint32_t uint32;
+	
+	struct {
+		uint8_t b0;
+		uint8_t b1;
+		uint8_t b2;
+		uint8_t b3;
+	} bytes;
+
+	struct {
+		uint16_t w0;
+		uint16_t w1;
+	} words;
+};
+
+//1:3
+void rpc_basic_get_time(struct rpc_request* req)
+{
+	union LONG_BYTES t;
+	t.uint32 = micros();
+	
+	il_reply
+	(
+		req, 4, 
+		
+		t.bytes.b3,
+		t.bytes.b2,
+		t.bytes.b1,
+		t.bytes.b0
+	);
+}
+
+//1:4
+void rpc_basic_random(struct rpc_request* req)
+{
+	il_reply(req, 1, rando());
+}
+
+void* RPC_FUNCTIONS_BASIC[] =
+{
+	(void*) 5,
+	(void*) rpc_basic_ping,
+	(void*) rpc_basic_replay,
+	(void*) rpc_basic_user_led,
+	(void*) rpc_basic_get_time,
+	(void*) rpc_basic_random
 };
 
 /****************************** RPC bootloader ********************************/
@@ -638,9 +703,9 @@ void* RPC_FUNCTIONS_TRANSACTION[] =
 
 void* RPC_NS_FUNCTIONS[] =
 {
-	(void*) 6,
+	(void*) 5,
 	NULL,
-	RPC_FUNCTIONS_BUS,
+	RPC_FUNCTIONS_BASIC,
 	RPC_FUNCTIONS_BOOTLOADER,
 	RPC_FUNCTIONS_DEBUG,
 	RPC_FUNCTIONS_TRANSACTION,//transaction management
@@ -664,6 +729,14 @@ uint8_t send_size;
 uint8_t send_data[MAX_PACKET_SIZE];
 
 void (*app_dispatch)(struct rpc_request* req) = NULL;
+
+/*void predict_transmission()
+{
+	if((PORTD & _BV(PD0)))//if RX is low
+	{
+		ub_predict_transmission_start(&bus);
+	}
+}*/
 
 static void ub_rec_byte(struct uartbus* a, uint8_t data_byte)
 {
@@ -724,7 +797,7 @@ void dispatch(struct rpc_request* req)
 		return;
 	}
 	
-	int ns = req->payload[req->procPtr];
+	uint8_t ns = req->payload[req->procPtr];
 	
 	if(req->from >= 0 && 0 < ns && ns < 32)
 	{
@@ -781,6 +854,9 @@ static void try_dispatch_received_packet()
 			}
 			req.procPtr = 0;
 			
+			//early release of receive buffer 
+			received_ep = 0;
+			
 			//is we are the target, or group/broadcast?
 			if(req.to < 1 || BUS_ADDRESS == req.to)
 			{
@@ -794,14 +870,43 @@ static void try_dispatch_received_packet()
 
 static void ub_event(struct uartbus* a, enum uartbus_event event)
 {
+	if
+	(
+			ub_event_send_collision == event
+		||
+			ub_event_receive_start == event
+		||
+			ub_event_send_end == event
+	)
+	{
+		received_ep = 0;
+		received = false;
+	}
+
 	if(ub_event_receive_end == event)
 	{
-		if(0 == received_ep)
-		{
-			return;
-		}
-		
-		received = true;
+		received = 0 != received_ep;
+	}
+	
+	//listen for collision
+	if
+	(
+			event == ub_event_receive_end
+		||
+			event == ub_event_send_end
+		||
+			event == ub_event_send_collision
+	)
+	{
+		PORTB |= _BV(PB5);
+		PCMSK2 |= _BV(PCINT16);
+	}
+	
+	//disable listen for collision
+	if(ub_event_receive_start == event || ub_event_send_start == event)
+	{
+		PORTB &= ~_BV(PB5);
+		PCMSK2 &= ~_BV(PCINT16);
 	}
 }
 
@@ -838,11 +943,6 @@ uint8_t get_max_packet_size()
 	return MAX_PACKET_SIZE;
 }
 
-int8_t rando()
-{
-	return rand()%16;
-}
-
 void init_bus()
 {
 	received_ep = 0;
@@ -863,7 +963,17 @@ void init_bus()
 
 ISR(USART_RX_vect)
 {
-	ub_out_rec_byte(&bus, UDR0);
+	//check for framing error
+	bool error = (UCSR0A & _BV(FE0));
+	uint8_t data = UDR0;
+	if(error)
+	{
+		ub_out_rec_byte(&bus, ~0);		
+	}
+	else
+	{
+		ub_out_rec_byte(&bus, data);
+	}
 }
 
 void register_packet_dispatch(void (*addr)(struct rpc_request* req))
@@ -967,27 +1077,19 @@ void ub_manage()
 
 //boolean bit
 #define bb(x, y) x?0x1 <<y:0
-/*
-ISR(INT0_vect)
+
+//TODO disable on transmission start and enable on packet end
+ISR(PCINT2_vect)
 {
 	ub_predict_transmission_start(&bus);
 }
-*/
 
 int main()
 {
-/*	DDRD = 1<<PD2;		// Set PD2 as input (Using for interupt INT0)
-	PORTD = 1<<PD2;		// Enable PD2 pull-up resistor
- 
-	DataDDR = 0xFF;		// Configure Dataport as output
-	DataPort = 0x01;	// Initialise Dataport to 1
- 
-	GICR = 1<<INT0;					// Enable INT0
-	MCUCR = 1<<ISC01 | 1<<ISC00;	// Trigger INT0 on rising edge
-*/
-
-
-
+	EICRA= 0;//((1 << ISC21) | (1 << ISC20)); // set sense bits for rising edge
+	EIMSK= (1 << 2);//(1 << INT2); // set intrupt #2 enable mask bits
+	PCICR=(1 << PCIE2); // set intrupt #2 pin change bits
+	PCMSK2=(1 << PCINT16); // set port k/pin 0 change mask bit
 
 	DDRB = 0xFF; //DEBUG
 	reset_flag = MCUSR;
@@ -1019,7 +1121,7 @@ int main()
 		|
 			bb(app_deployed, 0)
 	);
-	srand(micros());
+	//srand(micros());
 	
 	//wait a little bit, we might get some instruction from the bus before
 	//entering application mode

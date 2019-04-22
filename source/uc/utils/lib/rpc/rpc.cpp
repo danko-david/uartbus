@@ -82,7 +82,7 @@ bool il_reply(struct rpc_request* req, uint8_t size, ...)
 
 void dispatch_function_chain(void** chain, struct rpc_request* req)
 {
-	if(0 != (req->size - req->procPtr))
+	if((req->size - req->procPtr) > 0)
 	{
 		uint8_t cs = arr_size(chain);
 		if(req->payload[req->procPtr] < cs)
@@ -105,7 +105,7 @@ void dispatch_function_chain(void** chain, struct rpc_request* req)
 
 void dispatch_descriptor_chain(void** chain, struct rpc_request* req)
 {
-	if(0 != (req->size - req->procPtr))
+	if((req->size - req->procPtr) > 0)
 	{
 		uint8_t cs = arr_size(chain);
 		if(req->payload[req->procPtr] < cs)

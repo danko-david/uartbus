@@ -59,6 +59,11 @@ enum uartbus_event
 
 	ub_event_receive_start,
 	ub_event_receive_end,
+	
+	//TODO propagate this events
+	ub_event_send_start,
+	ub_event_send_end,
+	ub_event_send_collision,
 };
 
 enum uartbus_cfg
@@ -99,7 +104,7 @@ struct uartbus
 	uint32_t (*currentUsec)
 		();
 
-	int8_t (*rand)
+	uint8_t (*rand)
 		();
 
 	void* user_data;
@@ -150,13 +155,15 @@ uint8_t crc8(uint8_t* data, uint8_t length);
  * Call this method from the outside to
  *
  * */
-void ub_out_rec_byte(struct uartbus* bus, uint8_t data);
+void ub_out_rec_byte(struct uartbus* bus, uint16_t data);
 
 void ub_init(struct uartbus*);
 
 void ub_init_infrastructure();
 
 void ub_predict_transmission_start(struct uartbus* bus);
+
+bool ub_prewait(struct uartbus* bus, uint8_t cycles);
 
 enum uartbus_status ub_get_bus_state(struct uartbus* bus);
 

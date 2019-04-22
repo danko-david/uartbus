@@ -64,14 +64,14 @@ __attribute__((noinline)) static bool is_slice_exceed
 )
 {
 	uint32_t last = bus->last_bus_activity;
-	uint32_t now = bus->currentUsec();//ub_impl_get_current_usec();
+	uint32_t now = bus->currentUsec();
 
 	if(update)
 	{
 		bus->last_bus_activity = now;
 	}
 
-	uint8_t mul = 1;
+	uint8_t mul = bus->packet_timeout;
 
 	enum uartbus_status status = bus->status;
 
@@ -133,11 +133,6 @@ __attribute__((noinline)) void ub_out_update_state(struct uartbus* bus)
 		return;
 	}
 
-	if(ub_stat_idle == status)
-	{
-		return;
-	}
-
 	bool exceed = is_slice_exceed(bus, false);
 
 	if(exceed)
@@ -147,75 +142,63 @@ __attribute__((noinline)) void ub_out_update_state(struct uartbus* bus)
 
 		if(ub_stat_sending_fairwait == status)
 		{
-			/*uint8_t fw = get_packet_timeout_cycles(bus);
-			if
-			(
-					bus->last_bus_activity + fw*bus->byte_time_us
-				>
-					ub_impl_get_current_usec()
-			)
-			{
-				bus->status = ub_stat_sending_fairwait;
-				return;
-			}
-			*/
-			ub_update_last_activity_now(bus);
 			bus->status = ub_stat_idle;
+			ub_update_last_activity_now(bus);
 
 			//else we still in send (it's necessary to keep the bus busy for a
 			//certain time to others can acquire the transmission line
 			//and we can't send before this time exceeds) [fairwait feature]
-			return;
 		}
-
-		if(ub_stat_receiving == status)
+		else if(ub_stat_receiving == status)
 		{
 			//if there's no more byte to receive, of course we will not
 			//notified by the ub_out_rec_byte function, so we use this function
 			//to notify the client
 			//bus->status = ub_stat_idle;
-			bus->serial_event(bus, ub_event_receive_end);
 
 			//insert a short one byte wait to prevent packet time frame
 			//concateration
 			bus->wi = 1;//-(bus->packet_timeout-1);
 			bus->status = ub_stat_sending_fairwait;
+			
 			ub_update_last_activity_now(bus);
+			bus->serial_event(bus, ub_event_receive_end);
 		}
-		
-		if(ub_stat_sending == status)
+		else if(ub_stat_sending == status)
 		{
 			//a successfull send, so we might send the next packet
 			bus->to_send_size = 0;
 			bus->wi = get_fairwait_conf_cycles(bus);
 			bus->status = ub_stat_sending_fairwait;
+			
 			ub_update_last_activity_now(bus);
+			bus->serial_event(bus, ub_event_send_end);
 		}
-
-		if(ub_stat_connecting == status)
+		else if(ub_stat_connecting == status)
 		{
 			bus->status = ub_stat_idle;
 		}
 	}
 }
 
-void USART_SendByte(uint8_t u8Data);
-
 /**
  * return true on collision
  */
-static bool ub_check_and_handle_collision(struct uartbus* bus, uint8_t data)
+static bool ub_check_and_handle_collision(struct uartbus* bus, uint16_t data)
 {
 	//handle collision
 	//maybe we can insert random wait by modifing get_packet_timeout_cycles
 	//to consider alternative wait cycle.
-	if(data < 0 || data > 255 || (bus->wi != data))
+	if(data > 255 || (bus->wi != data))
 	{
 		bus->status = ub_stat_sending_fairwait;
 		
-		bus->wi = get_packet_timeout_cycles(bus)+3+bus->rand();
+		bus->wi =
+			get_packet_timeout_cycles(bus) +
+			1+bus->rand() % 8
+		;
 		ub_update_last_activity_now(bus);
-
+		bus->serial_event(bus, ub_event_send_collision);
 		return true;
 	}
 	else
@@ -230,7 +213,7 @@ static bool ub_check_and_handle_collision(struct uartbus* bus, uint8_t data)
  * Call this method from the outside to dispatch received byte (if it's come
  * from other device)
  * */
-__attribute__((noinline)) void ub_out_rec_byte(struct uartbus* bus, uint8_t data)
+__attribute__((noinline)) void ub_out_rec_byte(struct uartbus* bus, uint16_t data)
 {
 	enum uartbus_status status = bus->status;
 	
@@ -249,17 +232,16 @@ __attribute__((noinline)) void ub_out_rec_byte(struct uartbus* bus, uint8_t data
 	bool ex = is_slice_exceed(bus, true);
 
 	if(ex)
-	{
+ 	{
 		if(ub_stat_receiving == status)
 		{
 			//the previous transmission closed but not yet notified
 			bus->serial_event(bus, ub_event_receive_end);
 		}
 		bus->status = ub_stat_idle;
-	}
+ 	}
 
-	ub_predict_transmission_start(bus);
-
+	
 	bus->serial_byte_received(bus, data);
 }
 
@@ -279,6 +261,7 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 	}
 
 	bus->status = ub_stat_sending;
+	bus->serial_event(bus, ub_event_send_start);
 	bus->wi = ~0;
 
 	uint8_t (*send)(struct uartbus* bus, uint8_t) = bus->do_send_byte;
@@ -323,10 +306,6 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 			//TODO test this case with the arduino bindings which uses blocking
 			//read
 			bus->do_receive_byte(bus);
-/*			if(ub_check_and_handle_collision(bus, ))
-			{
-				return -2;
-			}*/
 		}
 	}
 	
@@ -377,12 +356,12 @@ enum uartbus_status ub_get_bus_state(struct uartbus* bus)
 
 uint16_t ub_calc_baud_cycle_time(uint32_t baud)
 {
-	return 11000000/baud;
+	return 10000000/baud;
 }
 
 uint32_t ub_calc_timeout(uint32_t baud, uint8_t cycles)
 {
-	return (11000000/baud)*cycles;
+	return (10000000/baud)*cycles;
 }
 
 void ub_init_baud
@@ -423,6 +402,15 @@ __attribute__((noinline)) void ub_predict_transmission_start(struct uartbus* bus
 	}
 }
 
+__attribute__((noinline)) bool ub_prewait(struct uartbus* bus, uint8_t cycles)
+{
+	if(ub_stat_idle == bus->status || ub_stat_sending_fairwait == bus->status)
+	{
+		bus->wi = cycles;
+		bus->status = ub_stat_sending_fairwait;
+	}
+}
+
 __attribute__((noinline)) uint8_t ub_manage_connection
 (
 	struct uartbus* bus,
@@ -442,11 +430,6 @@ __attribute__((noinline)) uint8_t ub_manage_connection
 	//concurrency point: if we received, we have to delay the next possible
 	//data sending
 	ub_out_update_state(bus);
-	/*if(ub_stat_sending_fairwait == stat)
-	{
-		Serial.print("stat: ");
-		Serial.println(stat);
-	}*/
 	if(ub_stat_idle == bus->status)
 	{
 		if(0 == bus->to_send_size)
