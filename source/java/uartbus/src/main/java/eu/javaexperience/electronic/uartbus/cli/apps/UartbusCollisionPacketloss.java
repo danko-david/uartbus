@@ -1,29 +1,22 @@
 package eu.javaexperience.electronic.uartbus.cli.apps;
 
-import static eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools.FROM;
-import static eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools.RPC_HOST;
-import static eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools.RPC_PORT;
-import static eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools.TO;
+import static eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools.*;
 
+import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
-import java.util.concurrent.TimeUnit;
 
-import eu.javaexperience.arrays.ArrayTools;
 import eu.javaexperience.cli.CliEntry;
 import eu.javaexperience.cli.CliTools;
 import eu.javaexperience.collection.map.MapTools;
-import eu.javaexperience.datastorage.TransactionException;
 import eu.javaexperience.electronic.uartbus.PacketAssembler;
 import eu.javaexperience.electronic.uartbus.UartbusTools;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusConnection;
 import eu.javaexperience.electronic.uartbus.rpc.client.ParsedUartBusPacket;
-import eu.javaexperience.electronic.uartbus.rpc.client.UartBus;
 import eu.javaexperience.electronic.uartbus.rpc.client.UartbusRpcClientTools;
-import eu.javaexperience.electronic.uartbus.rpc.client.device.UartBusDevice;
-import eu.javaexperience.electronic.uartbus.rpc.client.device.UbDevStdNsRoot;
 import eu.javaexperience.log.JavaExperienceLoggingFacility;
 import eu.javaexperience.text.Format;
 
@@ -59,30 +52,16 @@ public class UartbusCollisionPacketloss
 		System.exit(1);
 	}
 	
-	protected static void printStatistic(int device, int sent, int received)
+	public static class DevCollisionStat
 	{
-		if(0 != sent)
-		{
-			int loss = sent - received;
-			if(0 == device)
-			{
-				System.out.print("Statistic of collisions:");
-				System.out.print("\tSent packets: "+sent);
-				System.out.print("\tCollided packets: "+received);
-				System.out.println("\tCollision ratio: "+Format.formatDouble(((100.0*received)/ (sent)))+" %");
-			}
-			else
-			{
-				System.out.print("Statistic for bus device "+device+": ");
-				System.out.print("\tSent packets: "+sent);
-				System.out.print("\tReceived packets: "+received);
-				System.out.print("\tLost packets: "+loss);
-				System.out.println("\tPacket loss ratio: "+Format.formatDouble(((100.0*loss)/ (sent)))+" %");
-			}
-		}
+		public Map<Integer, Integer> lens = new TreeMap<>(); 
+		/*public int oneByteCollision;
+		public int twoByteCollision;
+		public int multiByteCollision;
+		public int concaterationCollision;*/
 	}
 	
-	public static void regPacketLostStatPrintOnExit(int[] sent, Map<Integer, Integer> rec)
+	public static void regPacketLostStatPrintOnExit(int[] sent, Map<Integer, ReplayCollector> rec,  DevCollisionStat ds)
 	{
 		Runtime.getRuntime().addShutdownHook(new Thread()
 		{
@@ -99,13 +78,93 @@ public class UartbusCollisionPacketloss
 				}
 				else
 				{
-					for(Entry<Integer, Integer> ent:rec.entrySet())
+					for(Entry<Integer, ReplayCollector> ent:rec.entrySet())
 					{
-						printStatistic(ent.getKey(), sent[0], ent.getValue());
+						System.out.println(ent.getValue().getStatistic(sent[0]));
 					}
+					
+					System.out.println("Collisions: "+MapTools.toStringMultiline(ds.lens));
+					
+					//System.out.println("Collisions: one byte: "+ds.oneByteCollision+", two: "+ds.twoByteCollision+", multi: "+ds.multiByteCollision+", concat: "+ds.concaterationCollision);
 				}
 			}
 		});
+	}
+	
+	public static byte[] generatePacketSequence(int from, int seq) throws IOException
+	{
+		PacketAssembler asm = new PacketAssembler();
+		asm.writeAddressing(from, 0);
+		asm.write(new byte[]{1,1});
+		asm.writePackedValue(false, seq);
+		asm.appendCrc8();
+		return asm.done();
+	}
+	
+	public static class ReplayCollector
+	{
+		public int device;
+		public Map<Integer, Integer> responses = new HashMap<>();
+		
+		public String getStatistic(int sent)
+		{
+			StringBuilder sb = new StringBuilder();
+			if(0 != sent)
+			{
+				int received = responses.size();
+				int loss = sent - received;
+				int duplicates = 0;
+				
+				if(0 == device)
+				{
+					Integer rec = responses.get(0);
+					if(null != rec)
+					{
+						received = rec;
+					}
+					sb.append("Statistic of collisions:");
+					sb.append("\tSent packets: "+sent);
+					sb.append("\tCollided packets: "+received);
+					sb.append("\tCollision ratio: "+Format.formatDouble(((100.0*received)/ (sent)))+" %");
+				}
+				else
+				{
+					sb.append("Statistic for bus device "+device+": ");
+					sb.append("\tSent packets: "+sent);
+					sb.append("\tReceived packets: "+received);
+					sb.append("\tLost packets: "+loss);
+					sb.append("\tPacket loss ratio: "+Format.formatDouble(((100.0*loss)/ (sent)))+" %");
+					
+					for(Integer v:responses.values())
+					{
+						if(v > 1)
+						{
+							duplicates += v-1;
+						}
+					}
+					
+					if(duplicates > 0)
+					{
+						sb.append(" Duplication ("+duplicates+") ratio: ");
+						sb.append(Format.formatDouble(((100.0*duplicates)/ (sent)))+" %");
+					}
+				}
+			}
+			
+			return sb.toString();
+		}
+	}
+	
+	public static ReplayCollector getOrCreateRelayCollector(Map<Integer, ReplayCollector> map, int dev)
+	{
+		ReplayCollector ret = map.get(dev);
+		if(null == ret)
+		{
+			ret = new ReplayCollector();
+			ret.device = dev;
+			map.put(dev, ret);
+		}
+		return ret;
 	}
 	
 	public static void main(String[] args) throws InterruptedException, Throwable
@@ -122,7 +181,9 @@ public class UartbusCollisionPacketloss
 		int interval = INTERVAL.tryParseOrDefault(pa, 1000);
 		int count = COUNT_OF_PACKETS.tryParseOrDefault(pa, 0);
 		
-		Map<Integer, Integer> stat = new TreeMap<>(); 
+		Map<Integer, ReplayCollector> stat = new TreeMap<>();
+		
+		DevCollisionStat ds = new DevCollisionStat();
 		
 		UartbusRpcClientTools.streamPackets
 		(
@@ -137,12 +198,31 @@ public class UartbusCollisionPacketloss
 						ParsedUartBusPacket packet = new ParsedUartBusPacket(e, true);
 						if(packet.to == from)
 						{
-							MapTools.incrementCount(stat, packet.from);
+							int seq = UartbusTools.unpackValue(false, packet.payload, 2).intValue();
+							MapTools.incrementCount(getOrCreateRelayCollector(stat, packet.from).responses, seq);
 						}
 					}
 					else
 					{
-						MapTools.incrementCount(stat, 0);
+						MapTools.incrementCount(getOrCreateRelayCollector(stat, 0).responses, 0);
+						MapTools.incrementCount(ds.lens, e.length);
+						/*if(1 == e.length)
+						{
+							++ds.oneByteCollision;
+						}
+						else if(2 == e.length)
+						{
+							++ds.twoByteCollision;
+						}
+						//from, to, NS, func, val, crc
+						else if(e.length < 7)
+						{
+							++ds.multiByteCollision;
+						}
+						else
+						{
+							++ds.concaterationCollision;
+						}*/
 					}
 				}
 				catch(Exception ex)
@@ -158,22 +238,14 @@ public class UartbusCollisionPacketloss
 			RPC_PORT.tryParseOrDefault(pa, 2112)
 		);
 		
-		byte[] packet = null;
-		{
-			PacketAssembler asm = new PacketAssembler();
-			asm.writeAddressing(from, 0);
-			asm.write(new byte[]{1,0});
-			asm.appendCrc8();
-			packet = asm.done();
-		}
 		
 		int[] sent = new int[1];
 		
-		regPacketLostStatPrintOnExit(sent, stat);
+		regPacketLostStatPrintOnExit(sent, stat, ds);
 		
 		for(int i=0;i<count || count <= 0;++i)
 		{
-			conn.sendPacket(packet);
+			conn.sendPacket(generatePacketSequence(from, i));
 			++sent[0];
 			System.out.println(i+". broadcast ping ");
 			Thread.sleep(interval);

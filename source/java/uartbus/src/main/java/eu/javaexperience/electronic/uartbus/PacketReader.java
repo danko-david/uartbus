@@ -1,6 +1,5 @@
 package eu.javaexperience.electronic.uartbus;
 
-import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Arrays;
 
