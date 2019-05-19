@@ -947,8 +947,8 @@ void init_bus()
 {
 	received_ep = 0;
 
-	bus.rand = rando;
-	bus.currentUsec = micros;
+	bus.rand = (uint8_t (*)(struct uartbus*)) rando;
+	bus.current_usec = (uint32_t (*)(struct uartbus* bus)) micros;
 	bus.serial_byte_received = ub_rec_byte;
 	bus.serial_event = ub_event;
 	ub_init_baud(&bus, BAUD_RATE, 3);

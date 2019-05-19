@@ -1,11 +1,9 @@
 #!/bin/bash
 
-rm test.o
+rm test.so
 set -e
 
-gcc -DUB_TEST $(pkg-config --cflags novaprova) $(pkg-config --libs novaprova) -g -gdwarf-3 -I../bus/lib/common -I../commons -I../utils/lib/rpc test.cpp /usr/local/lib/libnovaprova.a -o test.o
-#gcc $(pkg-config --cflags novaprova) $(pkg-config --libs novaprova) -g -gdwarf-3 test.cpp -o test.o
-#gcc $(pkg-config --cflags novaprova) $(pkg-config --libs novaprova) -g -gdwarf-3 test.cpp -o test.o
+gcc -DUB_TEST -shared -g -rdynamic -llct -I../bus/lib/common -I../commons -I../utils/lib/rpc test.c -o test.so
 
-./test.o
+lct ./test.so
 

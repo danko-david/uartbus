@@ -16,4 +16,6 @@
 **/*.sizes
 **/.Makefile.swp
 **/log/
+**/*.so
+lct_*.junit.xml
 WD/

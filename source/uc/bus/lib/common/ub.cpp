@@ -34,7 +34,7 @@
 
 static void inline ub_update_last_activity_now(struct uartbus* bus)
 {
-	bus->last_bus_activity = bus->currentUsec();//ub_impl_get_current_usec();
+	bus->last_bus_activity = bus->current_usec(bus);//ub_impl_get_current_usec();
 }
 
 static uint8_t get_fairwait_conf_cycles(struct uartbus* bus)
@@ -64,7 +64,7 @@ __attribute__((noinline)) static bool is_slice_exceed
 )
 {
 	uint32_t last = bus->last_bus_activity;
-	uint32_t now = bus->currentUsec();
+	uint32_t now = bus->current_usec(bus);
 
 	if(update)
 	{
@@ -195,7 +195,7 @@ static bool ub_check_and_handle_collision(struct uartbus* bus, uint16_t data)
 		
 		bus->wi =
 			get_packet_timeout_cycles(bus) +
-			1+bus->rand() % 8
+			1+bus->rand(bus) % 8
 		;
 		ub_update_last_activity_now(bus);
 		bus->serial_event(bus, ub_event_send_collision);
@@ -228,19 +228,14 @@ __attribute__((noinline)) void ub_out_rec_byte(struct uartbus* bus, uint16_t dat
 
 		return;
 	}
-
-	bool ex = is_slice_exceed(bus, true);
-
-	if(ex)
- 	{
-		if(ub_stat_receiving == status)
-		{
-			//the previous transmission closed but not yet notified
-			bus->serial_event(bus, ub_event_receive_end);
-		}
-		bus->status = ub_stat_idle;
- 	}
-
+	else if(ub_stat_receiving == status)
+	{
+		ub_out_update_state(bus);
+	}
+	else
+	{
+		ub_predict_transmission_start(bus);
+	}
 	
 	bus->serial_byte_received(bus, data);
 }

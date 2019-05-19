@@ -101,11 +101,11 @@ struct uartbus
 	uint8_t (*do_send_byte)
 		(struct uartbus* bus, uint8_t);
 
-	uint32_t (*currentUsec)
-		();
+	uint32_t (*current_usec)
+		(struct uartbus* bus);
 
 	uint8_t (*rand)
-		();
+		(struct uartbus* bus);
 
 	void* user_data;
 	
