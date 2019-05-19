@@ -179,7 +179,7 @@ uint8_t ub_manage_connection
 void ub_init_baud
 (
 	struct uartbus* bus,
-	uint16_t baud,
+	uint32_t baud,
 	uint8_t timeoutCycles
 );
 

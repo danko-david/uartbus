@@ -362,7 +362,7 @@ uint32_t ub_calc_timeout(uint32_t baud, uint8_t cycles)
 void ub_init_baud
 (
 	struct uartbus* bus,
-	uint16_t baud,
+	uint32_t baud,
 	uint8_t timeoutCycle
 )
 {
