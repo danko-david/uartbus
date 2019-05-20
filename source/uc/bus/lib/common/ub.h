@@ -170,7 +170,7 @@ enum uartbus_status ub_get_bus_state(struct uartbus* bus);
 int8_t ub_send_packet
 	(struct uartbus* bus, uint8_t* addr, uint16_t size);
 
-uint8_t ub_manage_connection
+int8_t ub_manage_connection
 (
 	struct uartbus* bus,
 	uint8_t (*send_on_idle)(struct uartbus*, uint8_t** data, uint16_t* size)

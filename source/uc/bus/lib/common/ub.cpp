@@ -85,12 +85,12 @@ __attribute__((noinline)) static bool is_slice_exceed
 	}
 
 	//check for overflow and calculate back
-	uint32_t to = ((uint32_t)bus->byte_time_us)*mul;
+	uint32_t timeout = ((uint32_t)bus->byte_time_us)*mul;
 	if(now < last)
 	{
-		return now + (UINT32_MAX - last) >= to;
+		return now + (UINT32_MAX - last) >= timeout;
 	}
-	return now-last >= to;
+	return now-last >= timeout;
 }
 
 //https://www.ccsinfo.com/forum/viewtopic.php?t=37015
@@ -230,7 +230,8 @@ __attribute__((noinline)) void ub_out_rec_byte(struct uartbus* bus, uint16_t dat
 	}
 	else if(ub_stat_receiving == status)
 	{
-		ub_out_update_state(bus);
+		//ub_out_update_state(bus);
+		ub_update_last_activity_now(bus);
 	}
 	else
 	{
@@ -275,6 +276,7 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 			
 			if(ub_stat_sending != bus->status)
 			{
+				bus->serial_event(bus, ub_event_send_end);
 				return -2;
 			}
 		}
@@ -285,6 +287,7 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 
 		if(0 != stat)
 		{
+			bus->serial_event(bus, ub_event_send_end);
 			if(stat < 0)
 			{
 				return -stat;
@@ -313,6 +316,7 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 		
 		if(ub_stat_sending != bus->status)
 		{
+			bus->serial_event(bus, ub_event_send_end);
 			return -2;
 		}
 	}
@@ -331,6 +335,7 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 	//bus->status = ub_stat_sending_fairwait;
 	//bus->wi = get_packet_timeout_cycles(bus)+get_fairwait_conf_cycles(bus)+1;
 
+	bus->serial_event(bus, ub_event_send_end);
 	return 0;
 }
 
@@ -392,6 +397,7 @@ __attribute__((noinline)) void ub_predict_transmission_start(struct uartbus* bus
 	if(ub_stat_idle == bus->status || ub_stat_sending_fairwait == bus->status)
 	{
 		bus->status = ub_stat_receiving;
+		ub_update_last_activity_now(bus);
 		//if we idle we notifies the start only
 		bus->serial_event(bus, ub_event_receive_start);
 	}
@@ -406,41 +412,48 @@ __attribute__((noinline)) bool ub_prewait(struct uartbus* bus, uint8_t cycles)
 	}
 }
 
-__attribute__((noinline)) uint8_t ub_manage_connection
+/**
+ * 2 - bus is not idle
+ * 1 - noting to send (and pick up)
+ * 0 - successful send
+ * -1 - bus is busy when try to send
+ * -2 - possible collision or noise when sending
+ * */
+__attribute__((noinline)) int8_t ub_manage_connection
 (
 	struct uartbus* bus,
 	uint8_t (*send_on_idle)(struct uartbus*, uint8_t** data, uint16_t* size)
 )
 {
+	//TODO test on a uc: receive is really timed out and this returns here?
 	if(!(bus->cfg & ub_cfg_read_with_interrupt))
 	{
 		ub_try_receive(bus);
 	}
 
-	if(NULL == send_on_idle)
-	{
-		return 0;
-	}
-
 	//concurrency point: if we received, we have to delay the next possible
 	//data sending
 	ub_out_update_state(bus);
+
 	if(ub_stat_idle == bus->status)
 	{
 		if(0 == bus->to_send_size)
 		{
-			if(0 != send_on_idle(bus, &bus->to_send, (uint16_t*)&bus->to_send_size))
+			if(NULL != send_on_idle)
 			{
-				return 0;
+				if(0 != send_on_idle(bus, &bus->to_send, (uint16_t*)&bus->to_send_size))
+				{
+					return 1;
+				}
 			}
 		}
-		
+
 		if(0 != bus->to_send_size)
 		{
 			return ub_send_packet(bus, bus->to_send, bus->to_send_size);
 		}
 	}
 
-	return 0;
+	return 2;
 }
 
