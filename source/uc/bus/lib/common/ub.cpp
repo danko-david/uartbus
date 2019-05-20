@@ -228,23 +228,20 @@ __attribute__((noinline)) void ub_out_rec_byte(struct uartbus* bus, uint16_t dat
 
 		return;
 	}
-	else if(ub_stat_receiving == status)
-	{
-		//ub_out_update_state(bus);
-		ub_update_last_activity_now(bus);
-	}
-	else
+	else if(ub_stat_receiving != status)
 	{
 		ub_predict_transmission_start(bus);
 	}
 	
+	ub_update_last_activity_now(bus);
+
 	bus->serial_byte_received(bus, data);
 }
 
 /*
  * ret:
  * positive value: user defined error returned from do_send_byte, if value is
- * 	negative, returted with abs(retval)
+ * 	negative, returned with abs(retval)
  * 	0	success
  * 	-1	bus is busy
  *	-2	reread_mismatch
@@ -324,7 +321,7 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 	//fairwait;
 	//REJECTED IDEA: enter fairwait now, this prevent over-waiting on the bus.
 	//enter to fairwait and set wait, if we keep in sending state we might miss
-	//the start of the packet we gonna receive from ther device
+	//the start of the packet we gonna receive from other device
 	
 	//we can even collide with other transmission if other device start sending
 	//beneath the send state. In this case we - using the previous

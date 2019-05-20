@@ -331,7 +331,6 @@ void relaySerial()
 	struct queue_entry* send = queue_take
 	(
 		from_bus
-		//from_serial
 	);
 
 	if(NULL != send)
@@ -378,9 +377,6 @@ void readSerial()
 		}
 	}
 }
-
-//TODO fromhere
-
 
 void ub_manage()
 {
