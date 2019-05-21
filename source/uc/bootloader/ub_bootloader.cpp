@@ -868,11 +868,13 @@ static void try_dispatch_received_packet()
 	received_ep = 0;
 }
 
+#define UB_COLLISION_INT
+
 static void ub_event(struct uartbus* a, enum uartbus_event event)
 {
 	if
 	(
-			ub_event_send_collision == event
+			ub_event_collision_start == event
 		||
 			ub_event_receive_start == event
 		||
@@ -888,6 +890,8 @@ static void ub_event(struct uartbus* a, enum uartbus_event event)
 		received = 0 != received_ep;
 	}
 	
+#ifdef UB_COLLISION_INT
+
 	//listen for collision
 	if
 	(
@@ -895,7 +899,7 @@ static void ub_event(struct uartbus* a, enum uartbus_event event)
 		||
 			event == ub_event_send_end
 		||
-			event == ub_event_send_collision
+			event == ub_event_collision_end
 	)
 	{
 		PORTB |= _BV(PB5);
@@ -903,11 +907,19 @@ static void ub_event(struct uartbus* a, enum uartbus_event event)
 	}
 	
 	//disable listen for collision
-	if(ub_event_receive_start == event || ub_event_send_start == event)
+	if
+	(
+		ub_event_receive_start == event
+	||
+		ub_event_send_start == event
+	||
+		ub_event_collision_start == event
+	)
 	{
 		PORTB &= ~_BV(PB5);
 		PCMSK2 &= ~_BV(PCINT16);
 	}
+#endif
 }
 
 static uint8_t ub_do_send_byte(struct uartbus* bus, uint8_t val)
@@ -951,12 +963,13 @@ void init_bus()
 	bus.current_usec = (uint32_t (*)(struct uartbus* bus)) micros;
 	bus.serial_byte_received = ub_rec_byte;
 	bus.serial_event = ub_event;
-	ub_init_baud(&bus, BAUD_RATE, 3);
+	ub_init_baud(&bus, BAUD_RATE, 2);
 	bus.do_send_byte = ub_do_send_byte;
 	bus.cfg = 0
-		|	ub_cfg_fairwait_after_send_high
-//		|	ub_cfg_fairwait_after_send_low
+//		|	ub_cfg_fairwait_after_send_high
+		|	ub_cfg_fairwait_after_send_low
 		|	ub_cfg_read_with_interrupt
+		|	ub_cfg_skip_collision_data
 	;
 	ub_init(&bus);
 }
@@ -1078,18 +1091,22 @@ void ub_manage()
 //boolean bit
 #define bb(x, y) x?0x1 <<y:0
 
+#ifdef UB_COLLISION_INT
 //TODO disable on transmission start and enable on packet end
 ISR(PCINT2_vect)
 {
 	ub_predict_transmission_start(&bus);
 }
+#endif
 
 int main()
 {
+#ifdef UB_COLLISION_INT
 	EICRA= 0;//((1 << ISC21) | (1 << ISC20)); // set sense bits for rising edge
 	EIMSK= (1 << 2);//(1 << INT2); // set intrupt #2 enable mask bits
 	PCICR=(1 << PCIE2); // set intrupt #2 pin change bits
 	PCMSK2=(1 << PCINT16); // set port k/pin 0 change mask bit
+#endif
 
 	DDRB = 0xFF; //DEBUG
 	reset_flag = MCUSR;

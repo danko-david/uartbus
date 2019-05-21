@@ -34,7 +34,7 @@
 
 static void inline ub_update_last_activity_now(struct uartbus* bus)
 {
-	bus->last_bus_activity = bus->current_usec(bus);//ub_impl_get_current_usec();
+	bus->last_bus_activity = bus->current_usec(bus);
 }
 
 static uint8_t get_fairwait_conf_cycles(struct uartbus* bus)
@@ -75,11 +75,18 @@ __attribute__((noinline)) static bool is_slice_exceed
 
 	enum uartbus_status status = bus->status;
 
-	if(ub_stat_receiving == status || ub_stat_sending == status)
+	if
+	(
+		ub_stat_receiving == status
+	||
+		ub_stat_sending == status
+	||
+		ub_stat_collision == status
+	)
 	{
 		mul = get_packet_timeout_cycles(bus);
 	}
-	else if(ub_stat_sending_fairwait == status)
+	else if(ub_stat_fairwait == status)
 	{
 		mul = bus->wi;
 	}
@@ -140,7 +147,7 @@ __attribute__((noinline)) void ub_out_update_state(struct uartbus* bus)
 		//if we transmitted previously and cycles time exceed to go idle
 		//we really go idle
 
-		if(ub_stat_sending_fairwait == status)
+		if(ub_stat_fairwait == status)
 		{
 			bus->status = ub_stat_idle;
 			ub_update_last_activity_now(bus);
@@ -158,8 +165,8 @@ __attribute__((noinline)) void ub_out_update_state(struct uartbus* bus)
 
 			//insert a short one byte wait to prevent packet time frame
 			//concateration
-			bus->wi = 1;//-(bus->packet_timeout-1);
-			bus->status = ub_stat_sending_fairwait;
+			bus->wi = 1 + bus->rand(bus)%3;
+			bus->status = ub_stat_fairwait;
 			
 			ub_update_last_activity_now(bus);
 			bus->serial_event(bus, ub_event_receive_end);
@@ -169,12 +176,19 @@ __attribute__((noinline)) void ub_out_update_state(struct uartbus* bus)
 			//a successfull send, so we might send the next packet
 			bus->to_send_size = 0;
 			bus->wi = get_fairwait_conf_cycles(bus);
-			bus->status = ub_stat_sending_fairwait;
+			bus->status = ub_stat_fairwait;
 			
 			ub_update_last_activity_now(bus);
 			bus->serial_event(bus, ub_event_send_end);
 		}
-		else if(ub_stat_connecting == status)
+		else if(ub_stat_collision == status)
+		{
+			bus->wi = get_fairwait_conf_cycles(bus);
+			bus->status = ub_stat_fairwait;
+			ub_update_last_activity_now(bus);
+			bus->serial_event(bus, ub_event_collision_end);
+		}
+		else //if(ub_stat_connecting == status)
 		{
 			bus->status = ub_stat_idle;
 		}
@@ -191,14 +205,30 @@ static bool ub_check_and_handle_collision(struct uartbus* bus, uint16_t data)
 	//to consider alternative wait cycle.
 	if(data > 255 || (bus->wi != data))
 	{
-		bus->status = ub_stat_sending_fairwait;
+		enum uartbus_status prev = bus->status;
+		bus->status = ub_stat_collision;
 		
-		bus->wi =
+		/*bus->wi =
 			get_packet_timeout_cycles(bus) +
 			1+bus->rand(bus) % 8
-		;
+		;*/
 		ub_update_last_activity_now(bus);
-		bus->serial_event(bus, ub_event_send_collision);
+
+		if(ub_stat_collision != prev)
+		{
+			bus->serial_event(bus, ub_event_collision_start);
+		}
+
+		if(ub_stat_sending == prev)
+		{
+			bus->serial_event(bus, ub_event_send_end);
+		}
+
+		if(!(bus->cfg & ub_cfg_skip_collision_data))
+		{
+			bus->serial_byte_received(bus, data);
+		}
+
 		return true;
 	}
 	else
@@ -218,7 +248,7 @@ __attribute__((noinline)) void ub_out_rec_byte(struct uartbus* bus, uint16_t dat
 	enum uartbus_status status = bus->status;
 	
 	//we receive the data back that we sending now
-	if(ub_stat_sending == status)
+	if(ub_stat_sending == status || ub_stat_collision == status)
 	{
 		if(bus->cfg & ub_cfg_read_with_interrupt)
 		{
@@ -254,6 +284,7 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 	}
 
 	bus->status = ub_stat_sending;
+	ub_update_last_activity_now(bus);
 	bus->serial_event(bus, ub_event_send_start);
 	bus->wi = ~0;
 
@@ -273,7 +304,6 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 			
 			if(ub_stat_sending != bus->status)
 			{
-				bus->serial_event(bus, ub_event_send_end);
 				return -2;
 			}
 		}
@@ -284,7 +314,6 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 
 		if(0 != stat)
 		{
-			bus->serial_event(bus, ub_event_send_end);
 			if(stat < 0)
 			{
 				return -stat;
@@ -313,7 +342,6 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 		
 		if(ub_stat_sending != bus->status)
 		{
-			bus->serial_event(bus, ub_event_send_end);
 			return -2;
 		}
 	}
@@ -332,7 +360,10 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 	//bus->status = ub_stat_sending_fairwait;
 	//bus->wi = get_packet_timeout_cycles(bus)+get_fairwait_conf_cycles(bus)+1;
 
-	bus->serial_event(bus, ub_event_send_end);
+	//if we get another byte while still in "sedning" state this cause interruption
+	//bus->wi = 256;
+
+	//bus->serial_event(bus, ub_event _ send_end);
 	return 0;
 }
 
@@ -391,7 +422,7 @@ void ub_try_receive(struct uartbus* bus)
 
 __attribute__((noinline)) void ub_predict_transmission_start(struct uartbus* bus)
 {
-	if(ub_stat_idle == bus->status || ub_stat_sending_fairwait == bus->status)
+	if(ub_stat_idle == bus->status || ub_stat_fairwait == bus->status)
 	{
 		bus->status = ub_stat_receiving;
 		ub_update_last_activity_now(bus);
@@ -402,10 +433,10 @@ __attribute__((noinline)) void ub_predict_transmission_start(struct uartbus* bus
 
 __attribute__((noinline)) bool ub_prewait(struct uartbus* bus, uint8_t cycles)
 {
-	if(ub_stat_idle == bus->status || ub_stat_sending_fairwait == bus->status)
+	if(ub_stat_idle == bus->status || ub_stat_fairwait == bus->status)
 	{
 		bus->wi = cycles;
-		bus->status = ub_stat_sending_fairwait;
+		bus->status = ub_stat_fairwait;
 	}
 }
 

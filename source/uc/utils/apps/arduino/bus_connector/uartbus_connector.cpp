@@ -191,7 +191,17 @@ void USART_SendByte(uint8_t u8Data)
 
 ISR(USART3_RX_vect)
 {
-	ub_out_rec_byte(&bus, UDR3);
+	//check for framing error
+	bool error = (UCSR3A & _BV(FE0));
+	uint8_t data = UDR3;
+	if(error)
+	{
+		ub_out_rec_byte(&bus, ~0);
+	}
+	else
+	{
+		ub_out_rec_byte(&bus, data);
+	}
 }
 
 static void ub_rec_byte(struct uartbus* a, uint8_t data_byte)
@@ -217,7 +227,7 @@ static void ub_event(struct uartbus* a, enum uartbus_event event)
 {
 	if
 	(
-			ub_event_send_collision == event
+			ub_event_collision_start == event
 		||
 			ub_event_receive_start == event
 		||
@@ -244,7 +254,7 @@ static void ub_event(struct uartbus* a, enum uartbus_event event)
 		||
 			event == ub_event_send_end
 		||
-			event == ub_event_send_collision
+			event == ub_event_collision
 	)
 	{
 		PORTB |= _BV(PB5);
@@ -287,12 +297,13 @@ void init_bus()
 	bus.current_usec = (uint32_t (*)(struct uartbus* bus)) micros;
 	bus.serial_byte_received = ub_rec_byte;
 	bus.serial_event = ub_event;
-	ub_init_baud(&bus, BAUD, 3);
+	ub_init_baud(&bus, BAUD, 2);
 	bus.do_send_byte = ub_do_send_byte;
 	bus.cfg = 0
-		|	ub_cfg_fairwait_after_send_high
-//		|	ub_cfg_fairwait_after_send_low
+//		|	ub_cfg_fairwait_after_send_high
+		|	ub_cfg_fairwait_after_send_low
 		|	ub_cfg_read_with_interrupt
+		|	ub_cfg_skip_collision_data
 	;
 	ub_init(&bus);
 }

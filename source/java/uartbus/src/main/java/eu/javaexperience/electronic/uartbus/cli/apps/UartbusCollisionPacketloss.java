@@ -195,11 +195,21 @@ public class UartbusCollisionPacketloss
 				{
 					if(e.length > 1 && UartbusTools.crc8(e, e.length-1) == e[e.length-1])
 					{
-						ParsedUartBusPacket packet = new ParsedUartBusPacket(e, true);
-						if(packet.to == from)
+						try
 						{
-							int seq = UartbusTools.unpackValue(false, packet.payload, 2).intValue();
-							MapTools.incrementCount(getOrCreateRelayCollector(stat, packet.from).responses, seq);
+							ParsedUartBusPacket packet = new ParsedUartBusPacket(e, true);
+							if(packet.to == from)
+							{
+								int seq = UartbusTools.unpackValue(false, packet.payload, 2).intValue();
+								MapTools.incrementCount(getOrCreateRelayCollector(stat, packet.from).responses, seq);
+							}
+						}
+						catch(Exception ex)
+						{
+							if(!"Incomplete value in the buffer.".equals(ex.getMessage()))
+							{
+								ex.printStackTrace();
+							}
 						}
 					}
 					else

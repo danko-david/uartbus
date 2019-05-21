@@ -49,21 +49,23 @@ enum uartbus_status
 	ub_stat_connecting,			//1
 	ub_stat_idle,				//2
 	ub_stat_sending,			//3
-	ub_stat_sending_fairwait,	//4
-	ub_stat_receiving			//5
+	ub_stat_fairwait,	//4
+	ub_stat_receiving,			//5
+	ub_stat_collision			//6
 };
 
 enum uartbus_event
 {
-	ub_event_nothing,
+	ub_event_nothing,			//0
 
-	ub_event_receive_start,
-	ub_event_receive_end,
+	ub_event_receive_start,		//1
+	ub_event_receive_end,		//2
+
+	ub_event_send_start,		//3
+	ub_event_send_end,			//4
 	
-	//TODO propagate this events
-	ub_event_send_start,
-	ub_event_send_end,
-	ub_event_send_collision,
+	ub_event_collision_start,	//5
+	ub_event_collision_end,		//6
 };
 
 enum uartbus_cfg
@@ -78,6 +80,7 @@ enum uartbus_cfg
 	//TODO invalidated: use or not the external read but we must get the sent values
 	//back anyway
 	ub_cfg_read_with_interrupt		= 4,
+	ub_cfg_skip_collision_data 		= 8
 	//TODO invalidated: we handle the collision anyway
 };
 
