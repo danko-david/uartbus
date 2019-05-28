@@ -12,6 +12,7 @@ import java.util.concurrent.TimeUnit;
 import eu.javaexperience.cli.CliEntry;
 import eu.javaexperience.cli.CliTools;
 import eu.javaexperience.datastorage.TransactionException;
+import eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools;
 import eu.javaexperience.electronic.uartbus.rpc.client.UartBus;
 import eu.javaexperience.electronic.uartbus.rpc.client.device.UartBusDevice;
 import eu.javaexperience.electronic.uartbus.rpc.client.device.UbDevStdNsRoot;
@@ -79,7 +80,7 @@ public class UartbusPacketloss
 		(
 			RPC_HOST.tryParseOrDefault(pa, "127.0.0.1"),
 			RPC_PORT.tryParseOrDefault(pa, 2112),
-			FROM.tryParseOrDefault(pa, -1)
+			UartbusCliTools.parseFrom(pa)
 		);
 		UartBusDevice dev = bus.device(to);
 		dev.setTimeout(timeout, TimeUnit.MILLISECONDS);

@@ -43,6 +43,12 @@ public class UartbusCliTools
 		"f", "-from"
 	);
 	
+	public static final int DEFAULT_FROM_ADDRESS = 63;
+	public static int parseFrom(Map<String, List<String>> args)
+	{
+		return FROM.tryParseOrDefault(args, DEFAULT_FROM_ADDRESS);
+	}
+	
 	public static final CliEntry<Integer> TO = CliEntry.createFirstArgParserEntry
 	(
 		(e)->Integer.parseInt(e),
@@ -70,7 +76,7 @@ public class UartbusCliTools
 		(
 			RPC_HOST.tryParseOrDefault(cliArgs, "127.0.0.1"),
 			RPC_PORT.tryParseOrDefault(cliArgs, 2112),
-			FROM.tryParseOrDefault(cliArgs, 63)
+			UartbusCliTools.parseFrom(cliArgs)
 		);
 	}
 	

@@ -14,6 +14,7 @@ import eu.javaexperience.cli.CliTools;
 import eu.javaexperience.collection.map.MapTools;
 import eu.javaexperience.electronic.uartbus.PacketAssembler;
 import eu.javaexperience.electronic.uartbus.UartbusTools;
+import eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusConnection;
 import eu.javaexperience.electronic.uartbus.rpc.client.ParsedUartBusPacket;
 import eu.javaexperience.electronic.uartbus.rpc.client.UartbusRpcClientTools;
@@ -177,7 +178,7 @@ public class UartbusCollisionPacketloss
 			printHelpAndExit(1);
 		}
 		
-		int from = FROM.tryParseOrDefault(pa, -1);
+		int from = UartbusCliTools.parseFrom(pa);
 		int interval = INTERVAL.tryParseOrDefault(pa, 1000);
 		int count = COUNT_OF_PACKETS.tryParseOrDefault(pa, 0);
 		

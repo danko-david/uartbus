@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import eu.javaexperience.interfaces.simple.SimpleCall;
 import eu.javaexperience.io.IOStream;
 
 public class SerialTools

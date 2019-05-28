@@ -13,6 +13,7 @@ import eu.javaexperience.electronic.uartbus.UartbusPacketConnector;
 import eu.javaexperience.interfaces.simple.getBy.GetBy1;
 import eu.javaexperience.interfaces.simple.getBy.GetBy2;
 import eu.javaexperience.io.IOStream;
+import eu.javaexperience.io.IOTools;
 import eu.javaexperience.io.fd.IOStreamFactory;
 import eu.javaexperience.log.JavaExperienceLoggingFacility;
 import eu.javaexperience.log.Loggable;
@@ -92,6 +93,7 @@ public class UartbusRpcServer
 		}
 		
 		JavaExperienceLoggingFacility.startLoggingIntoDirectory(new File(wd+"/log/"), "uartbus-rpc-server-");
+		
 		
 		IOStream ser = SerialTools.openSerial(serial, baud);
 		Runtime.getRuntime().addShutdownHook(new Thread(ser::close));

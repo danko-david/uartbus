@@ -66,7 +66,7 @@ public class UartbusCodeUploader
 		(
 			RPC_HOST.tryParseOrDefault(pa, "127.0.0.1"),
 			RPC_PORT.tryParseOrDefault(pa, 2112),
-			FROM.tryParseOrDefault(pa, 63)
+			UartbusCliTools.parseFrom(pa)
 		);
 	}
 	

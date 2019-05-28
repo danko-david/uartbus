@@ -11,6 +11,7 @@ import eu.javaexperience.cli.CliEntry;
 import eu.javaexperience.cli.CliTools;
 import eu.javaexperience.electronic.uartbus.PacketAssembler;
 import eu.javaexperience.electronic.uartbus.UartbusTools;
+import eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusConnection;
 import eu.javaexperience.electronic.uartbus.rpc.client.UartbusRpcClientTools;
 import eu.javaexperience.log.JavaExperienceLoggingFacility;
@@ -66,7 +67,7 @@ public class UartbusConsole
 			printHelpAndExit(1);
 		}
 		
-		int from = FROM.tryParseOrDefault(pa, -1);
+		int from = UartbusCliTools.parseFrom(pa);
 		int to = TO.tryParseOrDefault(pa, -1);
 		
 		boolean logTimes = LOG_TIME.hasOption(pa);
