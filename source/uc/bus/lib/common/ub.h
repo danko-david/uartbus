@@ -49,7 +49,7 @@ enum uartbus_status
 	ub_stat_connecting,			//1
 	ub_stat_idle,				//2
 	ub_stat_sending,			//3
-	ub_stat_fairwait,	//4
+	ub_stat_fairwait,			//4
 	ub_stat_receiving,			//5
 	ub_stat_collision			//6
 };

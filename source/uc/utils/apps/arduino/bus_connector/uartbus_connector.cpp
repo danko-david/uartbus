@@ -7,6 +7,7 @@
  */
 
 #include "ub.h"
+#include <util/atomic.h>
 #include "Arduino.h"
 
 #define NET_TRAFFIC_LED 13
@@ -70,24 +71,24 @@
 
 void* mem_alloc(size_t s)
 {
-	cli();
+//	cli();
 	void* ret = malloc(s);
-	sei();
+//	sei();
 	return ret;
 }
 
 void mem_free(void* a)
 {
-	cli();
+//	cli();
 	free(a);
-	sei();
+//	sei();
 }
 
 struct queue_entry
 {
 	struct queue_entry* next;
 	uint8_t size;
-	uint8_t data[MAX_PACKET_SIZE];
+	uint8_t data[1];
 };
 
 struct queue
@@ -103,9 +104,9 @@ struct queue* new_queue()
 	return ret;
 }
 
-struct queue_entry* new_queue_entry()
+struct queue_entry* new_queue_entry(size_t size)
 {
-	struct queue_entry* ret = (struct queue_entry*) mem_alloc(sizeof(struct queue_entry));
+	struct queue_entry* ret = (struct queue_entry*) mem_alloc(sizeof(struct queue_entry)+size);
 	ret->next = NULL;
 	ret->size = 0;
 	return ret;
@@ -118,7 +119,7 @@ void free_queue_entry(struct queue_entry* ent)
 
 void queue_push(struct queue* q, struct queue_entry* ent)
 {
-	cli();
+	//cli();
 	if(NULL == q->head)
 	{
 		q->head = ent;
@@ -129,7 +130,7 @@ void queue_push(struct queue* q, struct queue_entry* ent)
 		q->tail->next = ent;
 		q->tail = ent;
 	}
-	sei();
+	//sei();
 }
 
 struct queue_entry* queue_take(struct queue* q)
@@ -137,35 +138,37 @@ struct queue_entry* queue_take(struct queue* q)
 	struct queue_entry* ret = q->head;
 	if(NULL != ret)
 	{
-		cli();
+		//cli();
 		q->head = ret->next;
 		if(NULL == ret->next)
 		{
 			q->tail = NULL;
 		}
-		sei();
+		//sei();
 	}
 	return ret;
 }
 
 void queue_enqueue_content(struct queue* q, uint8_t* data, uint8_t size)
 {
-	struct queue_entry* add = new_queue_entry();
+	struct queue_entry* add = new_queue_entry(size);
 	add->size = size;
-	memcpy(add->data, data, size);
+	for(size_t i = 0;i<size;++i)
+	{
+		add->data[i] = data[i];
+	}
 	queue_push(q, add);
 }
 
 /******************************** UARTBus *************************************/
 
 
-struct queue* from_bus;
 struct queue* from_serial;
 
 struct uartbus bus;
-int received_ep;
 
-uint8_t received_data[MAX_PACKET_SIZE];
+//int received_ep;
+//uint8_t received_data[MAX_PACKET_SIZE];
 
 uint8_t rando()
 {
@@ -196,7 +199,7 @@ ISR(USART3_RX_vect)
 	uint8_t data = UDR3;
 	if(error)
 	{
-		ub_out_rec_byte(&bus, ~0);
+	//	ub_out_rec_byte(&bus, ~0);
 	}
 	else
 	{
@@ -204,16 +207,17 @@ ISR(USART3_RX_vect)
 	}
 }
 
+bool receive = false;
+
 static void ub_rec_byte(struct uartbus* a, uint8_t data_byte)
 {
-	if(received_ep == MAX_PACKET_SIZE)
+	if(receive)
 	{
-		//brake the package manually
-		received_ep = 0;
-	}
-	else
-	{
-		received_data[received_ep++] = data_byte;
+		if(data_byte == PACKET_ESCAPE)
+		{
+			SERIAL_PC.write(PACKET_ESCAPE);
+		}
+		SERIAL_PC.write(data_byte);
 	}
 }
 
@@ -225,26 +229,18 @@ static uint8_t ub_do_send_byte(struct uartbus* bus, uint8_t val)
 
 static void ub_event(struct uartbus* a, enum uartbus_event event)
 {
-	if
-	(
-			ub_event_collision_start == event
-		||
-			ub_event_receive_start == event
-		||
-			ub_event_send_end == event
-	)
+	if(ub_event_receive_start == event)
 	{
-		received_ep = 0;
+		digitalWrite(NET_TRAFFIC_LED, 1);
+		/*received_ep = 0;*/
+		receive = true;
 	}
-
-
-	if(ub_event_receive_end == event)
+	else if(ub_event_receive_end == event)
 	{
-		if(0 != received_ep)
-		{
-			queue_enqueue_content(from_bus, received_data, received_ep);
-			received_ep = 0;
-		}
+		digitalWrite(NET_TRAFFIC_LED, 0);
+		SERIAL_PC.write(PACKET_ESCAPE);
+		SERIAL_PC.write(~PACKET_ESCAPE);
+		receive = false;
 	}
 	
 	//os send end or collision
@@ -276,14 +272,23 @@ uint8_t send_data[MAX_PACKET_SIZE];
 
 static uint8_t send_on_idle(struct uartbus* bus, uint8_t** data, uint16_t* size)
 {
-	struct queue_entry* send = queue_take(from_serial);
+	//cli();
+	struct queue_entry* send;
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+	{
+		send = queue_take(from_serial);
+	}
+	//sei();
 
 	if(NULL != send)
 	{
 		memcpy(send_data, send->data, send->size);
 		*data = send_data;
 		*size = send->size;
-		free_queue_entry(send);
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+		{
+			free_queue_entry(send);
+		}
 		return 0;
 	}
 	return 1;
@@ -291,7 +296,7 @@ static uint8_t send_on_idle(struct uartbus* bus, uint8_t** data, uint16_t* size)
 
 void init_bus()
 {
-	received_ep = 0;
+	//received_ep = 0;
 
 	bus.rand = (uint8_t (*)(struct uartbus*)) rando;
 	bus.current_usec = (uint32_t (*)(struct uartbus* bus)) micros;
@@ -312,44 +317,11 @@ void init_bus()
 
 /********************************** serial ************************************/
 
-byte encode[MAX_PACKET_SIZE*2+2];
-
 void flashLed()
 {
-	digitalWrite(NET_TRAFFIC_LED, !digitalRead(NET_TRAFFIC_LED));
+	//digitalWrite(NET_TRAFFIC_LED, !digitalRead(NET_TRAFFIC_LED));
 }
 
-void serialWriteEscape(uint8_t* data, uint8_t size)
-{	
-	for(uint8_t i=0;i<size;++i)
-	{
-		if(data[i] == PACKET_ESCAPE)
-		{
-			SERIAL_PC.write(PACKET_ESCAPE);
-		}
-		SERIAL_PC.write(data[i]);
-	}
-	
-	SERIAL_PC.write(PACKET_ESCAPE);
-	SERIAL_PC.write(~PACKET_ESCAPE);
-	
-	flashLed();
-}
-
-void relaySerial()
-{
-	//pop data and relay
-	struct queue_entry* send = queue_take
-	(
-		from_bus
-	);
-
-	if(NULL != send)
-	{
-		serialWriteEscape(send->data, send->size);
-		free_queue_entry(send);
-	}
-}
 
 int ep = 0;
 bool mayCut = false;
@@ -357,7 +329,8 @@ byte decode[MAX_PACKET_SIZE];
 
 void readSerial()
 {
-	while(SERIAL_PC.available())
+	int i = 0;
+	while(SERIAL_PC.available() && ++i < 20)
 	{
 		byte b = SERIAL_PC.read();
 
@@ -366,7 +339,12 @@ void readSerial()
 			if(b == (byte)~PACKET_ESCAPE)
 			{
 				flashLed();
-				queue_enqueue_content(from_serial, decode, ep);
+				//cli();
+				ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+				{
+					queue_enqueue_content(from_serial, decode, ep);
+				}
+				//sei();
 				ep = 0;
 			}
 			else
@@ -398,13 +376,16 @@ void setup()
 {
 	pinMode(LED_BUILTIN, OUTPUT);
 
-	from_bus = new_queue();
 	from_serial = new_queue();
 
 	USART_Init();
 	
 	
-	SERIAL_PC.begin(BAUD);
+	SERIAL_PC.begin
+	(
+		BAUD
+		//500000
+	);
 	
 	init_bus();
 	sei();
@@ -412,9 +393,9 @@ void setup()
 
 void loop()
 {
+	SERIAL_PC.flush();
 	ub_manage();
 	readSerial();
-	relaySerial();
 }
 
 

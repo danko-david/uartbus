@@ -300,19 +300,23 @@ void test_ub_receive_cant_send()
 	TEST_ASSERT_EQUAL(ub_event_receive_end, bus->last_event);
 	bus->last_event = 0;
 
-	//we enter the one byte-time fairwait state
+	//we enter the fairwait state
 	TEST_ASSERT_EQUAL(ub_stat_fairwait, bus->bus.status);
-	TEST_ASSERT_EQUAL(1, bus->bus.wi);
+	TEST_ASSERT_EQUAL(ub_get_receive_time_padding(&bus->bus), bus->bus.wi);
 
 	//and still can't start transmission
 	TEST_ASSERT_EQUAL(2, ub_manage_connection(&bus->bus, ub_send_on_idle_immedatly));
 	//and still it must not cause any event or other broken action
 	TEST_ASSERT_EQUAL(ub_stat_fairwait, bus->bus.status);
-	TEST_ASSERT_EQUAL(1, bus->bus.wi);
+	TEST_ASSERT_EQUAL(ub_get_receive_time_padding(&bus->bus), bus->bus.wi);
 	TEST_ASSERT_EQUAL(ub_event_nothing, bus->last_event);
 
-	//but after one more byte-time we should go idle
-	ubt_step_byte_time(bus);
+	//but after more byte-time we should go idle
+	int n = ub_get_receive_time_padding(&bus->bus);
+	for(int i=0;i<n;++i)
+	{
+		ubt_step_byte_time(bus);
+	}
 	ub_out_update_state(bus);
 	TEST_ASSERT_EQUAL(ub_stat_idle, bus->bus.status);
 	TEST_ASSERT_EQUAL(ub_event_nothing, bus->last_event);
@@ -446,7 +450,10 @@ uint8_t ubt_fail_loopback_when(struct uartbus* bus, uint8_t val)
 
 void ubt_funct_test_send_step(struct testbus* bus, enum testbus_event event)
 {
-	ubt_step_byte_time(bus);
+	if(ubt_uart_after_send_byte == event)
+	{
+		ubt_step_byte_time(bus);
+	}
 }
 
 void print_state(struct ubt_state* state)
@@ -500,7 +507,7 @@ void test_bad_send_retransmit()
 	ubt_fail_when = 25;
 
 	bus->bus.do_send_byte = ubt_fail_loopback_when;
-	bus->post_event_hook = ubt_funct_test_send_step;
+//	bus->post_event_hook = ubt_funct_test_send_step;
 
 	TEST_ASSERT_EQUAL(-2, ub_manage_connection(&bus->bus, ub_send_on_idle_immedatly));
 
@@ -553,7 +560,6 @@ void test_bad_send_retransmit()
 
 	//collision event
 	TEST_ASSERT_NOT_NULL(event = ubt_ignore_call_events(bus, &index));
-	print_state(event);
 	TEST_ASSERT_EQUAL(ubt_after_event, event->event);
 	TEST_ASSERT_EQUAL(ub_event_collision_start, event->state.last_event);
 	++index;
@@ -691,7 +697,6 @@ void test_concateration()
 
 	//collision event
 	TEST_ASSERT_NOT_NULL(event = ubt_ignore_call_events(bus, &index));
-	print_state(event);
 	TEST_ASSERT_EQUAL(ubt_after_event, event->event);
 	TEST_ASSERT_EQUAL(ub_event_collision_start, event->state.last_event);
 	++index;
@@ -707,7 +712,51 @@ void test_concateration()
 	TEST_ASSERT_EQUAL(ub_event_collision_end, event->state.last_event);
 	++index;
 
+	//packet should still be the last packet to send
+	TEST_ASSERT_EQUAL(5, bus->bus.to_send_size);
+}
 
+
+void test_dont_give_up_retry__on_early_collision()
+{
+	struct testbus* bus = new_testbus();
+	ubt_go_idle(bus);
+
+	ubt_clear_event_backlog(bus);
+	TEST_ASSERT_EQUAL(ub_event_nothing, bus->last_event);
+
+	SEND_BUFFER[0] = 10;
+	SEND_BUFFER[1] = 15;
+	SEND_BUFFER[2] = 20;
+	SEND_BUFFER[3] = 25;
+	SEND_BUFFER[4] = 30;
+
+	send_size = 5;
+
+	ubt_set_successfull_loopback(bus);
+
+	//well... maybe a max_retry feature gonna be good.
+	for(int i=0;i < 20;++i)
+	{
+		TEST_ASSERT_EQUAL(0, ub_manage_connection(&bus->bus, ub_send_on_idle_immedatly));
+		//we still should be in "sending" state
+		TEST_ASSERT_EQUAL(ub_stat_sending, bus->bus.status);
+
+		ub_out_rec_byte(&bus->bus, 99);
+
+		TEST_ASSERT_EQUAL(ub_stat_collision, bus->bus.status);
+
+		TEST_ASSERT_EQUAL(5, bus->bus.to_send_size);
+
+		ubt_go_idle(bus);
+	}
+
+	TEST_ASSERT_EQUAL(0, ub_manage_connection(&bus->bus, ub_send_on_idle_immedatly));
+	ubt_go_idle(bus);
+
+	TEST_ASSERT_EQUAL(0, bus->bus.to_send_size);
+
+	TEST_ASSERT_EQUAL(ub_stat_idle, bus->bus.status);
 }
 
 

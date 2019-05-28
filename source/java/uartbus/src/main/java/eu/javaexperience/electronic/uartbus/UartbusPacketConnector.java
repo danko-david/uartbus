@@ -93,16 +93,22 @@ public class UartbusPacketConnector implements Closeable
 			for(int i=0;i<length;++i)
 			{
 				byte b = data[i];
+				System.out.print(b+":");
 				if(mayCut)
 				{
-					if(b == ~packetEscape)
+					if(b == packetEscape)
 					{
-						dispatchPacket(Arrays.copyOf(buffer, ep));
-						ep = 0;
+						if(b != packetEscape)
+						{
+							System.out.println("BAD PACKET ESCAPE: "+b);
+						}
+						buffer[ep++] = packetEscape;
 					}
 					else
 					{
-						buffer[ep++] = b;
+						System.out.println();
+						dispatchPacket(Arrays.copyOf(buffer, ep));
+						ep = 0;
 					}
 					mayCut = false;
 				}

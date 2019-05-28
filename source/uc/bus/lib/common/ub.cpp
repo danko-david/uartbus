@@ -37,7 +37,7 @@ static void inline ub_update_last_activity_now(struct uartbus* bus)
 	bus->last_bus_activity = bus->current_usec(bus);
 }
 
-static uint8_t get_fairwait_conf_cycles(struct uartbus* bus)
+uint8_t get_fairwait_conf_cycles(struct uartbus* bus)
 {
 	uint8_t ret = 0;
 	if(bus->cfg & ub_cfg_fairwait_after_send_low)
@@ -50,6 +50,11 @@ static uint8_t get_fairwait_conf_cycles(struct uartbus* bus)
 		ret |= 0x2;
 	}
 	return 1+ret;
+}
+
+uint8_t ub_get_receive_time_padding(struct uartbus* bus)
+{
+	return get_fairwait_conf_cycles(bus);
 }
 
 static uint8_t get_packet_timeout_cycles(struct uartbus* bus)
@@ -75,7 +80,7 @@ __attribute__((noinline)) static bool is_slice_exceed
 
 	enum uartbus_status status = bus->status;
 
-	if
+	/*if
 	(
 		ub_stat_receiving == status
 	||
@@ -86,7 +91,7 @@ __attribute__((noinline)) static bool is_slice_exceed
 	{
 		mul = get_packet_timeout_cycles(bus);
 	}
-	else if(ub_stat_fairwait == status)
+	else */if(ub_stat_fairwait == status)
 	{
 		mul = bus->wi;
 	}
@@ -135,7 +140,12 @@ uint8_t crc8(uint8_t* data, uint8_t length)
 __attribute__((noinline)) void ub_out_update_state(struct uartbus* bus)
 {
 	enum uartbus_status status = bus->status;
-	if(ub_stat_idle == status)
+	if
+	(
+		ub_stat_idle == status
+	/*||
+		bus->current_usec(bus) - bus->last_bus_activity < bus->byte_time_us *2*/
+	)
 	{
 		return;
 	}
@@ -165,7 +175,7 @@ __attribute__((noinline)) void ub_out_update_state(struct uartbus* bus)
 
 			//insert a short one byte wait to prevent packet time frame
 			//concateration
-			bus->wi = 1 + bus->rand(bus)%3;
+			bus->wi = get_fairwait_conf_cycles(bus) + bus->rand(bus)%3;
 			bus->status = ub_stat_fairwait;
 			
 			ub_update_last_activity_now(bus);
@@ -208,10 +218,6 @@ static bool ub_check_and_handle_collision(struct uartbus* bus, uint16_t data)
 		enum uartbus_status prev = bus->status;
 		bus->status = ub_stat_collision;
 		
-		/*bus->wi =
-			get_packet_timeout_cycles(bus) +
-			1+bus->rand(bus) % 8
-		;*/
 		ub_update_last_activity_now(bus);
 
 		if(ub_stat_collision != prev)
@@ -245,6 +251,7 @@ static bool ub_check_and_handle_collision(struct uartbus* bus, uint16_t data)
  * */
 __attribute__((noinline)) void ub_out_rec_byte(struct uartbus* bus, uint16_t data)
 {
+	//ub_out_update_state(bus);
 	enum uartbus_status status = bus->status;
 	
 	//we receive the data back that we sending now
@@ -252,18 +259,20 @@ __attribute__((noinline)) void ub_out_rec_byte(struct uartbus* bus, uint16_t dat
 	{
 		if(bus->cfg & ub_cfg_read_with_interrupt)
 		{
-			//we return anyway but maybe we handle the collision
+			//we return anyway but maybe we handle a collision
 			ub_check_and_handle_collision(bus, data);
 		}
-
+		ub_update_last_activity_now(bus);
 		return;
 	}
 	else if(ub_stat_receiving != status)
 	{
 		ub_predict_transmission_start(bus);
 	}
-	
-	ub_update_last_activity_now(bus);
+	else
+	{
+		ub_update_last_activity_now(bus);
+	}
 
 	bus->serial_byte_received(bus, data);
 }
@@ -301,13 +310,13 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 			{
 				ub_out_update_state(bus);
 			}
-			
+
 			if(ub_stat_sending != bus->status)
 			{
 				return -2;
 			}
 		}
-		
+
 		uint8_t val = addr[i];
 		bus->wi = val;
 		stat = send(bus, val);
@@ -322,9 +331,9 @@ int8_t ub_send_packet(struct uartbus* bus, uint8_t* addr, uint16_t size)
 		}
 
 		//update the last acitivity time
-		ub_update_last_activity_now(bus);
+		//ub_update_last_activity_now(bus);
 
-		if(!(bus->cfg & ub_cfg_read_with_interrupt))
+		if(!interrupt)
 		{
 			//read value back in blocking mode if configured.
 			//TODO test this case with the arduino bindings which uses blocking
@@ -459,8 +468,6 @@ __attribute__((noinline)) int8_t ub_manage_connection
 		ub_try_receive(bus);
 	}
 
-	//concurrency point: if we received, we have to delay the next possible
-	//data sending
 	ub_out_update_state(bus);
 
 	if(ub_stat_idle == bus->status)

@@ -129,6 +129,16 @@ public class UartbusPacketConnectorTest
 		Assert.assertArrayEquals(data, h.data);
 	}
 	
+	public static byte[] bytes(int... vals)
+	{
+		byte[] ret = new byte[vals.length];
+		for(int i=0;i<vals.length;++i)
+		{
+			ret[i] = (byte) vals[i];
+		}
+		return ret;
+	}
+	
 	@Test
 	public void testUartbusPackUnpack() throws Exception
 	{
@@ -136,5 +146,12 @@ public class UartbusPacketConnectorTest
 		testByteLoopbackSquence((byte)0xff, new byte[]{(byte)0xff, (byte)0xff});
 		testByteLoopbackSquence((byte)0xff, new byte[]{-1, 0, 0, -1});
 		testByteLoopbackSquence((byte)0xff, new byte[]{12, 5, (byte)192});
+		
+		testByteLoopbackSquence((byte)0xff, bytes(255, 255, 0, 0, 255));
+		
+		testByteLoopbackSquence((byte)0xff, bytes(0, 1, 1, 1, 5, 254));
+		
+		testByteLoopbackSquence((byte)0xff, bytes(255));
+		
 	}
 }
