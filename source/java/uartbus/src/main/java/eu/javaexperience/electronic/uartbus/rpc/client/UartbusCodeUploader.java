@@ -128,7 +128,7 @@ public class UartbusCodeUploader
 			UbDevStdNsRoot root = dev.getRpcRoot();
 			try
 			{
-				UartbusTransaction reboot = dev.getBus().subscribeResponse(-1, 1, new byte[]{0});
+				UartbusTransaction reboot = dev.getBus().subscribeResponse(-1, dev.getAddress(), new byte[]{0});
 				root.getBootloaderFunctions().getPowerFunctions().hardwareReset();
 				//this waits until reboot complete
 				reboot.ensureResponse(3, TimeUnit.SECONDS);
@@ -199,6 +199,8 @@ public class UartbusCodeUploader
 		CodeSegment code = getCodeFromFile(sfile);
 		
 		UartBusDevice dev = bus.device(to);
+		dev.timeout = 300;
+		System.out.println("Target device: "+dev.getAddress());
 		UbDevStdNsRoot root = dev.getRpcRoot();
 		
 		try

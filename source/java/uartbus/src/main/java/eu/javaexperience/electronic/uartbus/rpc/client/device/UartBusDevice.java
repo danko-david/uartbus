@@ -36,6 +36,11 @@ public class UartBusDevice
 		handler = createNsHandler(this, UbDevStdNsRoot.class);
 	}
 	
+	public int getAddress()
+	{
+		return address;
+	}
+	
 	public static <R extends UbDeviceNs> ProxyHelpedLazyImplementation<UbDeviceNs, UbDeviceNsLazyImpl, R> createNsHandler(UartBusDevice device, Class<R> rootCls)
 	{
 		try

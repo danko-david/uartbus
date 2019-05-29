@@ -22,9 +22,9 @@ avr-gcc -o ubb.o ub_bootloader.cpp ../bus/lib/common/ub.cpp ../utils/lib/rpc/rpc
 	-DHOST_TABLE_ADDRESS=0x1fe0\
 	-DAPP_START_ADDRESS=0x2000\
 	-DAPP_CHECKSUM=0\
-	-Wl,--defsym=__stack=0x800200\
-	-Wl,--section-start=.data=0x800202\
-	-Wl,-Tbss,0x800300
+	-Wl,--defsym=__stack=0x800700\
+	-Wl,--section-start=.data=0x800702\
+	-Wl,-Tbss,0x800760
 
 
 #TODO calculate data, bss, stack adresses
@@ -33,6 +33,13 @@ avr-gcc -o ubb.o ub_bootloader.cpp ../bus/lib/common/ub.cpp ../utils/lib/rpc/rpc
 # recalculate manually these boundary values.
 # highest value: 0x800000 + RAMEND (atmega328: 0x8FF)
 # RAMEND from /usr/lib/avr/include/avr/iom328p.h
+# (no heap used in host)
+# order:
+#	- stack (*): base
+#	- data (80): base + 2
+#	- BSS (160): base + 80
+# so base +80+160 (240) must not exceed RAMEND
+# stack grows down to the direction of the application space
 
 avr-objcopy -O ihex -R .eeprom ubb.o ubb.hex
 #wc ubb.hex

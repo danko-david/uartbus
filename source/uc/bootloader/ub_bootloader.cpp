@@ -216,7 +216,7 @@ void USART_SendByte(uint8_t u8Data)
 
 //read programspace: addr len
 //commit -> back to app mode
-bool send_packet(int16_t to, uint8_t* data, uint16_t size);
+//bool send_packet(int16_t to, uint8_t* data, uint16_t size);
 bool send_packet_priv(int16_t to, uint8_t ns, uint8_t* data, uint8_t size);
 
 int16_t rpc_response(struct rpc_request* req, uint8_t args, struct response_part** parts)
@@ -346,6 +346,11 @@ int8_t unpack_value(int16_t* dst, uint8_t* arr, int size)
 	return req;
 }
 
+bool has_app()
+{
+	return 0xff != pgm_read_byte(APP_START_ADDRESS);
+}
+
 /************************** RPC functions - Basic *****************************/
 
 //1:0
@@ -462,6 +467,7 @@ void rpc_bootloader_get_var(struct rpc_request* req)
 		case 0: res = app_run; break;
 //		case 1: res = sos_signal; break;
 		case 2: res = reset_flag; break;
+		case 3: res = has_app();  break;
 		default: res = 0;break;
 	}
 	il_reply(req, 1, res);
@@ -902,7 +908,6 @@ static void ub_event(struct uartbus* a, enum uartbus_event event)
 			event == ub_event_collision_end
 	)
 	{
-		PORTB |= _BV(PB5);
 		PCMSK2 |= _BV(PCINT16);
 	}
 	
@@ -916,7 +921,6 @@ static void ub_event(struct uartbus* a, enum uartbus_event event)
 		ub_event_collision_start == event
 	)
 	{
-		PORTB &= ~_BV(PB5);
 		PCMSK2 &= ~_BV(PCINT16);
 	}
 #endif
@@ -940,10 +944,10 @@ static uint8_t send_on_idle(struct uartbus* bus, uint8_t** data, uint16_t* size)
 	return 1;
 }
 
-bool send_packet(int16_t to, uint8_t* data, uint16_t size)
+/*bool send_packet(int16_t to, uint8_t* data, uint16_t size)
 {
 	return send_packet_priv(to, 16, data, size);
-}
+}*/
 
 bool may_send_packet()
 {
@@ -981,7 +985,7 @@ ISR(USART_RX_vect)
 	uint8_t data = UDR0;
 	if(error)
 	{
-		ub_out_rec_byte(&bus, ~0);		
+		//ub_out_rec_byte(&bus, ~0);		
 	}
 	else
 	{
@@ -1009,17 +1013,11 @@ int init_board(void)
 
 __attribute__((noinline)) void call_app(bool first)
 {
-	//void (*app)(bool) = (void (*)(bool)) APP_START_ADDRESS;
-	//app(first);
+/*	void (*app)(bool) = (void (*)(bool)) APP_START_ADDRESS;
+	app(first);*/
 	//asm("call " SX(APP_START_ADDRESS));
 	asm("jmp " SX(APP_START_ADDRESS));
 	asm ("ret");
-
-}
-
-bool has_app()
-{
-	return 0xff != pgm_read_byte(APP_START_ADDRESS);
 }
 
 /********************************** Host tables *******************************/
@@ -1033,8 +1031,9 @@ void** HOST_FUNCTIONS = (void*[])
 {
 	(void*) register_packet_dispatch,
 	(void*) may_send_packet,
-	(void*) send_packet,
-	(void*) get_max_packet_size
+	(void*) send_packet_priv,
+	(void*) get_max_packet_size,
+	(void*) micros
 };
 
 void** HOST_CONSTANTS = (void*[])
@@ -1089,7 +1088,7 @@ void ub_manage()
 }
 
 //boolean bit
-#define bb(x, y) x?0x1 <<y:0
+#define bb(x, y) x?(0x1 <<y):0
 
 #ifdef UB_COLLISION_INT
 //TODO disable on transmission start and enable on packet end
@@ -1109,34 +1108,24 @@ int main()
 #endif
 
 	DDRB = 0xFF; //DEBUG
+	PORTB |= _BV(PB5);
 	reset_flag = MCUSR;
 	//watchdog reset and not external or power-on 
-	bool wdt_reset = MCUSR == 8;
 	
-	if(wdt_reset)
-	{
-		app_run = false;
-	}
-	else
-	{
-		app_run = true;
-	}
+	app_run = MCUSR != 8;
 	
 	MCUSR = 0;
 	
-	has_app();
 	init_board();
-	has_app();
 	
-	bool app_deployed = has_app();
 	busSignalOnline
 	(
 		reset_flag,
 //			bb(sos_signal, 2)
 //		|
-			bb(app_run, 1)
+			(app_run?2:0)
 		|
-			bb(app_deployed, 0)
+			(has_app()?1:0)
 	);
 	//srand(micros());
 	
@@ -1144,11 +1133,15 @@ int main()
 	//entering application mode
 	{
 		uint32_t t = micros();
-		while(afterMicro(&t, 500000))
+		while(!afterMicro(&t, 500000))
 		{
+			wdt_reset();
 			ub_manage();
 		}
 	}
+	
+	PORTB &= ~_BV(PB5);
+	
 	wdt_enable(WDTO_1S);
 	bool first = true;
 	while(1)

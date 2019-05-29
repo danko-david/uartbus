@@ -18,7 +18,8 @@ int main(){}
 
 #include <avr/io.h>
 
-//static volatile bool initialized = false;
+__attribute__ ((weak)) void __do_copy_data(){};
+__attribute__ ((weak)) void __do_clear_bss(){};
 
 extern void __do_copy_data();
 extern void __do_clear_bss();
@@ -42,20 +43,20 @@ __attribute__((noinline, section(".app_start"))) void ub_app(bool first)
 }
 
 /*
-void (*register_packet_dispatch)(void (*)(int16_t, int16_t, uint8_t*, uint8_t));
+void (*register_packet_dispatch)(void (*addr)(struct rpc_request* req));
 bool (*may_send_packet)();
 bool (*send_packet)(int16_t, uint8_t* , uint16_t);
 uint8_t (*get_max_packet_size)();
 */
 
-bool send_packet(int16_t to, uint8_t* data, uint16_t size)
+bool send_packet(int16_t to, int NS, uint8_t* data, uint16_t size)
 {
 	void*** fns = (void***) getHostTableAddress()[0];
 	
-	bool (*reg)(int16_t, uint8_t*, uint16_t) =
-		(bool (*)(int16_t, uint8_t*, uint16_t)) fns[2];
+	bool (*reg)(int16_t, uint8_t, uint8_t*, uint16_t) =
+		(bool (*)(int16_t, uint8_t, uint8_t*, uint16_t)) fns[2];
 		
-	reg(to, data, size);
+	reg(to, NS, data, size);
 }
 
 void register_packet_dispatch(void (*addr)(struct rpc_request* req))
@@ -68,9 +69,18 @@ void register_packet_dispatch(void (*addr)(struct rpc_request* req))
 	reg(addr);
 }
 
+uint32_t micros()
+{
+	void*** fns = (void***) getHostTableAddress()[0];
+	
+	uint32_t (*f)() = (uint32_t (*)()) fns[4];
+		
+	return f();
+}
 
 void init_ub_app()
 {
+	init_app_section();
 	//HOST_TABLE_ADDRESS
 /*	void** fns = getHostTableAddress()[0];
 	register_packet_dispatch = (void (*)(void (*)(int16_t, int16_t, uint8_t*, uint8_t))) fns[0];

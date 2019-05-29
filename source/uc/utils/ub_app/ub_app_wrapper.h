@@ -17,6 +17,11 @@ extern bool (*may_send_packet)();
 extern bool (*send_packet)(int16_t, uint8_t* , uint16_t);
 extern uint8_t (*get_max_packet_size)();
 */
+
+bool send_packet(int16_t to, int NS, uint8_t* data, uint16_t size);
+
+uint32_t micros();
+
 void init_ub_app();
 
 __attribute__ ((weak)) void setup();
