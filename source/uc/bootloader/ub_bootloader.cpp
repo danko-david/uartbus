@@ -1,4 +1,6 @@
-#define F_CPU 16000000
+#ifndef F_CPU
+	#define F_CPU 16000000
+#endif
 
 #define BAUD_RATE 115200
 #define USART_BAUDRATE BAUD_RATE
@@ -11,6 +13,7 @@
 #include <avr/pgmspace.h>
 #include <util/delay.h>
 #include <avr/interrupt.h>
+#include <avr/power.h>
 #include <avr/wdt.h>
 #include <stdlib.h>
 #include <alloca.h>
@@ -809,7 +812,7 @@ void dispatch(struct rpc_request* req)
 	{
 		dispatch_root(req);
 	}
-	else if(NULL != app_dispatch && 32 <= ns)
+	else if(NULL != app_dispatch && (32 <= ns || 0 == ns))
 	{
 		app_dispatch(req);
 	}
@@ -1100,6 +1103,8 @@ ISR(PCINT2_vect)
 
 int main()
 {
+	//clock_prescale_set(clock_div_16);
+
 #ifdef UB_COLLISION_INT
 	EICRA= 0;//((1 << ISC21) | (1 << ISC20)); // set sense bits for rising edge
 	EIMSK= (1 << 2);//(1 << INT2); // set intrupt #2 enable mask bits
