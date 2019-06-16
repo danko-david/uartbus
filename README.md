@@ -2,11 +2,11 @@
 
 ## Goal of the project
 The project goal is to connect microcontrollers together on wire at minimal
-cost (wiring, external peripheral components) and build a decentralised
+cost (wiring, external peripheral components) and build a decentralized
 sensor-actuator network where the node's can interact with each other and 
 the microcontroller's software can be upgraded from the bus. This bus should be
 connectable to a computer system (Desktop/Server PC, Raspberry PI, etc) to
-achieve complex controlling by interacting with the sensors, actors throught
+achieve complex controlling by interacting with the sensors, actors through
 higher level algorithms.
 
 
@@ -18,8 +18,8 @@ The way to satisfy these requirement is to design and implement:
 - lightweight RPC library for microcontrollers,
 - bus connector for computers,
 - so called "host program" that implements common functionalities and manages
-	application upload into the microcontoller. 
-- a utility to connect softwares to the bus (throught bus connector)
+	application upload into the microcontroller. 
+- a utility to connect softwares to the bus (through bus connector)
 - a higher level representation of bus devices (implemented in java)
 
 
@@ -63,13 +63,13 @@ The way to satisfy these requirement is to design and implement:
 	devices, `packetloss` to measure packet loss ratio between bus connector
 	and node, `collisionPacketloss` to measure packet loss and duplication
 	when send a broadcast packets that results race to access the bus.
-	`upload` upload application code to a device with has uarbus bootloader on
+	`upload` upload application code to a device with has uartbus bootloader on
 	the board.
 
 
 ## Example usage
 
-TODO: There's an easier way to try it out by yourself, using only arduinos
+TODO: There's an easier way to try it out by yourself, using only arduino
 and generic FETs (or BJTs with no opening delay in switching mode)
 
 ## Documentation
@@ -94,17 +94,16 @@ This line can be pulled down by any node used to transfer data.
 The microcontroller's UART port is connected to the bus using bus driver: 
 ![driver circuit](./resources/image/bus_driver_fet.jpg)
 
-(During the developement: Vcc = 12V; Rbus = 500Ω; Rtx = 0Ω; 
+(During the development: Vcc = 12V; Rbus = 500Ω; Rtx = 0Ω; 
 Rin & Ronline = 10 KΩ; 120m twisted pair for GND and Bus wire; 115,2 kbps)
 (Note: this BS170 tolerates ±20V of Ugs voltage so can be connected directly to
 the bus wire, but this might be risky when dealing with high transient voltage.
-Solution: Connect TVS diode between bus and GND wire. See documentation)
+Solution: Connect TVS diode between `Bus` and `GND` wire. See documentation)
 
 This is a simple level driver which makes the byte sent on the TX port appears
 in the `Bus` line and data appears on the `Bus` wire translated to the RX port
 with the proper logic level. This also means what we send on the TX we receive
-on the RX. This also used to detect transmission error and collision 
-detection.
+on the RX. This used for transmission error and collision detection.
 
 ![Bus wire and RX oscillogramm](./resources/image/bus_12v_115200_120m_UTP.jpg)
 
@@ -121,8 +120,8 @@ The time frame starts at the first sent byte and ends after the time of 2
 ![UARTBus frame and collision handling](./resources/image/collision_handling.jpg)
 
 A demonstration of UARTBus packages with collision handling (and retransmission)
-using two nodes plus one bus connector:
-(Early developement oscillogramm, timing not properly optimised)
+using two nodes plus one bus connector.
+(This is an early development oscillogramm, timing not properly optimized)
 
 - Channel 1, Red: Bus wire signal 2 V/Div 
 - Channel 2, Yellow: RX wire signal of the first device 1 V/Div
@@ -133,7 +132,7 @@ using two nodes plus one bus connector:
 	(Ethernets style collision handling)
 3) First node "wins the arbitration" and sends the response pong packet
 4) Second node also retransmit the pong packet that collided previously
-5) Not packet to send back to idle state.
+5) No packet to send. Back to idle state.
 
 ### OSI-3: Network layer
 
@@ -141,8 +140,8 @@ Every node receives every packets on bus. This makes possible to create
 broadcast addresses (0 is a general broadcast address) and device groups by
 using negative addresses for this purpose.
 
-Instead of using fixed int{8,16,32,64}_t for addressing i've created a so called
-variable length addressing:
+Instead of using fixed int{8,16,32,64}_t for addressing, i've created a so
+called variable length addressing:
 
 - If we choose int8_t, every packet has only two byte of overhead at the
 	addressing, but only 128 group 1 broadcast and 127 device address available.
@@ -162,7 +161,7 @@ increase address length when assign higher addresses.
 Byte scheme:
 
 - E: Extend: Address continued on the next byte. The in last address byte this
-	is 0. 
+	bit is 0. 
 - S: Signum: sign of the whole number. Used only in the first byte. If set
 	address is converted as: -(addr+1)
 - An: address bit.
@@ -181,6 +180,7 @@ Example for one byte addresses:
 Example for two byte addresses:
 
 | Address | First byte | Second byte |  
+|:---:|:---:|:---:|
 | 128   | 1000_0001 | 0000_0000 |  
 | -128  | 1100_0000 | 0111_1111 |  
 | 8191  | 1011_1111 | 0111_1111 |  
@@ -198,7 +198,7 @@ The default packet scheme of the project:
 - uint8_t crc8 packet checksum
 
 ### OSI-{4,5}: Transport and Session layer
-All packets are datagrams. Theres no transmission control mechanism implemented
+All packets are datagrams. There's no transmission control mechanism implemented
 __yet__.
 
 ### OSI-6: Presentation layer
@@ -212,7 +212,7 @@ responses the packet.
 A request parsed into a `struct rpc_request` located in
 [./source/uc/utils/lib/rpc/rpc.h](./source/uc/utils/lib/rpc/rpc.h).  
 
-This request is dispatched throught a RPC namespace chain. For example see:
+This request is dispatched through a RPC namespace chain. For example see:
 [./source/uc/bootloader/ub_bootloader.cpp](./source/uc/bootloader/ub_bootloader.cpp)
 how RPC_NS_FUNCTIONS constructed and where this chain used as a parameter.
 
@@ -258,13 +258,13 @@ To invoke a hardware reset:
 2:0:0 => (2) Bootloader functions => (2) power functions => (0) hardware reset   
 No response generated, because committed a hardware reset immediately.
 
-This namespace tree is extendable to any depth, and designed to the application
+This namespace tree is extendible to any depth, and designed to the application
 developer can attach new function into this tree.
 
 At the other side, on the PC in java, this RPC namespace tree is modeled with
-objects, see: UartBusDevice.getRpcRoot() . But the best thing: i've created
+objects, see: `UartBusDevice.getRpcRoot()` . But the best thing: i've created
 a mechanism to describe interfaces for this RPC namespaces and functions with
-the known types, and java (usingh proxies) generates namespace object and
+the known types, and java (using proxies) generates namespace object and
 function you can call right from java. For example see: UbBootloaderFunctions
 and for a real application that uses this see: UartbusCodeUploader
 
@@ -274,8 +274,5 @@ In the directory .source/uc/bootloader/ you find the source of the bootloader
 (the naming is wrong, it's more likely be called as uart host application)
 This implements the basic unified functionality described earlier and also makes
 possible to manage application code upload.
-
-
-
 
 
