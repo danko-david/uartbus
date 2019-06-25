@@ -36,7 +36,7 @@
 	<dependency>
 		<groupId>javaexperience</groupId>
 		<artifactId>core</artifactId>
-		<version>0.1.3</version>
+		<version>0.1.19</version>
 	</dependency>
 	
 	<dependency>

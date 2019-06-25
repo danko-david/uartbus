@@ -2,12 +2,12 @@ package eu.javaexperience.electronic.uartbus;
 
 import eu.javaexperience.electronic.IntelHexFile;
 import eu.javaexperience.electronic.build.GccBuilderContext;
+import eu.javaexperience.electronic.uartbus.cli.apps.UartbusCodeUploader;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusCollisionPacketloss;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusConsole;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusPacketloss;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusPing;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusRpcServer;
-import eu.javaexperience.electronic.uartbus.rpc.client.UartbusCodeUploader;
 import eu.javaexperience.generic.annotations.Ignore;
 import eu.javaexperience.rpc.JavaClassRpcUnboundFunctionsInstance;
 import eu.javaexperience.rpc.RpcFacility;

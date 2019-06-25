@@ -1,4 +1,4 @@
-package eu.javaexperience.electronic.uartbus.rpc.client;
+package eu.javaexperience.electronic.uartbus.cli.apps;
 
 import static eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools.FROM;
 import static eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools.RPC_HOST;
@@ -17,6 +17,7 @@ import eu.javaexperience.datastorage.TransactionException;
 import eu.javaexperience.electronic.IntelHexFile;
 import eu.javaexperience.electronic.IntelHexFile.CodeSegment;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools;
+import eu.javaexperience.electronic.uartbus.rpc.client.UartBus;
 import eu.javaexperience.electronic.uartbus.rpc.client.UartBus.UartbusTransaction;
 import eu.javaexperience.electronic.uartbus.rpc.client.device.UartBusDevice;
 import eu.javaexperience.electronic.uartbus.rpc.client.device.UbDevStdNsRoot;

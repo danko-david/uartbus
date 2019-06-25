@@ -6,8 +6,8 @@ cost (wiring, external peripheral components) and build a decentralized
 sensor-actuator network where the node's can interact with each other and 
 the microcontroller's software can be upgraded from the bus. This bus should be
 connectable to a computer system (Desktop/Server PC, Raspberry PI, etc) to
-achieve complex controlling by interacting with the sensors, actors through
-higher level algorithms.
+achieve complex controlling by interacting with the sensors, actuators with
+higher level softwares.
 
 
 ## Solution
@@ -255,7 +255,7 @@ this returns with the response:
    
    
 To invoke a hardware reset:
-2:0:0 => (2) Bootloader functions => (2) power functions => (0) hardware reset   
+2:0:0 => (2) Bootloader functions => (0) power functions => (0) hardware reset   
 No response generated, because committed a hardware reset immediately.
 
 This namespace tree is extendible to any depth, and designed to the application
