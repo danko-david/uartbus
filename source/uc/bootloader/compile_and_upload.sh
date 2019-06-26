@@ -5,7 +5,7 @@
 
 set -e
 
-avr-gcc -o ubb.o ub_bootloader.cpp ../bus/lib/common/ub.cpp ../utils/lib/rpc/rpc.cpp -mmcu=$1\
+avr-g++ -std=c99 -o ubb.o ub_bootloader.c ub_atmega.c ../bus/lib/common/ub.cpp ../utils/lib/rpc/rpc.cpp -mmcu=$1\
 	-I../commons/\
 	-I../bus/lib/common/\
 	-I../utils/lib/rpc/\
@@ -20,6 +20,8 @@ avr-gcc -o ubb.o ub_bootloader.cpp ../bus/lib/common/ub.cpp ../utils/lib/rpc/rpc
 	-DBUS_ADDRESS=$2\
 	-Wl,--section-start=.host_table=0x1fe0\
 	-DHOST_TABLE_ADDRESS=0x1fe0\
+	-DBAUD_RATE=115200\
+	-DF_CPU=16000000\
 	-DAPP_START_ADDRESS=0x2000\
 	-DAPP_CHECKSUM=0\
 	-Wl,--defsym=__stack=0x800700\

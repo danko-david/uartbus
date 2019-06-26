@@ -51,7 +51,7 @@ uint8_t (*get_max_packet_size)();
 
 bool send_packet(int16_t to, int NS, uint8_t* data, uint16_t size)
 {
-	void*** fns = (void***) getHostTableAddress()[0];
+	void*** fns = (void***) getHostTableAddress();
 	
 	bool (*reg)(int16_t, uint8_t, uint8_t*, uint16_t) =
 		(bool (*)(int16_t, uint8_t, uint8_t*, uint16_t)) fns[2];
@@ -61,7 +61,7 @@ bool send_packet(int16_t to, int NS, uint8_t* data, uint16_t size)
 
 void register_packet_dispatch(void (*addr)(struct rpc_request* req))
 {
-	void*** fns = (void***) getHostTableAddress()[0];
+	void*** fns = (void***) getHostTableAddress();
 	
 	void (*reg)(void (*addr)(struct rpc_request* req)) =
 		(void (*)(void (*addr)(struct rpc_request* req))) fns[0];
@@ -71,7 +71,7 @@ void register_packet_dispatch(void (*addr)(struct rpc_request* req))
 
 uint32_t micros()
 {
-	void*** fns = (void***) getHostTableAddress()[0];
+	void*** fns = (void***) getHostTableAddress();
 	
 	uint32_t (*f)() = (uint32_t (*)()) fns[4];
 		
@@ -82,7 +82,7 @@ void init_ub_app()
 {
 	init_app_section();
 	//HOST_TABLE_ADDRESS
-/*	void** fns = getHostTableAddress()[0];
+/*	void** fns = getHostTableAddress();
 	register_packet_dispatch = (void (*)(void (*)(int16_t, int16_t, uint8_t*, uint8_t))) fns[0];
 	may_send_packet = (bool (*)()) fns[1];
 	send_packet = (bool (*)(int16_t, uint8_t* , uint16_t)) fns[2];

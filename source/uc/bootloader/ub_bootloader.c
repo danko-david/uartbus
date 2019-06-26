@@ -1,171 +1,13 @@
-#ifndef F_CPU
-	#define F_CPU 16000000
-#endif
 
-#define BAUD_RATE 115200
 #define USART_BAUDRATE BAUD_RATE
 
 #define BAUD USART_BAUDRATE
 #define BAUD_PRESCALE (((F_CPU / (USART_BAUDRATE * 16UL))) - 1)
 
-#include <avr/io.h>
-#include <avr/boot.h>
-#include <avr/pgmspace.h>
-#include <util/delay.h>
-#include <avr/interrupt.h>
-#include <avr/power.h>
-#include <avr/wdt.h>
-#include <stdlib.h>
-#include <alloca.h>
-#include "posix_errno.h"
-
-#include "ub.h"
-#include "rpc.h"
+#include "ubh.h"
 
 #define UCSZ1   2
 #define UCSZ0   1
-
-#ifdef __linux__
-	#include <sys/time.h>
-	uint32_t ub_impl_get_current_usec()
-	{
-		struct timeval tv;
-		struct timezone tz;
-		int stat = gettimeofday(&tv, &tz);
-		uint32_t now =
-		//	(tv.tv_sec*1000 + tv.tv_usec);//% ((uint32_t) ~0);
-			tv.tv_usec;
-		//printf("now: %d\n", now);
-		return now;
-	}
-	//empty call
-	void ub_init_infrastructure(){};
-#else
-
-	#ifndef  ARDUINO
-		#include <avr/interrupt.h>
-		#ifndef sbi
-			#define sbi(sfr, bit) (_SFR_BYTE(sfr) |= _BV(bit))
-		#endif
-		#define clockCyclesPerMicrosecond() ( F_CPU / 1000000L )
-		#define clockCyclesToMicroseconds(a) ( (a) / clockCyclesPerMicrosecond() )
-		#define microsecondsToClockCycles(a) ( (a) * clockCyclesPerMicrosecond() )
-		#define MICROSECONDS_PER_TIMER0_OVERFLOW (clockCyclesToMicroseconds(64 * 256))
-		#define MILLIS_INC (MICROSECONDS_PER_TIMER0_OVERFLOW / 1000)
-		#define FRACT_INC ((MICROSECONDS_PER_TIMER0_OVERFLOW % 1000) >> 3)
-		#define FRACT_MAX (1000 >> 3)
-
-		volatile unsigned long timer0_overflow_count = 0;
-		volatile unsigned long timer0_millis = 0;
-		static unsigned char timer0_fract = 0;
-
-		#if defined(__AVR_ATtiny24__) || defined(__AVR_ATtiny44__) || defined(__AVR_ATtiny84__)
-		ISR(TIM0_OVF_vect)
-		#else
-		ISR(TIMER0_OVF_vect)
-		#endif
-		{
-			// copy these to local variables so they can be stored in registers
-			// (volatile variables must be read from memory on every access)
-			unsigned long m = timer0_millis;
-			unsigned char f = timer0_fract;
-
-			m += MILLIS_INC;
-			f += FRACT_INC;
-			if (f >= FRACT_MAX) {
-				f -= FRACT_MAX;
-				m += 1;
-			}
-
-			timer0_fract = f;
-			timer0_millis = m;
-			timer0_overflow_count++;
-		}
-
-		//avr
-		//extracted from: /usr/share/arduino/hardware/arduino/cores/arduino/wiring.c
-		uint32_t micros()
-		{
-			unsigned long m;
-			uint8_t oldSREG = SREG, t;
-	
-			cli();
-			m = timer0_overflow_count;
-		#if defined(TCNT0)
-			t = TCNT0;
-		#elif defined(TCNT0L)
-			t = TCNT0L;
-		#else
-			#error TIMER 0 not defined
-		#endif
-
-		  
-		#ifdef TIFR0
-			if ((TIFR0 & _BV(TOV0)) && (t < 255))
-				m++;
-		#else
-			if ((TIFR & _BV(TOV0)) && (t < 255))
-				m++;
-		#endif
-
-			SREG = oldSREG;
-	
-			return ((m << 8) + t) * (64 / clockCyclesPerMicrosecond());
-		}
-
-		void ub_init_infrastructure()
-		{
-			// this needs to be called before setup() or some functions won't
-			// work there
-			sei();
-
-			// on the ATmega168, timer 0 is also used for fast hardware pwm
-			// (using phase-correct PWM would mean that timer 0 overflowed half as often
-			// resulting in different millis() behavior on the ATmega8 and ATmega168)
-		#if defined(TCCR0A) && defined(WGM01)
-			sbi(TCCR0A, WGM01);
-			sbi(TCCR0A, WGM00);
-		#endif  
-
-			// set timer 0 prescale factor to 64
-		#if defined(__AVR_ATmega128__)
-			// CPU specific: different values for the ATmega128
-			sbi(TCCR0, CS02);
-		#elif defined(TCCR0) && defined(CS01) && defined(CS00)
-			// this combination is for the standard atmega8
-			sbi(TCCR0, CS01);
-			sbi(TCCR0, CS00);
-		#elif defined(TCCR0B) && defined(CS01) && defined(CS00)
-			// this combination is for the standard 168/328/1280/2560
-			sbi(TCCR0B, CS01);
-			sbi(TCCR0B, CS00);
-		#elif defined(TCCR0A) && defined(CS01) && defined(CS00)
-			// this combination is for the __AVR_ATmega645__ series
-			sbi(TCCR0A, CS01);
-			sbi(TCCR0A, CS00);
-		#else
-			#error Timer 0 prescale factor 64 not set correctly
-		#endif
-
-			// enable timer 0 overflow interrupt
-		#if defined(TIMSK) && defined(TOIE0)
-			sbi(TIMSK, TOIE0);
-		#elif defined(TIMSK0) && defined(TOIE0)
-			sbi(TIMSK0, TOIE0);
-		#else
-			#error	Timer 0 overflow interrupt not set correctly
-		#endif
-			
-		}
-	#else
-		void ub_init_infrastructure(){}
-	#endif
-	//arduino
-	__attribute__((noinline))  uint32_t ub_impl_get_current_usec()
-	{
-		return micros();
-	}
-#endif
 
 /******************************* GLOBAL variables *****************************/
 
@@ -177,32 +19,6 @@ void ub_manage();
 uint8_t rando()
 {
 	return (rand() %256);
-}
-
-/***************************** USART functions ********************************/
-
-void USART_Init(void)
-{
-	#ifdef __AVR_ATmega8__
-	  UCSRA = _BV(U2X); //Double speed mode USART
-	  UCSRB = _BV(RXEN) | _BV(TXEN) | _BV(RXCIE0);  // enable Rx & Tx
-	  UCSRC = _BV(URSEL) | _BV(UCSZ1) | _BV(UCSZ0);  // config USART; 8N1
-	  UBRRL = (uint8_t)( (F_CPU + BAUD_RATE * 4L) / (BAUD_RATE * 8L) - 1 );
-	#else
-	  UCSR0A = _BV(U2X0); //Double speed mode USART0
-	  UCSR0B = _BV(RXEN0) | _BV(TXEN0) | _BV(RXCIE0);
-	  UCSR0C = _BV(UCSZ00) | _BV(UCSZ01);
-	  UBRR0L = (uint8_t)( (F_CPU + BAUD_RATE * 4L) / (BAUD_RATE * 8L) - 1 );
-	#endif
-}
-
-void USART_SendByte(uint8_t u8Data)
-{
-	// Wait until last byte has been transmitted
-	while (!(UCSR0A & _BV(UDRE0))){}
-
-	// Transmit data
-	UDR0 = u8Data;
 }
 
 /******************* On board software upgrade  functionalities ***************/
@@ -349,11 +165,6 @@ int8_t unpack_value(int16_t* dst, uint8_t* arr, int size)
 	return req;
 }
 
-bool has_app()
-{
-	return 0xff != pgm_read_byte(APP_START_ADDRESS);
-}
-
 /************************** RPC functions - Basic *****************************/
 
 //1:0
@@ -373,15 +184,10 @@ void rpc_basic_user_led(struct rpc_request* req)
 {
 	if(0 != (req->size - req->procPtr))
 	{
-		switch(req->payload[req->procPtr])
-		{
-			case 0: PORTB &= ~_BV(PB5); break;
-			case 1: PORTB |= _BV(PB5); break;
-			case 2: PORTB ^= _BV(PB5); break;
-		}
+		il_reply(req, 1, ubh_impl_set_user_led(req->payload[req->procPtr]));
 	}
-	il_reply(req, 1, PORTB & _BV(PB5)?1:0);
 }
+
 
 //https://www.avrfreaks.net/forum/extracting-bytes-long
 union LONG_BYTES
@@ -449,7 +255,7 @@ void rpc_bootloader_power_function(struct rpc_request* req)
 	
 	switch(req->payload[req->procPtr])
 	{
-		case 0: wdt_enable(WDTO_15MS);while(1){}
+		case 0: ubh_impl_wdt_start(false);while(1){}
 		case 1: asm ("jmp 0x00");
 		default: break;
 	}
@@ -470,7 +276,7 @@ void rpc_bootloader_get_var(struct rpc_request* req)
 		case 0: res = app_run; break;
 //		case 1: res = sos_signal; break;
 		case 2: res = reset_flag; break;
-		case 3: res = has_app();  break;
+		case 3: res = ubh_impl_has_app();  break;
 		default: res = 0;break;
 	}
 	il_reply(req, 1, res);
@@ -496,6 +302,8 @@ void rpc_bootloader_set_var(struct rpc_request* req)
 	il_reply(req, 1, 0);
 }
 
+
+
 //2:3:x
 void rpc_bootloader_read_code(struct rpc_request* req)
 {
@@ -511,11 +319,8 @@ void rpc_bootloader_read_code(struct rpc_request* req)
 
 	rec[0] = data[0];
 	rec[1] = data[1];
-
-	for(uint8_t i = 0;i<s;++i)
-	{
-		rec[i+2] = pgm_read_byte(base+i);
-	}
+	
+	uint8_t read = ubh_impl_read_code(base, s, &rec[2]);
 
 	il_reply_arr(req, rec, s+2);
 }
@@ -540,7 +345,7 @@ void blf_start_flash(struct rpc_request* req)
 		il_reply(req, 1, EALREADY);		
 	}
 	
-	flash_tmp = (uint8_t*)RAMSTART;//(uint8_t*) malloc(SPM_PAGESIZE);
+	flash_tmp = (uint8_t*) ubh_impl_allocate_program_tmp_storage();
 	if(NULL == flash_tmp)
 	{
 		il_reply(req, 1, ENOMEM);
@@ -560,54 +365,24 @@ void blf_get_next_addr(struct rpc_request* req)
 	il_reply(req, 2, ((flash_crnt_address >> 8) & 0xff), flash_crnt_address & 0xff); 
 }
 
-__attribute__((section(".bootloader"))) void bootloader_main()
-{
-	asm ("jmp 0x0");
-}
-
-__attribute__((section(".bootloader")))  void boot_program_page(uint32_t page, uint8_t *buf, uint8_t size)
-{
-    uint16_t i;
-    uint8_t sreg;
-    // Disable interrupts.
-    sreg = SREG;
-    cli();
-    eeprom_busy_wait ();
-    boot_page_erase (page);
-    boot_spm_busy_wait ();      // Wait until the memory is erased.
-    for (i=0; i<SPM_PAGESIZE; i+=2)
-    {
-        // Set up little-endian word.
-        uint16_t w = *buf++;
-        w += (*buf++) << 8;
-    
-        boot_page_fill (page + i, w);
-    }
-    boot_page_write (page);     // Store buffer in flash page.
-    boot_spm_busy_wait();       // Wait until the memory is written.
-    // Reenable RWW-section again. We need this if we want to jump back
-    // to the application after bootloading.
-    boot_rww_enable ();
-    // Re-enable interrupts (if they were ever enabled).
-    SREG = sreg;
-}
 
 void fill_flash(uint8_t *buf, uint16_t size)
 {
+	uint8_t page_size = ubh_impl_get_program_page_size();
 	for(uint16_t i = 0;i<size;++i)
 	{
 		//filling flash temporary write storage from the given buffer.
-		flash_tmp[flash_crnt_address % SPM_PAGESIZE] = buf[i];
+		flash_tmp[flash_crnt_address % page_size] = buf[i];
 		++flash_crnt_address;
 		
 		//if page fullfilled => flush it.		
-		if(0 == flash_crnt_address % SPM_PAGESIZE)
+		if(0 == flash_crnt_address % page_size)
 		{
-			boot_program_page
+			ubh_impl_write_program_page
 			(
-				(flash_crnt_address-1) & ~(SPM_PAGESIZE-1),
+				(flash_crnt_address-1) & ~(page_size-1),
 				flash_tmp,
-				SPM_PAGESIZE
+				page_size
 			);
 		}
 	}
@@ -647,14 +422,16 @@ void commit_flash(struct rpc_request* req)
 		return;
 	}
 	
+	uint8_t page_size = ubh_impl_get_program_page_size();
+	
 	//something filled into the write buffer => writing page
-	if(0 != ((flash_crnt_address-1) % (SPM_PAGESIZE-1)))
+	if(0 != ((flash_crnt_address-1) % (page_size-1)))
 	{
-		boot_program_page
+		ubh_impl_write_program_page
 		(
-			flash_crnt_address & ~(SPM_PAGESIZE-1),
+			flash_crnt_address & ~(page_size-1),
 			flash_tmp,
-			flash_crnt_address % (SPM_PAGESIZE-1)
+			flash_crnt_address % (page_size-1)
 		);
 	}
 	
@@ -911,7 +688,7 @@ static void ub_event(struct uartbus* a, enum uartbus_event event)
 			event == ub_event_collision_end
 	)
 	{
-		PCMSK2 |= _BV(PCINT16);
+		ubh_impl_enable_receive_detect_interrupt(true);
 	}
 	
 	//disable listen for collision
@@ -924,27 +701,9 @@ static void ub_event(struct uartbus* a, enum uartbus_event event)
 		ub_event_collision_start == event
 	)
 	{
-		PCMSK2 &= ~_BV(PCINT16);
+		ubh_impl_enable_receive_detect_interrupt(false);
 	}
 #endif
-}
-
-static uint8_t ub_do_send_byte(struct uartbus* bus, uint8_t val)
-{
-	USART_SendByte(val);
-	return 0;
-}
-
-static uint8_t send_on_idle(struct uartbus* bus, uint8_t** data, uint16_t* size)
-{
-	if(send_size != 0)
-	{
-		*data = send_data;
-		*size = send_size;
-		send_size = 0;
-		return 0;
-	}
-	return 1;
 }
 
 /*bool send_packet(int16_t to, uint8_t* data, uint16_t size)
@@ -971,7 +730,7 @@ void init_bus()
 	bus.serial_byte_received = ub_rec_byte;
 	bus.serial_event = ub_event;
 	ub_init_baud(&bus, BAUD_RATE, 2);
-	bus.do_send_byte = ub_do_send_byte;
+	bus.do_send_byte = ubh_impl_do_send_byte;
 	bus.cfg = 0
 //		|	ub_cfg_fairwait_after_send_high
 		|	ub_cfg_fairwait_after_send_low
@@ -979,21 +738,6 @@ void init_bus()
 		|	ub_cfg_skip_collision_data
 	;
 	ub_init(&bus);
-}
-
-ISR(USART_RX_vect)
-{
-	//check for framing error
-	bool error = (UCSR0A & _BV(FE0));
-	uint8_t data = UDR0;
-	if(error)
-	{
-		//ub_out_rec_byte(&bus, ~0);		
-	}
-	else
-	{
-		ub_out_rec_byte(&bus, data);
-	}
 }
 
 void register_packet_dispatch(void (*addr)(struct rpc_request* req))
@@ -1006,22 +750,22 @@ void register_packet_dispatch(void (*addr)(struct rpc_request* req))
 int init_board(void)
 {
 	ub_init_infrastructure();
-	USART_Init();
+	ubh_impl_init();
 	init_bus();
 }
 
-//https://stackoverflow.com/questions/6686675/gcc-macro-expansion-arguments-inside-string
-#define S(x) #x
-#define SX(x) S(x)
-
-__attribute__((noinline)) void call_app(bool first)
+uint8_t send_on_idle(struct uartbus* bus, uint8_t** data, uint16_t* size)
 {
-/*	void (*app)(bool) = (void (*)(bool)) APP_START_ADDRESS;
-	app(first);*/
-	//asm("call " SX(APP_START_ADDRESS));
-	asm("jmp " SX(APP_START_ADDRESS));
-	asm ("ret");
+	if(send_size != 0)
+	{
+		*data = send_data;
+		*size = send_size;
+		send_size = 0;
+		return 0;
+	}
+	return 1;
 }
+
 
 /********************************** Host tables *******************************/
 
@@ -1030,7 +774,7 @@ __attribute__((noinline)) void call_app(bool first)
 //bus address
 //app start address [default] = 4096
 
-void** HOST_FUNCTIONS = (void*[])
+void* HOST_TABLE[] =
 {
 	(void*) register_packet_dispatch,
 	(void*) may_send_packet,
@@ -1039,6 +783,7 @@ void** HOST_FUNCTIONS = (void*[])
 	(void*) micros
 };
 
+/*
 void** HOST_CONSTANTS = (void*[])
 {
 	(void*) UB_HOST_VERSION,
@@ -1056,8 +801,9 @@ void** HOST_TABLE[] =
 	(void**) HOST_FUNCTIONS,
 	(void**) HOST_CONSTANTS
 };
+*/
 
-__attribute__((section(".host_table"))) void*** getHostTable()
+__attribute__((section(".host_table"))) void** getHostTable()
 {
 	return HOST_TABLE;
 } 
@@ -1093,33 +839,13 @@ void ub_manage()
 //boolean bit
 #define bb(x, y) x?(0x1 <<y):0
 
-#ifdef UB_COLLISION_INT
-//TODO disable on transmission start and enable on packet end
-ISR(PCINT2_vect)
-{
-	ub_predict_transmission_start(&bus);
-}
-#endif
 
 int main()
 {
-	//clock_prescale_set(clock_div_16);
-
-#ifdef UB_COLLISION_INT
-	EICRA= 0;//((1 << ISC21) | (1 << ISC20)); // set sense bits for rising edge
-	EIMSK= (1 << 2);//(1 << INT2); // set intrupt #2 enable mask bits
-	PCICR=(1 << PCIE2); // set intrupt #2 pin change bits
-	PCMSK2=(1 << PCINT16); // set port k/pin 0 change mask bit
-#endif
-
-	DDRB = 0xFF; //DEBUG
-	PORTB |= _BV(PB5);
-	reset_flag = MCUSR;
+	reset_flag = ubh_impl_get_power_state();
 	//watchdog reset and not external or power-on 
 	
-	app_run = MCUSR != 8;
-	
-	MCUSR = 0;
+	app_run = reset_flag != 8;
 	
 	init_board();
 	
@@ -1130,7 +856,7 @@ int main()
 //		|
 			(app_run?2:0)
 		|
-			(has_app()?1:0)
+			(ubh_impl_has_app()?1:0)
 	);
 	//srand(micros());
 	
@@ -1140,24 +866,22 @@ int main()
 		uint32_t t = micros();
 		while(!afterMicro(&t, 500000))
 		{
-			wdt_reset();
+			ubh_impl_wdt_checkpoint();
 			ub_manage();
 		}
 	}
 	
-	PORTB &= ~_BV(PB5);
-	
-	wdt_enable(WDTO_1S);
+	ubh_impl_wdt_start(true);
 	bool first = true;
 	while(1)
 	{
-		wdt_reset();
+		ubh_impl_wdt_checkpoint();
 		ub_manage();
-		wdt_reset();
+		ubh_impl_wdt_checkpoint();
 		
-		if(app_run && has_app())
+		if(app_run && ubh_impl_has_app())
 		{
-			call_app(first);
+			ubh_impl_call_app(first);
 			first = false;
 		}
 	}
