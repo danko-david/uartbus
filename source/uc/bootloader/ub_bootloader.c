@@ -40,7 +40,7 @@ bool send_packet_priv(int16_t to, uint8_t ns, uint8_t* data, uint8_t size);
 
 int16_t rpc_response(struct rpc_request* req, uint8_t args, struct response_part** parts)
 {
-	int neg = req->procPtr-1;
+	int neg = req->procPtr;
 	
 	int size = rpc_append_size(args, parts);
 	if(size < 0)
@@ -52,12 +52,12 @@ int16_t rpc_response(struct rpc_request* req, uint8_t args, struct response_part
 	
 	for(uint8_t i=0;i<neg;++i)
 	{
-		d[i] = req->payload[i+1];
+		d[i] = req->payload[i];
 	}
 	
 	rpc_append_arr(d+neg, size, args, parts);
-	
-	return send_packet_priv(req->from, req->payload[0], d, size+neg);
+
+	return send_packet_priv(req->from, 0, d, size+neg);
 }
 
 int8_t pack_value(int16_t v, uint8_t* arr, int size)

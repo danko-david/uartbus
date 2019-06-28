@@ -91,7 +91,8 @@ public class UartBus implements Closeable
 	(
 		int to,
 		byte[] path,
-		byte[] payloadData
+		byte[] payloadData,
+		boolean zeroNamespaceAnswer
 	)
 		throws IOException
 	{
@@ -100,16 +101,18 @@ public class UartBus implements Closeable
 		req.to = to;
 		req.path = path;
 		req.payload = payloadData;
+		req.zeroNamespaceAnswer = zeroNamespaceAnswer;
 		req.send();
 		return req;
 	}
 	
-	public UartbusTransaction subscribeResponse(int from, int to, byte[] path)
+	public UartbusTransaction subscribeResponse(int from, int to, byte[] path, boolean zeroNamespace)
 	{
 		UartbusTransaction ret = new UartbusTransaction();
 		ret.from = from;
 		ret.to = to;
 		ret.path = path;
+		ret.zeroNamespaceAnswer = zeroNamespace;
 		addPendingRequest(ret);
 		return ret;
 	}
@@ -120,6 +123,7 @@ public class UartBus implements Closeable
 	 * */
 	public class UartbusTransaction implements Closeable
 	{
+		public boolean zeroNamespaceAnswer;
 		public int to;
 		public int from;
 		
@@ -148,15 +152,8 @@ public class UartBus implements Closeable
 			addPendingRequest(this);
 			
 			byte[] send = toPacket();
-			//System.out.println("send: "+UartbusTools.formatColonData(send));
-			//synchronized (conn)
+			synchronized(conn)
 			{
-				try {
-					Thread.sleep(10);
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
 				conn.sendPacket(send);
 			}
 		}
@@ -227,12 +224,23 @@ public class UartBus implements Closeable
 		public boolean tryAcceptResponse(ParsedUartBusPacket a)
 		{
 			//check response by address
-			if(a.to == this.from && a.from == this.to && a.payload.length >= path.length)
+			if(a.to == this.from && a.from == this.to && a.payload.length + (zeroNamespaceAnswer?1:0) >= path.length)
 			{
+				int diff = 0;
+				
+				if(zeroNamespaceAnswer)
+				{
+					if(0 != a.payload[0])
+					{
+						return false;
+					}
+					diff = 1;
+				}
+				
 				//check response by rpc path
 				for(int i=0;i<path.length;++i)
 				{
-					if(path[i] != a.payload[i])
+					if(path[i] != a.payload[diff+i])
 					{
 						return false;
 					}

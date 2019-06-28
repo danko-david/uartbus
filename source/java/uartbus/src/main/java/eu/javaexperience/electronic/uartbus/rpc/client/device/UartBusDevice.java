@@ -117,7 +117,7 @@ public class UartBusDevice
 		boolean mayRetransmit = null != method.getAnnotation(UbRetransmittable.class);
 		for(int i=0;i<retryCount;++i)
 		{
-			try(UartbusTransaction tr = bus.newTransaction(address, path, pa.done()))
+			try(UartbusTransaction tr = bus.newTransaction(address, path, pa.done(), true))
 			{
 				if(NoReturn.class == ret)
 				{

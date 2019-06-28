@@ -62,7 +62,7 @@ public class UartbusCollisionPacketloss
 		public int concaterationCollision;*/
 	}
 	
-	public static void regPacketLostStatPrintOnExit(int[] sent, Map<Integer, ReplayCollector> rec,  DevCollisionStat ds)
+	public static void regPacketLostStatPrintOnExit(int[] sent, Map<Integer, ReplyCollector> rec,  DevCollisionStat ds)
 	{
 		Runtime.getRuntime().addShutdownHook(new Thread()
 		{
@@ -79,7 +79,7 @@ public class UartbusCollisionPacketloss
 				}
 				else
 				{
-					for(Entry<Integer, ReplayCollector> ent:rec.entrySet())
+					for(Entry<Integer, ReplyCollector> ent:rec.entrySet())
 					{
 						System.out.println(ent.getValue().getStatistic(sent[0]));
 					}
@@ -102,7 +102,7 @@ public class UartbusCollisionPacketloss
 		return asm.done();
 	}
 	
-	public static class ReplayCollector
+	public static class ReplyCollector
 	{
 		public int device;
 		public Map<Integer, Integer> responses = new HashMap<>();
@@ -156,12 +156,12 @@ public class UartbusCollisionPacketloss
 		}
 	}
 	
-	public static ReplayCollector getOrCreateRelayCollector(Map<Integer, ReplayCollector> map, int dev)
+	public static ReplyCollector getOrCreateRelayCollector(Map<Integer, ReplyCollector> map, int dev)
 	{
-		ReplayCollector ret = map.get(dev);
+		ReplyCollector ret = map.get(dev);
 		if(null == ret)
 		{
-			ret = new ReplayCollector();
+			ret = new ReplyCollector();
 			ret.device = dev;
 			map.put(dev, ret);
 		}
@@ -182,7 +182,7 @@ public class UartbusCollisionPacketloss
 		int interval = INTERVAL.tryParseOrDefault(pa, 1000);
 		int count = COUNT_OF_PACKETS.tryParseOrDefault(pa, 0);
 		
-		Map<Integer, ReplayCollector> stat = new TreeMap<>();
+		Map<Integer, ReplyCollector> stat = new TreeMap<>();
 		
 		DevCollisionStat ds = new DevCollisionStat();
 		
@@ -201,7 +201,7 @@ public class UartbusCollisionPacketloss
 							ParsedUartBusPacket packet = new ParsedUartBusPacket(e, true);
 							if(packet.to == from)
 							{
-								int seq = UartbusTools.unpackValue(false, packet.payload, 2).intValue();
+								int seq = UartbusTools.unpackValue(false, packet.payload, 3).intValue();
 								MapTools.incrementCount(getOrCreateRelayCollector(stat, packet.from).responses, seq);
 							}
 						}
@@ -217,23 +217,6 @@ public class UartbusCollisionPacketloss
 					{
 						MapTools.incrementCount(getOrCreateRelayCollector(stat, 0).responses, 0);
 						MapTools.incrementCount(ds.lens, e.length);
-						/*if(1 == e.length)
-						{
-							++ds.oneByteCollision;
-						}
-						else if(2 == e.length)
-						{
-							++ds.twoByteCollision;
-						}
-						//from, to, NS, func, val, crc
-						else if(e.length < 7)
-						{
-							++ds.multiByteCollision;
-						}
-						else
-						{
-							++ds.concaterationCollision;
-						}*/
 					}
 				}
 				catch(Exception ex)

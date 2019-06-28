@@ -129,7 +129,7 @@ public class UartbusCodeUploader
 			UbDevStdNsRoot root = dev.getRpcRoot();
 			try
 			{
-				UartbusTransaction reboot = dev.getBus().subscribeResponse(-1, dev.getAddress(), new byte[]{0});
+				UartbusTransaction reboot = dev.getBus().subscribeResponse(-1, dev.getAddress(), Mirror.emptyByteArray, true);
 				root.getBootloaderFunctions().getPowerFunctions().hardwareReset();
 				//this waits until reboot complete
 				reboot.ensureResponse(3, TimeUnit.SECONDS);
