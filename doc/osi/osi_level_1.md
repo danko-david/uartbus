@@ -67,7 +67,7 @@ Cons:
 	cause signal distortion. (not capable from higher speed over 57600 for long
 	distance)
 
-##### Second bus driver
+#### Second bus driver
 
 ![driver circuit](../../resources/image/bus_driver_fet.jpg)
 
