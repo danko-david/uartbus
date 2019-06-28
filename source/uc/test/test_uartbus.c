@@ -7,7 +7,7 @@
 #include "ub.h"
 #include "rpc.h"
 
-#include "../bus/lib/common/ub.cpp"
+#include "../bus/lib/common/ub.c"
 
 enum testbus_event
 {

@@ -5,7 +5,7 @@
 
 set -e
 
-avr-g++ -std=c99 -o ubb.o ub_bootloader.c ub_atmega.c ../bus/lib/common/ub.cpp ../utils/lib/rpc/rpc.cpp -mmcu=$1\
+avr-g++ -std=c99 -o ubb.o ub_bootloader.c ub_atmega.c ../bus/lib/common/ub.c ../utils/lib/rpc/rpc.c -mmcu=$1\
 	-I../commons/\
 	-I../bus/lib/common/\
 	-I../utils/lib/rpc/\

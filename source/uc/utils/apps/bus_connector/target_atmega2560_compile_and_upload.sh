@@ -5,7 +5,7 @@
 
 set -e
 
-avr-gcc -o ub_bc.o bus_connector.cpp ../../../bus/lib/common/ub.cpp -mmcu=atmega2560\
+avr-gcc -o ub_bc.o bus_connector.cpp ../../../bus/lib/common/ub.c -mmcu=atmega2560\
 	-I../../../bus/lib/common/\
 	-Os\
 	-ffunction-sections\

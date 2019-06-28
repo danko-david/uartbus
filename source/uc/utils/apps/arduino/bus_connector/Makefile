@@ -56,7 +56,7 @@ build:
 	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)USBCore.cpp -o USBCore.cpp.o 
 	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)WMath.cpp -o WMath.cpp.o 
 	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)WString.cpp -o WString.cpp.o
-	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) ../../../../bus/lib/common/ub.cpp -o ub.cpp.o
+	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) ../../../../bus/lib/common/ub.c -o ub.cpp.o
 #	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) ../../../../bus/lib/arduino/ub_arduino.cpp -o ub_arduino.cpp.o 
 	$(AR) rcs core.a *.{c,cpp}.o
 	$(CC) -Os -Wl,--gc-sections -mmcu=$(MCU) -o $(MAIN_SKETCH).elf $(MAIN_SKETCH).e core.a -lm 

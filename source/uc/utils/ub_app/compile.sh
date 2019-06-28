@@ -20,7 +20,7 @@ avr-gcc -mmcu=$1 \
 	-DHOST_TABLE_ADDRESS=0x1fe0\
 	-Wl,--section-start=.text=0x2020\
 	-Wl,--section-start=.app_start=0x2000\
-	-Os -o app.o $2 ../lib/rpc/rpc.cpp ub_app_wrapper.cpp
+	-Os -o app.o $2 ../lib/rpc/rpc.c ub_app_wrapper.c
 
 avr-objcopy -R .eeprom -O ihex app.o app.hex
 avr-objdump -S --disassemble  app.o > app.asm

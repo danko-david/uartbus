@@ -215,7 +215,7 @@ A request parsed into a `struct rpc_request` located in
 [./source/uc/utils/lib/rpc/rpc.h](./source/uc/utils/lib/rpc/rpc.h).  
 
 This request is dispatched through a RPC namespace chain. For example see:
-[./source/uc/bootloader/ub_bootloader.cpp](./source/uc/bootloader/ub_bootloader.cpp)
+[./source/uc/bootloader/ub_bootloader.c](./source/uc/bootloader/ub_bootloader.c)
 how RPC_NS_FUNCTIONS constructed and where this chain used as a parameter.
 
 When a namespace matched `procPtr` incremented, so in next processing stage
