@@ -74,12 +74,14 @@ and generic FETs (or BJTs with no opening delay in switching mode)
 
 ## Documentation
 
-The best way to organize the informations and different aspect of design is to
-use the OSI model to describe details.
-See: [OSI based documentation index](./doc/osi.md)   
-All level are implemented to bound so loosely together as they can reuse for
-custom project. Eg: you can use OSI-{1,2} levels and skip the upper ones and
-create a message based bus like as the CAN bus works.
+See: [Documentation index](./doc/index.md)   
+All level and detail are implemented as small portion and bound so loosely
+together to anyone can reuse the smaller piece of building blocks for custom
+project.  
+
+Eg: you can use OSI-{1,2} levels and skip the upper ones and
+create a message based bus like as the CAN bus works. Or reverse: use CAN on the
+lowest level and use the infrastructure.
 
 ## Short implementation explanation
 
