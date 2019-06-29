@@ -18,7 +18,7 @@ C_WRAP=$(readlink -f utils/ub_app/ub_app_wrapper.c)
 
 cd $OWD
 
-avr-gcc -mmcu=$1\
+avr-g++ -mmcu=$1\
 	-I$I_COMM -I$I_BUSCOMM -I$I_RPC -I$I_WRAP\
 	-ffunction-sections\
 	-fdata-sections\

@@ -249,7 +249,7 @@ void ubh_impl_init()
 	#endif
 
 	DDRB = _BV(PB5); //DEBUG
-	PORTB |= _BV(PB5);
+	//PORTB |= _BV(PB5);
 }
 
 #ifdef UB_COLLISION_INT

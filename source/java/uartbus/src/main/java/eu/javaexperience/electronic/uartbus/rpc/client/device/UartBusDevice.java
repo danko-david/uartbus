@@ -131,7 +131,7 @@ public class UartBusDevice
 					return UbRpcTools.extractOrThrowResult
 					(
 						method,
-						Arrays.copyOfRange(res, path.length, res.length)
+						Arrays.copyOfRange(res, path.length+1, res.length)
 					);
 				}
 				catch(TransactionException ex)
