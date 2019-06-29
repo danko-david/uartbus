@@ -44,13 +44,21 @@ public class UartbusCodeUploader
 		"c", "-code"
 	);
 	
+	public static final CliEntry<String> NO_VERIFY = CliEntry.createFirstArgParserEntry
+	(
+		(e)->e,
+		"If option is present, skip the verification",
+		"n", "-no-verify"
+	);
+	
 	protected static final CliEntry[] PROG_CLI_ENTRIES =
 	{
 		RPC_HOST,
 		RPC_PORT,
 		FROM,
 		TO,
-		CODE
+		CODE,
+		NO_VERIFY
 	};
 	
 	public static void printHelpAndExit(int exit)
@@ -200,7 +208,8 @@ public class UartbusCodeUploader
 		CodeSegment code = getCodeFromFile(sfile);
 		
 		UartBusDevice dev = bus.device(to);
-		dev.timeout = 300;
+		dev.timeout = 100;
+		dev.retryCount = 100;
 		System.out.println("Target device: "+dev.getAddress());
 		UbDevStdNsRoot root = dev.getRpcRoot();
 		
@@ -212,11 +221,12 @@ public class UartbusCodeUploader
 		catch(TransactionException e)
 		{
 			e.printStackTrace();
-			System.err.println("Requested bus device ("+to+") not responding in the bus, maybe not attached.");
+			System.err.println("Requested bus device ("+to+") not responding on the bus, maybe not attached.");
 			System.exit(2);
 		}
 		
-		final int retry = dev.retryCount;
+		dev.timeout = 20;
+		dev.retryCount = 100;
 		
 		UbBootloaderFunctions boot = root.getBootloaderFunctions();
 		UbbFlashFunctions flash = boot.getFlashFunctions();
@@ -230,7 +240,7 @@ public class UartbusCodeUploader
 		//start
 		try
 		{
-			transaction(retry, new SimpleGet<Void>()
+			transaction(dev.retryCount, new SimpleGet<Void>()
 			{
 				@Override
 				public Void get()
@@ -263,7 +273,7 @@ public class UartbusCodeUploader
 			
 			while(true)
 			{
-				Boolean ret = transaction(retry, new SimpleGet<Boolean>()
+				Boolean ret = transaction(dev.retryCount, new SimpleGet<Boolean>()
 				{
 					@Override
 					public Boolean get()
@@ -298,7 +308,7 @@ public class UartbusCodeUploader
 				}
 			}
 			
-			transaction(retry, new SimpleGet<Void>()
+			transaction(dev.retryCount, new SimpleGet<Void>()
 			{
 				@Override
 				public Void get()
@@ -319,73 +329,91 @@ public class UartbusCodeUploader
 			short[] addr = new short[1];
 			addr[0] = start;
 			
-			System.out.println("Verifying uploaded code.");
-			
-			while(true)
+			if(!NO_VERIFY.hasOption(pa))
 			{
-				Boolean ret = transaction(retry, new SimpleGet<Boolean>()
-				{
-					@Override
-					public Boolean get()
-					{
-						if(code.startAddress+code.data.length <= addr[0])
-						{
-							//done
-							return true;
-						}
-						
-						final int blockSize = 8;
-						
-						int off = (int) (addr[0]-code.startAddress);
-						
-						byte[] cp = code.getCodePiece(off, blockSize);
-						
-						GenericStruct2<Short, byte[]> c = boot.readProgramCode(addr[0], (byte) cp.length);
-						if(addr[0] != c.a)
-						{
-							throw new RuntimeException("Different address returned, than the requested. Req: "+addr[0]+", ret: "+c.a);
-						}
-						
-						if(Arrays.equals(cp, c.b))
-						{
-							System.out.println("Verifying "+Long.toHexString(addr[0])+": OK");
-						}
-						else
-						{
-							System.out.println("Verifying "+Long.toHexString(addr[0])+": Code mismatch:");
-							System.out.println("Actual:   "+Format.toHex(c.b));
-							System.out.println("Expected: "+Format.toHex(cp));
-							throw new RuntimeException("Uploaded code verification failed.");
-						}
-						
-						addr[0] += blockSize;
-						
-						return false;
-					}
-				});
+			
+				System.out.println("Verifying uploaded code.");
 				
-				if(ret)
+				while(true)
 				{
-					break;
+					Boolean ret = transaction(dev.retryCount, new SimpleGet<Boolean>()
+					{
+						@Override
+						public Boolean get()
+						{
+							if(code.startAddress+code.data.length <= addr[0])
+							{
+								//done
+								return true;
+							}
+							
+							final int blockSize = 8;
+							
+							int off = (int) (addr[0]-code.startAddress);
+							
+							System.out.print("Verifying "+Long.toHexString(addr[0])+":");
+							try
+							{
+								byte[] cp = code.getCodePiece(off, blockSize);
+								
+								GenericStruct2<Short, byte[]> c = boot.readProgramCode(addr[0], (byte) cp.length);
+								if(addr[0] != c.a)
+								{
+									throw new RuntimeException("Different address returned, than the requested. Req: "+addr[0]+", ret: "+c.a);
+								}
+								
+								if(Arrays.equals(cp, c.b))
+								{
+									System.out.print(" OK");
+								}
+								else
+								{
+									System.out.print(" Code mismatch:");
+									System.out.print("Actual:   "+Format.toHex(c.b));
+									System.out.print("Expected: "+Format.toHex(cp));
+									throw new RuntimeException("Uploaded code verification failed.");
+								}
+								
+								addr[0] += blockSize;
+								
+								return false;
+							}
+							finally
+							{
+								System.out.println("");
+							}
+						}
+					});
+					
+					if(ret)
+					{
+						break;
+					}
 				}
 			}
-			
-			
 		}
 		catch(Exception e)
 		{
 			e.printStackTrace();
 			//something flawed, reset the target device.
-			restartDevice(dev, true);
-			System.exit(0);
+			try
+			{
+				restartDevice(dev, true);
+			}
+			finally
+			{
+				System.exit(0);
+			}
 		}
 		
-		restartDevice(dev, false);
-		
-		//TODO check code start address
-		
-		System.exit(0);
-		
+		try
+		{
+			restartDevice(dev, false);
+		}
+		finally
+		{
+			System.exit(0);
+		}
 		//load intel hex file, verify the content
 		
 

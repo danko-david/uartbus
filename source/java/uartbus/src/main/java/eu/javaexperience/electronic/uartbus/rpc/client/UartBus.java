@@ -2,13 +2,11 @@ package eu.javaexperience.electronic.uartbus.rpc.client;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.concurrent.TimeUnit;
 
 import eu.javaexperience.asserts.AssertArgument;
 import eu.javaexperience.datastorage.TransactionException;
-import eu.javaexperience.electronic.uartbus.PacketReader;
 import eu.javaexperience.electronic.uartbus.UartbusTools;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusConnection;
 import eu.javaexperience.electronic.uartbus.rpc.client.device.UartBusDevice;
@@ -185,14 +183,14 @@ public class UartBus implements Closeable
 			return null != responsePayload && revoked;
 		}
 		
-		public boolean waitResponse(long timeoute, TimeUnit unit) throws InterruptedException
+		public boolean waitResponse(long timeout, TimeUnit unit) throws InterruptedException
 		{
 			AssertArgument.assertTrue(!isRevoked(), "Request has been revoked");
-			wait.waitForEvent(timeoute, unit);
+			wait.waitForEvent(timeout, unit);
 			AssertArgument.assertTrue(!isRevoked(), "Request has been revoked");
 			synchronized(this)
 			{
-				return null != responsePayload;	
+				return null != responsePayload;
 			}
 		}
 		
