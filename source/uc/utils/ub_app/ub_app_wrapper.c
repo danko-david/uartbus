@@ -1,6 +1,10 @@
 
 #include "ub_app_wrapper.h"
 
+#ifdef __cplusplus
+extern "C"{
+#endif
+
 //https://stackoverflow.com/questions/6686675/gcc-macro-expansion-arguments-inside-string
 #define S(x) #x
 #define SX(x) S(x)
@@ -15,8 +19,6 @@ __attribute__ ((weak)) void setup(){};
 __attribute__ ((weak)) void loop(){};
 
 int main(){}
-
-#include <avr/io.h>
 
 __attribute__ ((weak)) void __do_copy_data(){};
 __attribute__ ((weak)) void __do_clear_bss(){};
@@ -69,7 +71,7 @@ void register_packet_dispatch(void (*addr)(struct rpc_request* req))
 	reg(addr);
 }
 
-uint32_t micros()
+__attribute__((weak)) uint32_t micros()
 {
 	void*** fns = (void***) getHostTableAddress();
 	
@@ -89,3 +91,6 @@ void init_ub_app()
 	get_max_packet_size = (uint8_t (*)()) fns[3];*/
 }
 
+#ifdef __cplusplus
+} // extern "C"
+#endif

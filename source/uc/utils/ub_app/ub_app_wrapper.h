@@ -8,6 +8,9 @@
 #include <stddef.h>
 #include <stdlib.h>
 
+#ifdef __cplusplus
+extern "C"{
+#endif
 
 void register_packet_dispatch(void (*addr)(struct rpc_request* req));
 
@@ -27,5 +30,9 @@ void init_ub_app();
 __attribute__ ((weak)) void setup();
 
 __attribute__ ((weak)) void loop();
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif
