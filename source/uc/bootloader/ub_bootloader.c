@@ -16,6 +16,16 @@ volatile uint8_t reset_flag;
 
 void ub_manage();
 
+void (*app_int_handler)(void*);
+
+void ubh_provide_dispatch_interrupt(void* from)
+{
+	if(NULL != app_int_handler)
+	{
+		app_int_handler(from);
+	}
+}
+
 uint8_t rando()
 {
 	return (rand() %256);

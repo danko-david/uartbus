@@ -107,3 +107,8 @@ uint8_t ubh_impl_get_power_state();
 
 
 void ubh_impl_call_app(bool first_call);
+
+
+void ubh_provide_dispatch_interrupt(void*);
+
+
