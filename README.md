@@ -16,10 +16,10 @@ The way to satisfy these requirement is to design and implement:
   
 - new bus system for microcontrollers based on UART peripheral,
 - lightweight RPC library for microcontrollers,
-- bus connector for computers,
+- bus gateway for computers,
 - so called "host program" that implements common functionalities and manages
 	application upload into the microcontroller. 
-- a utility to connect softwares to the bus (through bus connector)
+- a utility to connect softwares to the bus (through bus gateway)
 - a higher level representation of bus devices (implemented in java)
 
 
@@ -54,13 +54,13 @@ The way to satisfy these requirement is to design and implement:
 	directly for the microcontroller won't work, but i've created an
 	`app_wrapper` used to compile applications can be uploaded to a node.
 	TODO compiler, source, etc
-- The project contains a bus connector source written for ATMega2560, used to
+- The project contains a bus gateway source written for ATMega2560, used to
 	connect PC to an UARTBus.
 - Java: At the PC side there's a server application (written in java) that makes
 	the bus available through a JSON RPC server, this makes possible multiple PC
 	application to connect the bus simultaneously even for different languages.
 - Java: CLI application: `ping` to ping nodes, `console` to send command to
-	devices, `packetloss` to measure packet loss ratio between bus connector
+	devices, `packetloss` to measure packet loss ratio between bus gateway
 	and node, `collisionPacketloss` to measure packet loss and duplication
 	when send a broadcast packets that results race to access the bus.
 	`upload` upload application code to a device with has uartbus bootloader on
@@ -122,13 +122,13 @@ The time frame starts at the first sent byte and ends after the time of 2
 ![UARTBus frame and collision handling](./resources/image/collision_handling.jpg)
 
 A demonstration of UARTBus packages with collision handling (and retransmission)
-using two nodes plus one bus connector.
+using two nodes plus one bus gateway.
 (This is an early development oscillogramm, timing not properly optimized)
 
 - Channel 1, Red: Bus wire signal 2 V/Div 
 - Channel 2, Yellow: RX wire signal of the first device 1 V/Div
 
-1) Bus connector sends a broadcast ping packet
+1) Bus gateway sends a broadcast ping packet
 2) Collision occurred, both node cancels the transmission and step back for a
 	random time (longer wait time to the next transmission start)
 	(Ethernets style collision handling)
