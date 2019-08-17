@@ -2,6 +2,7 @@ package eu.javaexperience.electronic;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -10,16 +11,18 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import eu.javaexperience.collection.ComparatorTools;
 import eu.javaexperience.collection.ReadOnlyAndRwCollection;
+import eu.javaexperience.file.AbstractFile;
+import eu.javaexperience.file.FileSystemTools;
 import eu.javaexperience.io.IOTools;
+import eu.javaexperience.math.MathTools;
 import eu.javaexperience.reflect.Mirror;
-import eu.javaexperience.rpc.JavaClassRpcUnboundFunctionsInstance;
-import eu.javaexperience.rpc.RpcFacility;
-import eu.javaexperience.rpc.cli.RpcCliTools;
 import eu.javaexperience.text.Format;
 import eu.javaexperience.text.StringTools;
 
+/**
+ * https://en.wikipedia.org/wiki/Intel_HEX
+ * */
 public class IntelHexFile
 {
 	protected static final String H = "[0-9a-zA-Z]";
@@ -44,26 +47,27 @@ public class IntelHexFile
 			}
 			raw = Format.fromHex(line);
 			
-			lenght = 0xff & raw[0];
+			length = 0xff & raw[0];
 			
-			address = ((0xff& raw[1]) << 8) | (0xff & raw[2]); 
+			address = ((0xff& raw[1]) << 8) | (0xff & raw[2]);
+			
+			//hossz (1), tipus(2), rekord tipus(1), adat(n), chksum
 			
 			recordType = 0xff & raw[3];
 			data = Arrays.copyOfRange(raw, 4, raw.length-1);
 			chksum = raw[raw.length-1];
 		}
 		
+		protected IntelHexLine()
+		{
+			
+		}
+		
 		protected byte[] raw;
 		
 		public byte calcChkSum()
 		{
-			int ret = 0;
-			for(int i=0;i<raw.length-1;++i)
-			{
-				ret += 0xFF & raw[i];
-			}
-			
-			return (byte) (((ret)^0xff)+1);
+			return checksum(raw, 0, raw.length-1);
 		}
 		
 		@Override
@@ -72,11 +76,85 @@ public class IntelHexFile
 			return "IntelHexLine: :"+Format.toHex(raw);
 		}
 		
-		int lenght;
+		int length;
 		int address;
+		
+		/**
+		 * 0 = data
+		 * 1 = EOF (End Of File)
+		 * 2 = Extended Segment Address
+		 * 3 = Extended Linear Address
+		 * 4 = 	Start Linear Address
+		 * */
 		int recordType;//TODO enum type
 		byte[] data;
 		byte chksum;
+		
+		protected byte[] toRawByData()
+		{
+			byte[] ret = new byte[data.length+5];
+			ret[0] = (byte) data.length;
+			ret[1] = (byte) ((address >> 8) & 0xff);
+			ret[2] = (byte) (address & 0xff);
+			ret[3] = (byte) recordType; 
+			
+			for(int i=0;i<data.length;++i)
+			{
+				ret[4+i] = data[i];
+			}
+			
+			ret[ret.length-1] = chksum;
+			
+			return ret;
+		}
+
+		public String toLineString()
+		{
+			return ":"+Format.toHex(raw).toUpperCase();
+		}
+	}
+	
+	public static byte checksum(byte[] data, int from, int to)
+	{
+		int ret = 0;
+		for(int i=from;i<to;++i)
+		{
+			ret += 0xFF & data[i];
+		}
+		
+		return (byte) ((ret^0xff)+1);
+	}
+	
+	protected static final byte[] EOF_DATA = new byte[] {0,0,0,1, (byte) 0xff};
+	
+	public IntelHexLine createEofLine()
+	{
+		IntelHexLine ret = new IntelHexLine();
+		ret.raw = EOF_DATA;
+		ret.length = 0;
+		ret.address = 0;
+		ret.recordType = 1;
+		ret.data = Mirror.emptyByteArray;
+		ret.chksum = (byte)0xff;
+		
+		return ret;
+		
+	}
+	
+	public IntelHexLine createDataLine(int address, byte[] data)
+	{
+		IntelHexLine ret = new IntelHexLine();
+		
+		ret.address = address;
+		ret.recordType = 0;
+		ret.data = data;
+		ret.length = data.length;
+
+		byte[] raw = ret.toRawByData();
+		ret.chksum = checksum(raw, 0, raw.length-1);
+		ret.raw = ret.toRawByData();
+		
+		return ret;
 	}
 	
 	public ReadOnlyAndRwCollection<List<IntelHexLine>> lines = ReadOnlyAndRwCollection.createList(); 
@@ -101,6 +179,8 @@ public class IntelHexFile
 		return Format.toHex(new byte[]{data});
 	}
 	
+	public IntelHexFile(){}
+	
 	public IntelHexFile(String[] lines)
 	{
 		List<IntelHexLine> w = this.lines.getWriteable();
@@ -110,22 +190,14 @@ public class IntelHexFile
 		}
 	}
 	
-	public static void main(String[] args) throws Throwable
-	{
-		RpcFacility rpc = new JavaClassRpcUnboundFunctionsInstance<>(new IntelHexFilesCli(), IntelHexFilesCli.class);
-		if(0 == args.length)
-		{
-			System.err.println(RpcCliTools.generateCliHelp(rpc));
-			System.exit(1);
-		}
-		RpcCliTools.cliExecute(null, rpc, args);
-	}
-	
 	public static IntelHexFile loadFile(String file) throws IOException
 	{
-		ArrayList<String> lines = new ArrayList<>();
-		IOTools.loadFillAllLine(file, lines);
-		IntelHexFile ih = new IntelHexFile(lines.toArray(Mirror.emptyStringArray));
+		return loadFile(FileSystemTools.DEFAULT_FILESYSTEM.fromUri(file));
+	}
+	
+	public static IntelHexFile loadFile(AbstractFile file) throws IOException
+	{
+		IntelHexFile ih = new IntelHexFile(new String(IOTools.loadFileContent(file)).split("\n"));
 		ih.assertValid();
 		return ih;
 	}
@@ -138,30 +210,6 @@ public class IntelHexFile
 			ret += l.data.length;
 		}
 		return ret;
-	}
-	
-	public static class IntelHexFilesCli
-	{
-		public void validate(String file) throws Exception
-		{
-			try
-			{
-				IntelHexFile f = IntelHexFile.loadFile(file);
-			}
-			catch(Exception e)
-			{
-				System.out.println("Not valid.");
-				System.exit(1);
-			}
-			System.out.println("Valid.");
-			System.exit(0);
-		}
-		
-		public void size(String file) throws Exception
-		{
-			IntelHexFile f = IntelHexFile.loadFile(file);
-			System.out.println(f.getDataSize()+" bytes");
-		}
 	}
 	
 	public static class CodeSegment
@@ -312,5 +360,44 @@ public class IntelHexFile
 		}
 		
 		return ret;
+	}
+
+	public static IntelHexFile fromSegments(List<CodeSegment> codes)
+	{
+		IntelHexFile ret = new IntelHexFile();
+		
+		for(CodeSegment code:codes)
+		{
+			int addr = (int) code.startAddress;
+			for(int offset = 0;offset < code.endAddress-code.startAddress;)
+			{
+				int to = MathTools.clamp(0, offset+16, (int) code.endAddress);
+				ret.lines.getWriteable().add(ret.createDataLine(addr+offset, Arrays.copyOfRange(code.data, offset, to)));
+				offset = to;
+			}
+		}
+		
+		ret.lines.getWriteable().add(ret.createEofLine());
+		
+		ret.assertValid();
+		return ret;
+	}
+
+	public void writeToFile(String file) throws IOException
+	{
+		writeToFile(FileSystemTools.DEFAULT_FILESYSTEM.fromUri(file));
+	}
+	
+	public void writeToFile(AbstractFile file) throws IOException
+	{
+		try(OutputStream w = file.openWrite(false))
+		{
+			for(IntelHexLine line:lines.getReadOnly())
+			{
+				w.write(line.toLineString().getBytes());
+				w.write('\n');
+			}
+			w.flush();
+		}
 	}
 }

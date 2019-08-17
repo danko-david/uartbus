@@ -43,7 +43,10 @@ avr-g++ -o ubb.o ub_bootloader.c ub_atmega.c ../bus/lib/common/ub.c ../utils/lib
 # so base +80+160 (240) must not exceed RAMEND
 # stack grows down to the direction of the application space
 
-avr-objcopy -O ihex -R .eeprom ubb.o ubb.hex
+avr-objcopy -O ihex -R .eeprom ubb.o ubb.original.hex
+
+ub ihex replace_interrupts -i ubb.original.hex -o ubb.hex -p 8224 # 8224 is the decimal value of 0x2020 which appears in the ./scripts/compile_ub_app.sh | --section-start=.text=0x2020
+
 #wc ubb.hex
 size ubb.o
 avr-objdump -S --disassemble  ubb.o > ubb.asm

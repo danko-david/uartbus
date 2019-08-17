@@ -1,6 +1,6 @@
 package eu.javaexperience.electronic.uartbus;
 
-import eu.javaexperience.electronic.IntelHexFile;
+import eu.javaexperience.electronic.IhexCli;
 import eu.javaexperience.electronic.build.GccBuilderContext;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusCodeUploader;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusCollisionPacketloss;
@@ -64,7 +64,7 @@ public class UartBusCli
 	
 	public static void ihex(String... args) throws Throwable
 	{
-		IntelHexFile.main(args);
+		IhexCli.main(args);
 	}
 	
 	//TODO discover, restart (--soft), appdump,
