@@ -19,3 +19,5 @@
 **/*.so
 lct_*.junit.xml
 WD/
+**/*.bak
+**/*-cache.lib
