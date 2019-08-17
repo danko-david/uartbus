@@ -18,17 +18,19 @@
 	#ifndef sbi
 		#define sbi(sfr, bit) (_SFR_BYTE(sfr) |= _BV(bit))
 	#endif
-	#define clockCyclesPerMicrosecond() ( F_CPU / 1000000L )
+
+/*
+
 	#define clockCyclesToMicroseconds(a) ( (a) / clockCyclesPerMicrosecond() )
-	#define microsecondsToClockCycles(a) ( (a) * clockCyclesPerMicrosecond() )
-	#define MICROSECONDS_PER_TIMER0_OVERFLOW (clockCyclesToMicroseconds(64 * 256))
+	#define MICROSECONDS_PER_TIMER0_OVERFLOW ((uint32_t)clockCyclesToMicroseconds(64 * 256))
 	#define MILLIS_INC (MICROSECONDS_PER_TIMER0_OVERFLOW / 1000)
 	#define FRACT_INC ((MICROSECONDS_PER_TIMER0_OVERFLOW % 1000) >> 3)
 	#define FRACT_MAX (1000 >> 3)
-
-	volatile unsigned long timer0_overflow_count = 0;
+	
 	volatile unsigned long timer0_millis = 0;
 	static unsigned char timer0_fract = 0;
+*/
+	volatile unsigned long timer0_overflow_count = 0;
 
 	#if defined(__AVR_ATtiny24__) || defined(__AVR_ATtiny44__) || defined(__AVR_ATtiny84__)
 	ISR(TIM0_OVF_vect)
@@ -38,7 +40,8 @@
 	{
 		// copy these to local variables so they can be stored in registers
 		// (volatile variables must be read from memory on every access)
-		unsigned long m = timer0_millis;
+		
+		/*unsigned long m = timer0_millis;
 		unsigned char f = timer0_fract;
 
 		m += MILLIS_INC;
@@ -48,8 +51,8 @@
 			m += 1;
 		}
 
-		timer0_fract = f;
-		timer0_millis = m;
+		//timer0_fract = f;
+		//timer0_millis = m;*/
 		timer0_overflow_count++;
 	}
 
@@ -70,7 +73,6 @@
 		#error TIMER 0 not defined
 	#endif
 
-	  
 	#ifdef TIFR0
 		if ((TIFR0 & _BV(TOV0)) && (t < 255))
 			m++;
@@ -81,7 +83,27 @@
 
 		SREG = oldSREG;
 
-		return ((m << 8) + t) * (64 / clockCyclesPerMicrosecond());
+		#if F_CPU % 1000000 == 0
+			// If the clock frequency is whole of 1 MHz 
+			
+				return (uint32_t) 
+			(
+				((m << 8) + t)
+			*
+				(64 / (F_CPU/1000000))
+			);
+		#else
+			// If the clock frequency is not whole of 1 MHz. eg.: if we use 
+			// baud rate compatible cristals like 1.8432 MHz
+		
+		return (uint32_t) 
+			(
+				((m << 8) + t)
+			*
+				(64.0 / (((float)F_CPU)/1000000.0))
+			);
+			
+		#endif
 	}
 
 	void ub_init_infrastructure()
@@ -248,8 +270,7 @@ void ubh_impl_init()
 		PCMSK2=(1 << PCINT16); // set port k/pin 0 change mask bit
 	#endif
 
-	DDRB = _BV(PB5); //DEBUG
-	//PORTB |= _BV(PB5);
+	DDRB = _BV(PB5);
 }
 
 #ifdef UB_COLLISION_INT

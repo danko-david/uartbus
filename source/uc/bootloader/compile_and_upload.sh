@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# usage: ./compile_and_upload.sh $mcu $bus_address $ttyUSB$number
-# example: ./compile_and_upload.sh atmega328p 4 1
+# usage: ./compile_and_upload.sh $mcu $cpu_clock $bus_address $ttyUSB$number
+# example: ./compile_and_upload.sh atmega328p 16000000 4 1
 
 set -e
 
@@ -15,19 +15,17 @@ avr-g++ -std=c99 -o ubb.o ub_bootloader.c ub_atmega.c ../bus/lib/common/ub.c ../
 	-fdata-sections\
 	-fno-exceptions\
 	-DDONT_USE_SOFT_FP=1\
-	-DF_CPU=16000000\
+	-DF_CPU=$2\
 	-DUB_HOST_VERSION=1\
-	-DBUS_ADDRESS=$2\
+	-DBUS_ADDRESS=$3\
 	-Wl,--section-start=.host_table=0x1fe0\
 	-DHOST_TABLE_ADDRESS=0x1fe0\
 	-DBAUD_RATE=115200\
-	-DF_CPU=16000000\
 	-DAPP_START_ADDRESS=0x2000\
 	-DAPP_CHECKSUM=0\
 	-Wl,--defsym=__stack=0x800700\
 	-Wl,--section-start=.data=0x800702\
 	-Wl,-Tbss,0x800760
-
 
 #TODO calculate data, bss, stack adresses
 #WARNING: bss, data and stack might collide and NOTHING NOTICES THAT!
@@ -49,4 +47,4 @@ size ubb.o
 avr-objdump -S --disassemble  ubb.o > ubb.asm
 avr-nm --size-sort ubb.o > ubb.sizes
 
-avrdude -p $1 -b 19200 -c avrisp -P /dev/ttyUSB$3 -Uflash:w:ubb.hex:i
+avrdude -p $1 -b 19200 -c avrisp -P /dev/ttyUSB$4 -Uflash:w:ubb.hex:i
