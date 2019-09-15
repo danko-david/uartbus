@@ -2,13 +2,14 @@
  * Reqired macro definitions:
  *	- BAUD (19200, 115200 etc)
  * 	- PC_SERIAL{_SOFT,0,1,2,3}
- *	- BUS_SERIAL {_SOFT,0,1,2,3}
+ *	- BUS_SERIAL {0,1,2,3}
  *		1,2,3 serial are avilable only in mega
  */
 
 #include "ub.h"
 #include <util/atomic.h>
 #include "Arduino.h"
+#include <avr/interrupt.h>
 
 #define NET_TRAFFIC_LED 13
 
@@ -34,28 +35,77 @@
 #endif
 
 
-/*
-#ifdef BUS_SERIAL_SOFT
-	#include <AltSoftSerial.h>
-	AltSoftSerial SERIAL_BUS;
-#endif
 
 #ifdef BUS_SERIAL0
+	#define USARTX_RX_vect _VECTOR(18)
+	
+	//USART0_RX_vect
+	#define UCSRXA UCSR0A
+	#define UDRX UDR0
+	#define UCSRXA UCSR0A
+	#define UCSRXB UCSR0B
+	#define UCSRXC UCSR0C
+	#define UBRRXL UBRR0L
+	#define UDREX UDRE0
+	#define TXENX TXEN0
+	#define RXENX RXEN0
+	#define RXCIEX RXCIE0
+	#define U2XX U2X0
+	
 	#define SERIAL_BUS Serial
 #endif
 
 #ifdef BUS_SERIAL1
+	#define USARTX_RX_vect USART1_RX_vect
+	#define UCSRXA UCSR1A
+	#define UDRX UDR1
+	#define UCSRXA UCSR1A
+	#define UCSRXB UCSR1B
+	#define UCSRXC UCSR1C
+	#define UBRRXL UBRR1L
+	#define UDREX UDRE1
+	#define TXENX TXEN1
+	#define RXENX RXEN1
+	#define RXCIEX RXCIE1
+	#define U2XX U2X1
+
 	#define SERIAL_BUS Serial1
 #endif
 
 #ifdef BUS_SERIAL2
+	#define USARTX_RX_vect USART2_RX_vect
+	#define UCSRXA UCSR2A
+	#define UDRX UDR2
+	#define UCSRXA UCSR2A
+	#define UCSRXB UCSR2B
+	#define UCSRXC UCSR2C
+	#define UBRRXL UBRR2L
+	#define UDREX UDRE2
+	#define TXENX TXEN2
+	#define RXENX RXEN2
+	#define RXCIEX RXCIE2
+	#define U2XX U2X2
+
 	#define SERIAL_BUS Serial2
 #endif
 
 #ifdef BUS_SERIAL3
+	#define USARTX_RX_vect USART3_RX_vect
+	#define UCSRXA UCSR3A
+	#define UDRX UDR3
+	#define UCSRXA UCSR3A
+	#define UCSRXB UCSR3B
+	#define UCSRXC UCSR3C
+	#define UBRRXL UBRR3L
+	#define UDREX UDRE3
+	#define TXENX TXEN3
+	#define RXENX RXEN3
+	#define RXCIEX RXCIE3
+	#define U2XX U2X3
+
 	#define SERIAL_BUS Serial3
 #endif
-*/
+
 
 
 #ifndef MAX_PACKET_SIZE
@@ -162,6 +212,10 @@ void queue_enqueue_content(struct queue* q, uint8_t* data, uint8_t size)
 
 /******************************** UARTBus *************************************/
 
+void flashLed()
+{
+	digitalWrite(NET_TRAFFIC_LED, !digitalRead(NET_TRAFFIC_LED));
+}
 
 struct queue* from_serial;
 
@@ -177,26 +231,26 @@ uint8_t rando()
 
 void USART_Init(void)
 {
-	UCSR3A = _BV(U2X3); //Double speed mode USART3
-	UCSR3B = _BV(RXEN3) | _BV(TXEN3) | _BV(RXCIE3);
-	UCSR3C = _BV(UCSZ00) | _BV(UCSZ01);
-	UBRR3L = (uint8_t)( (F_CPU + BAUD * 4L) / (BAUD * 8L) - 1 );
+	UCSRXA = _BV(U2XX); //Double speed mode USARTX
+	UCSRXB = _BV(RXENX) | _BV(TXENX) | _BV(RXCIEX);
+	UCSRXC = _BV(UCSZ00) | _BV(UCSZ01);
+	UBRRXL = (uint8_t)( (F_CPU + BAUD * 4L) / (BAUD * 8L) - 1 );
 }
 
 void USART_SendByte(uint8_t u8Data)
 {
 	// Wait until last byte has been transmitted
-	while (!(UCSR3A & _BV(UDRE3))){}
+	while (!(UCSRXA & _BV(UDREX))){}
 
 	// Transmit data
-	UDR3 = u8Data;
+	UDRX = u8Data;
 }
 
-ISR(USART3_RX_vect)
+ISR(USARTX_RX_vect)
 {
 	//check for framing error
-	bool error = (UCSR3A & _BV(FE0));
-	uint8_t data = UDR3;
+	bool error = (UCSRXA & _BV(FE0));
+	uint8_t data = UDRX;
 	if(error)
 	{
 	//	ub_out_rec_byte(&bus, ~0);
@@ -231,16 +285,17 @@ static void ub_event(struct uartbus* a, enum uartbus_event event)
 {
 	if(ub_event_receive_start == event)
 	{
-		digitalWrite(NET_TRAFFIC_LED, 1);
+		//digitalWrite(NET_TRAFFIC_LED, 1);
 		/*received_ep = 0;*/
 		receive = true;
 	}
 	else if(ub_event_receive_end == event)
 	{
-		digitalWrite(NET_TRAFFIC_LED, 0);
+		//digitalWrite(NET_TRAFFIC_LED, 0);
 		SERIAL_PC.write(PACKET_ESCAPE);
 		SERIAL_PC.write(~PACKET_ESCAPE);
 		receive = false;
+		flashLed();
 	}
 	
 	//os send end or collision
@@ -317,11 +372,6 @@ void init_bus()
 
 /********************************** serial ************************************/
 
-void flashLed()
-{
-	//digitalWrite(NET_TRAFFIC_LED, !digitalRead(NET_TRAFFIC_LED));
-}
-
 
 int ep = 0;
 bool mayCut = false;
@@ -374,7 +424,7 @@ void ub_manage()
 
 void setup()
 {
-	pinMode(LED_BUILTIN, OUTPUT);
+	pinMode(NET_TRAFFIC_LED, OUTPUT);
 
 	from_serial = new_queue();
 
@@ -384,7 +434,6 @@ void setup()
 	SERIAL_PC.begin
 	(
 		BAUD
-		//500000
 	);
 	
 	init_bus();
@@ -393,7 +442,7 @@ void setup()
 
 void loop()
 {
-	SERIAL_PC.flush();
+	//SERIAL_PC.flush();
 	ub_manage();
 	readSerial();
 }
