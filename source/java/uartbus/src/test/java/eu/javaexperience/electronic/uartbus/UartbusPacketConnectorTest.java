@@ -1,8 +1,13 @@
 package eu.javaexperience.electronic.uartbus;
 
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -153,5 +158,94 @@ public class UartbusPacketConnectorTest
 		
 		testByteLoopbackSquence((byte)0xff, bytes(255));
 		
+	}
+	
+
+	@Test
+	public void testUartbusUnpack() throws Exception
+	{
+		List<byte[]> expected = new ArrayList<>();
+		
+		expected.add(new byte[]{20,30,1,0,1});
+		expected.add(new byte[]{20,30,30,30,30});
+		expected.add(new byte[]{20,30,1,0,76});
+		
+		List<byte[]> actual = new ArrayList<>();
+		
+		UartbusPacketConnector conn = createLoopback((byte) 0xff);
+		conn.setPacketHook(new SimplePublish1<byte[]>()
+		{
+			@Override
+			public void publish(byte[] arg0)
+			{
+				actual.add(arg0);
+			}
+		});
+		
+		conn.feedBytes(new byte[]
+		{
+			20,30,1,0,1,-1,0,
+			20,30,30,30,30,-1,0,
+			20,30,1,0,76,-1,0
+		});
+		
+		assertEquals(expected.size(), actual.size());
+		
+		for(int i=0;i<expected.size();++i)
+		{
+			assertArrayEquals(expected.get(i), actual.get(i));
+		}
+	}
+	
+	@Test
+	public void testUartbusUnpack2() throws Exception
+	{
+		List<byte[]> expected = new ArrayList<>();
+		
+		expected.add(new byte[]{20,30,1,0,76});
+		expected.add(new byte[]{20,30,1,0,76});
+		expected.add(new byte[]{20,30,1,0,76});
+		expected.add(new byte[]{20,30,1,0,76});
+		
+		expected.add(new byte[]{20,30,1,0,1});
+		expected.add(new byte[]{20,30,1,0,1});
+		
+		expected.add(new byte[]{20,30,1,0,76});
+		expected.add(new byte[]{20,30,1,0,76});
+		expected.add(new byte[]{20,30,1,0,76});
+		expected.add(new byte[]{20,30,1,0,76});
+		
+		List<byte[]> actual = new ArrayList<>();
+		
+		UartbusPacketConnector conn = createLoopback((byte) 0xff);
+		conn.setPacketHook(new SimplePublish1<byte[]>()
+		{
+			@Override
+			public void publish(byte[] arg0)
+			{
+				actual.add(arg0);
+			}
+		});
+		
+		conn.feedBytes(new byte[]
+		{
+			20,30,1,0,76,-1,0,
+			20,30,1,0,76,-1,0,
+			20,30,1,0,76,-1,0,
+			20,30,1,0,76,-1,0,
+			20,30,1,0,1,-1,0,
+			20,30,1,0,1,-1,0,
+			20,30,1,0,76,-1,0,
+			20,30,1,0,76,-1,0,
+			20,30,1,0,76,-1,0,
+			20,30,1,0,76,-1,0
+		});
+		
+		assertEquals(expected.size(), actual.size());
+		
+		for(int i=0;i<expected.size();++i)
+		{
+			assertArrayEquals(expected.get(i), actual.get(i));
+		}
 	}
 }

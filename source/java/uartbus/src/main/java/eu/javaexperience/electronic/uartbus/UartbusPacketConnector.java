@@ -11,11 +11,17 @@ import java.util.Arrays;
 import eu.javaexperience.electronic.SerialTools;
 import eu.javaexperience.interfaces.simple.publish.SimplePublish1;
 import eu.javaexperience.io.IOStream;
+import eu.javaexperience.log.JavaExperienceLoggingFacility;
+import eu.javaexperience.log.LogLevel;
+import eu.javaexperience.log.Loggable;
+import eu.javaexperience.log.Logger;
+import eu.javaexperience.log.LoggingTools;
 import eu.javaexperience.parse.ParsePrimitive;
 import eu.javaexperience.text.StringTools;
 
 public class UartbusPacketConnector implements Closeable
 {
+	protected static final Logger LOG = JavaExperienceLoggingFacility.getLogger(new Loggable("UartbusPacketConnector"));
 	protected IOStream io;
 	protected byte packetEscape;
 	protected SimplePublish1<byte[]> onPacketReceived;
@@ -38,6 +44,11 @@ public class UartbusPacketConnector implements Closeable
 	
 	protected void dispatchPacket(byte[] data)
 	{
+		if(LOG.mayLog(LogLevel.DEBUG))
+		{
+			LoggingTools.tryLogFormat(LOG, LogLevel.DEBUG, "dispaching packet: %s", UartbusTools.formatColonData(data));
+		}
+		
 		if(null != onPacketReceived)
 		{
 			try
@@ -85,28 +96,32 @@ public class UartbusPacketConnector implements Closeable
 	int ep = 0;
 	byte[] buffer = new byte[10240];
 	boolean mayCut = false;
+
+	protected void feedBytes(byte[] data)
+	{
+		feedBytes(data, data.length);
+	}
 	
 	protected void feedBytes(byte[] data, int length)
 	{
 		try
 		{
+			boolean trace = LOG.mayLog(LogLevel.TRACE);
 			for(int i=0;i<length;++i)
 			{
 				byte b = data[i];
-				System.out.print(b+":");
+				if(trace)
+				{
+					LoggingTools.tryLogFormat(LOG, LogLevel.TRACE, "Feeding byte: %s, mayCut: %s, ep: %s ", b, mayCut, ep);
+				}
 				if(mayCut)
 				{
 					if(b == packetEscape)
 					{
-						if(b != packetEscape)
-						{
-							System.out.println("BAD PACKET ESCAPE: "+b);
-						}
 						buffer[ep++] = packetEscape;
 					}
 					else
 					{
-						System.out.println();
 						dispatchPacket(Arrays.copyOf(buffer, ep));
 						ep = 0;
 					}
