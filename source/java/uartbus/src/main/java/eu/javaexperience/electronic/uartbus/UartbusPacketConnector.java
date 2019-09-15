@@ -62,6 +62,8 @@ public class UartbusPacketConnector implements Closeable
 		}
 	}
 	
+	byte[] read_buffer = new byte[10240];
+	
 	public void startListen()
 	{
 		if(null != receiver)
@@ -79,9 +81,9 @@ public class UartbusPacketConnector implements Closeable
 				int read = 0;
 				try
 				{
-					while(0 < (read = in.read(buffer)))
+					while(0 < (read = in.read(read_buffer)))
 					{
-						feedBytes(buffer, read);
+						feedBytes(read_buffer, read);
 					}
 				}
 				catch(IOException e)
@@ -112,8 +114,9 @@ public class UartbusPacketConnector implements Closeable
 				byte b = data[i];
 				if(trace)
 				{
-					LoggingTools.tryLogFormat(LOG, LogLevel.TRACE, "Feeding byte: %s, mayCut: %s, ep: %s ", b, mayCut, ep);
+					LoggingTools.tryLogFormat(LOG, LogLevel.TRACE, "Feeding byte: %s, mayCut: %s, ep: %s, ", b, mayCut, ep, UartbusTools.formatColonData(Arrays.copyOf(buffer, ep)));
 				}
+				
 				if(mayCut)
 				{
 					if(b == packetEscape)
