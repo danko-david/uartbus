@@ -1,19 +1,16 @@
 package eu.javaexperience.electronic.uartbus.rpc;
 
-import static eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools.FROM;
-import static eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools.RPC_HOST;
-import static eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools.RPC_PORT;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
 import eu.javaexperience.cli.CliEntry;
-import eu.javaexperience.cli.CliTools;
 import eu.javaexperience.electronic.uartbus.rpc.client.UartBus;
 
 public class UartbusCliTools
 {
+	private UartbusCliTools()
+	{}
 	
 	public static final CliEntry<Integer> SERIAL_BAUD = CliEntry.createFirstArgParserEntry
 	(
@@ -68,6 +65,13 @@ public class UartbusCliTools
 		(e) -> true,
 		"Log times",
 		"l", "-log-times"
+	);
+	
+	public static final CliEntry<Boolean> RECONNECT = CliEntry.createFirstArgParserEntry
+	(
+		(e) -> true,
+		"Reconnect",
+		"r", "-reconnect"
 	);
 	
 	public static UartBus cliBusConnect(Map<String, List<String>> cliArgs) throws IOException

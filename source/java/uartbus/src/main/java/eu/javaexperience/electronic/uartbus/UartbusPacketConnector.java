@@ -3,12 +3,12 @@ package eu.javaexperience.electronic.uartbus;
 import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.util.Arrays;
 
 import eu.javaexperience.electronic.SerialTools;
+import eu.javaexperience.interfaces.simple.SimpleCall;
 import eu.javaexperience.interfaces.simple.publish.SimplePublish1;
 import eu.javaexperience.io.IOStream;
 import eu.javaexperience.log.JavaExperienceLoggingFacility;
@@ -17,6 +17,7 @@ import eu.javaexperience.log.Loggable;
 import eu.javaexperience.log.Logger;
 import eu.javaexperience.log.LoggingTools;
 import eu.javaexperience.parse.ParsePrimitive;
+import eu.javaexperience.reflect.Mirror;
 import eu.javaexperience.text.StringTools;
 
 public class UartbusPacketConnector implements Closeable
@@ -33,12 +34,29 @@ public class UartbusPacketConnector implements Closeable
 	}
 	
 	protected Thread receiver;
+	private SimpleCall onClosed;
 	
 	public void setPacketHook(SimplePublish1<byte[]> onPacketReceived)
 	{
 		synchronized (this)
 		{
 			this.onPacketReceived = onPacketReceived;
+		}
+	}
+	
+	public void setSocketCloseListener(SimpleCall onClosed)
+	{
+		synchronized (this)
+		{
+			this.onClosed = onClosed;
+		}
+	}
+	
+	public void setIoStream(IOStream io)
+	{
+		synchronized(this)
+		{
+			this.io = io;
 		}
 	}
 	
@@ -71,24 +89,32 @@ public class UartbusPacketConnector implements Closeable
 			throw new IllegalStateException("Listening already started");
 		}
 		
-		final InputStream in = io.getInputStream();
-		
 		receiver = new Thread()
 		{
 			@Override
 			public void run()
 			{
 				int read = 0;
-				try
+				while(null != io)
 				{
-					while(0 < (read = in.read(read_buffer)))
+					try
 					{
-						feedBytes(read_buffer, read);
+						while(0 < (read = io.getInputStream().read(read_buffer)))
+						{
+							feedBytes(read_buffer, read);
+						}
+						
+						ep = 0;
+						io = null;
+						if(null != onClosed)
+						{
+							onClosed.call();
+						}
 					}
-				}
-				catch(IOException e)
-				{
-					e.printStackTrace();
+					catch(IOException e)
+					{
+						LoggingTools.tryLogFormatException(LOG, LogLevel.ERROR, e, "Exception while reading package");
+					}
 				}
 			}
 		};
@@ -151,15 +177,42 @@ public class UartbusPacketConnector implements Closeable
 		}
 	}
 	
-	public void sendPacket(byte[] data) throws IOException
+	public void sendPacket(byte[] data)
 	{
-		synchronized(this)
+		byte[] send = frameBytes(data, packetEscape);
+		Exception exc = null;
+		while(null != io)
 		{
-			byte[] send = frameBytes(data, packetEscape);
-			OutputStream os = io.getOutputStream();
-			os.write(send);
-			os.flush();
+			synchronized(this)
+			{
+				try
+				{
+					OutputStream os = io.getOutputStream();
+					os.write(send);
+					os.flush();
+					return;
+				}
+				catch(Exception e)
+				{
+					LoggingTools.tryLogFormatException(LOG, LogLevel.ERROR, e, "Exception while sending package");
+					io = null;
+					if(null != onClosed)
+					{
+						onClosed.call();
+					}
+					else
+					{
+						exc = e;
+					}
+				}
+			}
 		}
+		
+		if(null != exc)
+		{
+			Mirror.propagateAnyway(exc);
+		}
+		throw new RuntimeException("Can't sent package bacause IOStream connection not available");
 	}
 	
 	public static byte[] frameBytes(byte[] data, byte terminator)

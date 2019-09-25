@@ -21,14 +21,27 @@ public class UartbusRpcClientTools
 		);
 	}
 	
-	public static Thread streamPackets(String ip, int port, SimplePublish1<byte[]> onNewPacket)
+	public static class PacketStreamThread
 	{
+		public PacketStreamThread(Thread thread, UartbusConnection conn)
+		{
+			this.thread = thread;
+			this.conn = conn;
+		}
+		
+		public final Thread thread;
+		public final UartbusConnection conn;
+	}
+	
+	public static PacketStreamThread streamPackets(String ip, int port, SimplePublish1<byte[]> onNewPacket) throws IOException
+	{
+		UartbusConnection _conn = connectTcp(ip, port);
 		Thread t = new Thread()
 		{
 			@Override
 			public void run()
 			{
-				try(UartbusConnection conn = connectTcp(ip, port))
+				try(UartbusConnection conn = _conn)
 				{
 					while(true)
 					{
@@ -43,6 +56,6 @@ public class UartbusRpcClientTools
 		};
 		
 		t.start();
-		return t;
+		return new PacketStreamThread(t, _conn);
 	}
 }

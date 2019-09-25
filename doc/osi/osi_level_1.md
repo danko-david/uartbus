@@ -97,6 +97,8 @@ Cons:
 
 - Applicable only between 6 V - 20 V of U_bus_max voltages.
 - A transient bus overvoltage can damage Q3 FET (use TVS diode).
+- BS170 opens at 4V Ugs, so it won't work when the microcontroller operates
+	lower than 4 volts
 
 ### Pull-up data rail further development options
 
@@ -108,10 +110,14 @@ Cons:
 ## OSI-1 further development options 
 
 - user other physical medium eg.: radio, light, modulated sound.
+- Desing more bus driver circuits eg:
+	- isolated driver
+	- wide voltage range where Uic is btw 2-5 V and bus voltage btw 2-50V
 
 ## Documentation TODOs
 
 - Add Bsc. thesis criticism of this OSI level.
 - Add overvoltage, overcurrent protection schematics (safety circuits can be
 	generalized for all type of pull-up drivers)
+
 

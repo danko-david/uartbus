@@ -1,6 +1,7 @@
 package eu.javaexperience.electronic.uartbus.rpc;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.List;
 import java.util.Map;
@@ -10,13 +11,16 @@ import eu.javaexperience.cli.CliTools;
 import eu.javaexperience.datareprez.DataObject;
 import eu.javaexperience.electronic.SerialTools;
 import eu.javaexperience.electronic.uartbus.UartbusPacketConnector;
+import eu.javaexperience.interfaces.simple.SimpleGet;
 import eu.javaexperience.interfaces.simple.getBy.GetBy1;
 import eu.javaexperience.interfaces.simple.getBy.GetBy2;
 import eu.javaexperience.io.IOStream;
 import eu.javaexperience.io.fd.IOStreamFactory;
 import eu.javaexperience.log.JavaExperienceLoggingFacility;
+import eu.javaexperience.log.LogLevel;
 import eu.javaexperience.log.Loggable;
 import eu.javaexperience.log.Logger;
+import eu.javaexperience.log.LoggingTools;
 import eu.javaexperience.rpc.JavaClassRpcUnboundFunctionsInstance;
 import eu.javaexperience.rpc.RpcTools;
 import eu.javaexperience.rpc.SimpleRpcRequest;
@@ -48,7 +52,8 @@ public class UartbusRpcServer
 		WORK_DIR,
 		RPC_PORT,
 		SERIAL_DEV,
-		SERIAL_BAUD
+		SERIAL_BAUD,
+		RECONNECT
 	};
 	
 	public static void printHelpAndExit(int exit)
@@ -73,6 +78,14 @@ public class UartbusRpcServer
 		String serial = SERIAL_DEV.tryParseOrDefault(pa, null);
 		int baud = SERIAL_BAUD.tryParseOrDefault(pa, -1);
 		
+		boolean reconnect = false;
+		
+		if(RECONNECT.hasOption(pa))
+		{
+			reconnect = true;
+		}
+		
+		
 		boolean error = false;
 		if(null == serial)
 		{
@@ -93,12 +106,36 @@ public class UartbusRpcServer
 		
 		JavaExperienceLoggingFacility.startLoggingIntoDirectory(new File(wd+"/log/"), "uartbus-rpc-server-");
 		
-		
-		IOStream ser = SerialTools.openSerial(serial, baud);
+		SimpleGet<IOStream> socketFactory = ()->{
+			int[] reties = new int[]{100, 200, 500, 1_000, 2_000, 5_000, 10_000, 20_000, 30_000};
+			for(int i=0;i<reties.length;++i)
+			{
+				try
+				{
+					return SerialTools.openSerial(serial, baud);
+				}
+				catch (IOException e)
+				{
+					LoggingTools.tryLogFormat(LOG, LogLevel.WARNING, "Can't open socket, waiting `%s` millisec before trying reconnect again.");
+					if(i > reties.length)
+					{
+						i = reties.length-1;
+					}
+				}
+			}
+			return null;
+		};
+		IOStream ser = socketFactory.get();
 		Runtime.getRuntime().addShutdownHook(new Thread(ser::close));
 		UartbusPacketConnector conn = new UartbusPacketConnector(ser, (byte)0xff);
-		
-		//TODO bus packet logging
+		if(reconnect)
+		{
+			conn.setSocketCloseListener(()->
+			{
+				LoggingTools.tryLogFormat(LOG, LogLevel.ERROR, "Socket error, reconnecting");
+				conn.setIoStream(socketFactory.get());
+			});
+		}
 		
 		UartbusRpcEndpoint bus = new UartbusRpcEndpoint(conn);
 		
