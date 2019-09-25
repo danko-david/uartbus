@@ -271,7 +271,7 @@ public class UartBus implements Closeable
 			ip,
 			port,
 			ret.packetReceived
-		);
+		).thread;
 		
 		return ret;
 	}
