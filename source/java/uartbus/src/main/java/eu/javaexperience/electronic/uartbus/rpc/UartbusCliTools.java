@@ -40,6 +40,13 @@ public class UartbusCliTools
 		"f", "-from"
 	);
 	
+	public static final CliEntry<Boolean> LOOPBACK = CliEntry.createFirstArgParserEntry
+	(
+		(e)->true,
+		"Show sent packet",
+		"x", "-loopback-sent"
+	);
+	
 	public static final int DEFAULT_FROM_ADDRESS = 63;
 	public static int parseFrom(Map<String, List<String>> args)
 	{

@@ -2,9 +2,11 @@ package eu.javaexperience.electronic.uartbus;
 
 import eu.javaexperience.electronic.IhexCli;
 import eu.javaexperience.electronic.build.GccBuilderContext;
+import eu.javaexperience.electronic.uartbus.cli.apps.UartbusBlink;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusCodeUploader;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusCollisionPacketloss;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusConsole;
+import eu.javaexperience.electronic.uartbus.cli.apps.UartbusLogSql;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusPacketloss;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusPing;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusRpcServer;
@@ -65,6 +67,16 @@ public class UartBusCli
 	public static void ihex(String... args) throws Throwable
 	{
 		IhexCli.main(args);
+	}
+	
+	public static void blink(String... args) throws Throwable
+	{
+		UartbusBlink.main(args);
+	}
+	
+	public static void logMysql(String... args) throws Throwable
+	{
+		UartbusLogSql.main(args);
 	}
 	
 	//TODO discover, restart (--soft), appdump,

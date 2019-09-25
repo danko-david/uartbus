@@ -117,6 +117,14 @@ public class UartbusRpcServer
 				catch (IOException e)
 				{
 					LoggingTools.tryLogFormat(LOG, LogLevel.WARNING, "Can't open socket, waiting `%s` millisec before trying reconnect again.");
+					try
+					{
+						Thread.sleep(reties[i]);
+					}
+					catch (InterruptedException e1)
+					{
+						return null;
+					}
 					if(i > reties.length)
 					{
 						i = reties.length-1;

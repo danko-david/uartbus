@@ -40,13 +40,6 @@ public class UartbusConsole
 		"e", "-exit"
 	);
 	
-	protected static final CliEntry<Boolean> LOOPBACK = CliEntry.createFirstArgParserEntry
-	(
-		(e)->true,
-		"Show sent packet",
-		"x", "-loopback-sent"
-	);
-	
 	protected static final CliEntry[] PROG_CLI_ENTRIES =
 	{
 		RPC_HOST,
@@ -129,7 +122,6 @@ public class UartbusConsole
 		
 		if(LOOPBACK.hasOption(pa))
 		{
-			System.out.println("LOOPBACK");
 			stream.conn.setAttribute("loopback_send_packets", "true");
 		}
 		
