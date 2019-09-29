@@ -80,6 +80,11 @@ __attribute__((weak)) uint32_t micros()
 	return f();
 }
 
+__attribute__((weak)) uint32_t millis()
+{
+	return micros()/1000;
+}
+
 void init_ub_app()
 {
 	init_app_section();

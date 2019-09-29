@@ -22,6 +22,8 @@ ARDUINO_DIR=/usr/share/arduino/
 
 cd $OWD
 
+shopt -s extglob
+
 avr-g++ -mmcu=$1\
 	-I$I_COMM -I$I_BUSCOMM -I$I_RPC -I$I_WRAP\
 	-ffunction-sections\
@@ -31,11 +33,18 @@ avr-g++ -mmcu=$1\
 	-DHOST_TABLE_ADDRESS=0x1fe0\
 	-Wl,--section-start=.text=0x2020\
 	-Wl,--section-start=.app_start=0x2000\
+	-DARDUINO_HANDSOFF_UART -DARDUINO_HANDSOFF_TIMER0\
 	-Os -o $3.o "${@:4}" $C_RPC $C_WRAP\
 	-I${ARDUINO_DIR}hardware/arduino/cores/\
 	-I${ARDUINO_DIR}hardware/arduino/cores/arduino\
 	-I${ARDUINO_DIR}hardware/arduino/variants/standard\
-	${ARDUINO_DIR}hardware/arduino/cores/arduino/wiring{,_analog,_digital,_pulse,_shift}.c
+	${ARDUINO_DIR}hardware/arduino/cores/arduino/!(hooks|main|wiring_pulse).c{,pp}\
+
+#	${ARDUINO_DIR}hardware/arduino/cores/arduino/wiring{,_analog,_digital,_pulse,_shift}.c\
+#	${ARDUINO_DIR}hardware/arduino/cores/arduino/{new,Print,Stream,String}.cpp
+
+#	${ARDUINO_DIR}hardware/arduino/cores/arduino/avr-libc/{malloc,realloc,WInterrupts}.c\
+
 
 avr-objcopy -O ihex -R .eeprom $3.o $3.hex
 avr-objdump -S --disassemble  $3.o > $3.asm

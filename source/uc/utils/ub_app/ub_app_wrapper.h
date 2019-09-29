@@ -25,6 +25,8 @@ bool send_packet(int16_t to, int NS, uint8_t* data, uint16_t size);
 
 uint32_t micros();
 
+uint32_t millis();
+
 void init_ub_app();
 
 __attribute__ ((weak)) void setup();
