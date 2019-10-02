@@ -824,8 +824,24 @@ uint8_t ubh_impl_get_program_page_size()
 	return SPM_PAGESIZE;
 }
 
-uint8_t* ubh_impl_allocate_program_tmp_storage()
+uint8_t* ubh_impl_go_upload_and_allocate_program_tmp_storage()
 {
+	//TODO disable all unrelated ISRs
+	//ok at this point i realized it is a fragile and messy solution to
+	//collect all the Interrupt flags and reset them (with making special care
+	//eg PCICR input masking). I don't do, because:
+	//1) Collecting is a manual thing to do, and can be difficult, especially
+	//	with point 2.
+	//2) Fragile, because if you miss one interrupt or later you just use this
+	// code with other microcontrollers with an interrupt not managed here, you
+	// might face with random restart during try to upload a new code after
+	// using this unlisted interrupt.
+	//
+	// The solution lies on the other side: before we stating to upload a new
+	// code. First we reset and grab the device to not enter into the
+	// application mode. If we do so, no interrupt will be enabled except the
+	// defaults the the UHB uses, exactly what we need.
+
 	return (uint8_t*) RAMSTART;//(uint8_t*) malloc(SPM_PAGESIZE);
 }
 

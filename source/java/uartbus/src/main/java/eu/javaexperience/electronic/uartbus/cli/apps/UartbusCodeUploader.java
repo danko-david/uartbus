@@ -26,8 +26,11 @@ import eu.javaexperience.electronic.uartbus.rpc.client.device.fns.ubb.UbBootload
 import eu.javaexperience.electronic.uartbus.rpc.client.device.fns.ubb.UbbFlashFunctions;
 import eu.javaexperience.interfaces.simple.SimpleGet;
 import eu.javaexperience.log.JavaExperienceLoggingFacility;
+import eu.javaexperience.log.LogLevel;
 import eu.javaexperience.log.Loggable;
 import eu.javaexperience.log.Logger;
+import eu.javaexperience.log.LoggingTools;
+import eu.javaexperience.nativ.posix.ERRNO;
 import eu.javaexperience.nativ.posix.PosixErrnoException;
 import eu.javaexperience.reflect.Mirror;
 import eu.javaexperience.struct.GenericStruct2;
@@ -96,7 +99,7 @@ public class UartbusCodeUploader
 		System.err.println("Ihex file contains multiple code segments.");
 		for(CodeSegment cs:css)
 		{
-			System.out.println(Long.toHexString(cs.startAddress)+": "+Format.toHex(cs.data));
+			info(Long.toHexString(cs.startAddress)+": "+Format.toHex(cs.data));
 		}
 		
 		System.exit(4);
@@ -124,6 +127,71 @@ public class UartbusCodeUploader
 		throw trex;
 	}
 	
+	protected static void restartGrabDevice(UartBusDevice dev)
+	{
+		info("Doing grab reboot");
+		final long OT = dev.timeout;
+		dev.timeout = 1000;
+		try
+		{
+			UbDevStdNsRoot root = dev.getRpcRoot();
+			try
+			{
+				UartbusTransaction reboot = dev.getBus().subscribeResponse(-1, dev.getAddress(), Mirror.emptyByteArray, true);
+				root.getBootloaderFunctions().getPowerFunctions().hardwareReset();
+				//this waits until reboot complete
+				reboot.ensureResponse(3, TimeUnit.SECONDS);
+				info("grab reboot done");
+			}
+			catch(Exception e)
+			{
+				System.err.println("Can't restart device or we just missed the restart signal.");
+				Mirror.propagateAnyway(e);
+			}
+			
+			transaction(dev.retryCount, new SimpleGet<Void>()
+			{
+				@Override
+				public Void get()
+				{
+					root.getBootloaderFunctions().setVar(UbBootloaderVariable.IS_SIGNALING_SOS, (byte) 0);
+					return null;
+				}
+			});
+			
+			transaction(dev.retryCount, new SimpleGet<Void>()
+			{
+				@Override
+				public Void get()
+				{
+					
+					root.getBootloaderFunctions().setVar(UbBootloaderVariable.IS_APPLICATION_RUNNING, (byte) 0);
+					return null;
+				}
+			});
+			
+			Byte appRun = transaction(dev.retryCount, new SimpleGet<Byte>()
+			{
+				@Override
+				public Byte get()
+				{
+					return root.getBootloaderFunctions().getVar(UbBootloaderVariable.IS_APPLICATION_RUNNING);
+				}
+			});
+			
+			if(0 != appRun)
+			{
+				String error = "After doing grab reboot application is still running. appRun:"+appRun;
+				LoggingTools.tryLogFormat(LOG, LogLevel.ERROR, error);
+				throw new RuntimeException(error);
+			}
+		}
+		finally
+		{
+			dev.timeout = OT;
+		}
+	}
+	
 	protected static void restartDevice(UartBusDevice dev, boolean flawed)
 	{
 		final long OT = dev.timeout;
@@ -141,7 +209,7 @@ public class UartbusCodeUploader
 				root.getBootloaderFunctions().getPowerFunctions().hardwareReset();
 				//this waits until reboot complete
 				reboot.ensureResponse(3, TimeUnit.SECONDS);
-				System.out.println("reboot done");
+				info("reboot done");
 			}
 			catch(Exception e)
 			{
@@ -178,9 +246,13 @@ public class UartbusCodeUploader
 		}
 	}
 	
+	protected static void info(String info)
+	{
+		LoggingTools.tryLogFormat(LOG, LogLevel.INFO, info);
+	}
+	
 	public static void main(String[] args) throws Throwable
 	{
-		//args = new String[]{"-t", "1", "-c", "/home/szupervigyor/projektek/electronics/uartbus/source/uc/utils/ub_app/app.hex"};
 		JavaExperienceLoggingFacility.addStdOut();
 		Map<String, List<String>> pa = CliTools.parseCliOpts(args);
 		String un = CliTools.getFirstUnknownParam(pa, PROG_CLI_ENTRIES);
@@ -192,14 +264,14 @@ public class UartbusCodeUploader
 		String sfile = CODE.tryParse(pa);
 		if(null == sfile)
 		{
-			System.err.println("No ihex file specified. Use -c cli switch to specify.");
+			info("No ihex file specified. Use -c cli switch to specify.");
 			System.exit(1);
 		}
 		
 		Integer to = TO.tryParse(pa);
 		if(null == to)
 		{
-			System.err.println("No target bus device specified. Use -t cli switch to specify.");
+			info("No target bus device specified. Use -t cli switch to specify.");
 			System.exit(1);
 		}
 		
@@ -210,21 +282,27 @@ public class UartbusCodeUploader
 		UartBusDevice dev = bus.device(to);
 		dev.timeout = 100;
 		dev.retryCount = 100;
-		System.out.println("Target device: "+dev.getAddress());
+		
+		info("Target device: "+dev.getAddress());
 		UbDevStdNsRoot root = dev.getRpcRoot();
 		
 		try
 		{
+			LoggingTools.tryLogFormat(LOG, LogLevel.DEBUG, "Pinging device");
 			//Retransmittable call, so don't need to handle retransmission 
 			root.getBusFunctions().ping();
+			LoggingTools.tryLogFormat(LOG, LogLevel.DEBUG, "Ping response response");
 		}
 		catch(TransactionException e)
 		{
 			e.printStackTrace();
-			System.err.println("Requested bus device ("+to+") not responding on the bus, maybe not attached.");
+			info("Requested bus device ("+to+") not responding on the bus, maybe not attached.");
 			System.exit(2);
 		}
 		
+		//restart with hard reset and grab (ensure not enter to application mode) 
+		restartGrabDevice(dev);
+				
 		dev.timeout = 20;
 		dev.retryCount = 100;
 		
@@ -249,10 +327,13 @@ public class UartbusCodeUploader
 					{
 						if(0 != flash.getFlashStage())
 						{
+							LoggingTools.tryLogFormat(LOG, LogLevel.DEBUG, "Already in flashing stage");
 							return null;
 						}
 					
+						LoggingTools.tryLogFormat(LOG, LogLevel.DEBUG, "Start flashing");
 						flash.getStartFlash();
+						LoggingTools.tryLogFormat(LOG, LogLevel.DEBUG, "Flashing started");
 						return null;
 					} catch (PosixErrnoException e)
 					{
@@ -271,6 +352,7 @@ public class UartbusCodeUploader
 				throw new RuntimeException("Application section and code start address mismatch: APP_START region: "+start+", upload code start address: "+code.startAddress);
 			}
 			
+			short[] addr = new short[] {0};
 			while(true)
 			{
 				Boolean ret = transaction(dev.retryCount, new SimpleGet<Boolean>()
@@ -278,24 +360,58 @@ public class UartbusCodeUploader
 					@Override
 					public Boolean get()
 					{
-						short addr = flash.getNextAddress();
-						if(code.startAddress+code.data.length <= addr)
+						if(0 == addr[0])
+						{
+							addr[0] = flash.getNextAddress();
+						}
+						
+						LoggingTools.tryLogFormat(LOG, LogLevel.DEBUG, "Next Address: "+addr[0]);
+						if(code.startAddress+code.data.length <= addr[0])
 						{
 							//done
 							return true;
 						}
 						
-						int off = (int) (addr-code.startAddress);
+						if(0 == addr[0])
+						{
+							String msg = "NULL nextAddress received during the code upload. Maybe the target device has been resetted during the code upload process."
+									+ "This might be caused by a broken host system (uart bootloader) or insufficient device power supply.";
+							LoggingTools.tryLogFormat(LOG, LogLevel.ERROR, msg);
+							throw new RuntimeException(msg);
+						}
+						
+						int off = (int) (addr[0]-code.startAddress);
+						//an invalid adress might come when we get an response of an earlier request
+						if(off < 0)
+						{
+							LoggingTools.tryLogFormat(LOG, LogLevel.DEBUG, "Invalid calcualted offset: "+off+", retrying");
+							return false;
+						}
 						
 						byte[] cp = code.getCodePiece(off, 16);
-						System.out.println("Uploading: "+Long.toHexString(addr)+": "+Format.toHex(cp));
+						info("Uploading: "+Long.toHexString(addr[0])+": "+Format.toHex(cp));
 						try
 						{
-							flash.pushCode(addr, cp);
+							addr[0] = flash.pushCode(addr[0], cp);
 						}
-						catch (PosixErrnoException e)
+						catch(Exception e)
 						{
-							e.printStackTrace();
+							ERRNO err = null;
+							if(e instanceof PosixErrnoException)
+							{
+								err = ((PosixErrnoException) e).getErrno();
+							}
+							else if(e.getCause() instanceof PosixErrnoException)
+							{
+								err = ((PosixErrnoException)e.getCause()).getErrno();
+							}
+							
+							if(ERRNO.ENXIO == err)
+							{
+								addr[0] = 0;
+								return false;
+							}
+							Mirror.propagateAnyway(e);
 						}
 						
 						return false;
@@ -315,8 +431,10 @@ public class UartbusCodeUploader
 				{
 					try
 					{
+						LoggingTools.tryLogFormat(LOG, LogLevel.DEBUG, "Committing flash.");
+
 						flash.commitFlash();
-						System.out.println("Committing flash modification done.");
+						LoggingTools.tryLogFormat(LOG, LogLevel.INFO, "Committing flash modification done.");
 					}
 					catch (PosixErrnoException e)
 					{
@@ -326,13 +444,11 @@ public class UartbusCodeUploader
 				}
 			});
 			
-			short[] addr = new short[1];
 			addr[0] = start;
 			
 			if(!NO_VERIFY.hasOption(pa))
 			{
-			
-				System.out.println("Verifying uploaded code.");
+				info("Verifying uploaded code.");
 				
 				while(true)
 				{
@@ -351,37 +467,29 @@ public class UartbusCodeUploader
 							
 							int off = (int) (addr[0]-code.startAddress);
 							
-							System.out.print("Verifying "+Long.toHexString(addr[0])+":");
-							try
+							info("Verifying code at "+Long.toHexString(addr[0])+":");
+
+							byte[] cp = code.getCodePiece(off, blockSize);
+							
+							GenericStruct2<Short, byte[]> c = boot.readProgramCode(addr[0], (byte) cp.length);
+							if(addr[0] != c.a)
 							{
-								byte[] cp = code.getCodePiece(off, blockSize);
-								
-								GenericStruct2<Short, byte[]> c = boot.readProgramCode(addr[0], (byte) cp.length);
-								if(addr[0] != c.a)
-								{
-									throw new RuntimeException("Different address returned, than the requested. Req: "+addr[0]+", ret: "+c.a);
-								}
-								
-								if(Arrays.equals(cp, c.b))
-								{
-									System.out.print(" OK");
-								}
-								else
-								{
-									System.out.print(" Code mismatch:");
-									System.out.print("Actual:   "+Format.toHex(c.b));
-									System.out.print("Expected: "+Format.toHex(cp));
-									throw new RuntimeException("Uploaded code verification failed.");
-								}
-								
-								addr[0] += blockSize;
-								
-								return false;
+								throw new RuntimeException("Different address returned, than the requested. Req: "+addr[0]+", ret: "+c.a);
 							}
-							finally
+							
+							if(Arrays.equals(cp, c.b))
 							{
-								System.out.println("");
+								info("Code at "+Long.toHexString(addr[0])+" is OK");
 							}
+							else
+							{
+								info("Code at "+Long.toHexString(addr[0])+" is mismatches. Actual:   "+Format.toHex(c.b)+", Expected: "+Format.toHex(cp));
+								throw new RuntimeException("Uploaded code verification failed.");
+							}
+							
+							addr[0] += blockSize;
+							
+							return false;
 						}
 					});
 					
@@ -414,30 +522,5 @@ public class UartbusCodeUploader
 		{
 			System.exit(0);
 		}
-		//load intel hex file, verify the content
-		
-
-		//connect to the UART bus
-		
-		//check destination is alive
-		
-		//enter progamming mode
-		
-		//get the start address
-		
-		//fail if it's different from the IHEX start address
-		
-		//send code piece
-		//check the next address pointer, discard and report fail on error.
-		
-		//commit
-		//verify code space (if verification is not disabled)
-		
-		//restart the target.
-		//as it's appeared, clear the recovery mode and start app.
-		
-		
-		//TODO later: update app variables before commit
-		
 	}
 }

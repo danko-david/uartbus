@@ -18,8 +18,6 @@ __attribute__ ((weak)) void setup(){};
 
 __attribute__ ((weak)) void loop(){};
 
-int main(){}
-
 __attribute__ ((weak)) void __do_copy_data(){};
 __attribute__ ((weak)) void __do_clear_bss(){};
 
@@ -43,6 +41,14 @@ __attribute__((noinline, section(".app_start"))) void ub_app(bool first)
 	loop();
 	asm ("ret");
 }
+
+/**
+ * I use this way to prevent -Wl,--gc-sections to optimise out ub_app.
+ * main() function is required by the compilation but normally this main
+ * function will never be called and so it's saves the ub_app function,
+ * but never calls.
+ */
+int main(){ ub_app(true);}
 
 /*
 void (*register_packet_dispatch)(void (*addr)(struct rpc_request* req));

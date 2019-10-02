@@ -246,9 +246,9 @@ public class IntelHexFile
 			baos = null;
 		}
 
-		public byte[] getCodePiece(int offset, int length)
+		public byte[] getCodePiece(int offset, int _length)
 		{
-			length = Math.min(length, data.length-offset);
+			int length = Math.min(_length, data.length-offset);
 			return Arrays.copyOfRange(data, offset, offset+length);
 		}
 	}

@@ -114,10 +114,11 @@ public class UartBusDevice
 		
 		Type ret = method.getReturnType();
 		TransactionException trex = null;
+		byte[] data = pa.done();
 		boolean mayRetransmit = null != method.getAnnotation(UbRetransmittable.class);
 		for(int i=0;i<retryCount;++i)
 		{
-			try(UartbusTransaction tr = bus.newTransaction(address, path, pa.done(), true))
+			try(UartbusTransaction tr = bus.newTransaction(address, path, data, true))
 			{
 				if(NoReturn.class == ret)
 				{

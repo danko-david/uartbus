@@ -59,10 +59,14 @@ void ubh_impl_wdt_start(bool);
  *	to program device. The size of the area specified by your
  * uint8_t ubh_impl_get_program_page_size() return value
  *
- * This may erase userspace data, because device will be resetted anyway after
+ * It also does the necessary operations to the application code can be
+ * 	overwritten eg: disable all interrupt handler not related to the uartbus
+ * 	infrastructure
+ *
+ * This may erase userspace data, because device will be reseted anyway after
  * the code upload operation.
  */
-uint8_t* ubh_impl_allocate_program_tmp_storage();
+uint8_t* ubh_impl_go_upload_and_allocate_program_tmp_storage();
 
 
 /**

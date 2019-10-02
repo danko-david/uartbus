@@ -355,7 +355,7 @@ void blf_start_flash(struct rpc_request* req)
 		il_reply(req, 1, EALREADY);		
 	}
 	
-	flash_tmp = (uint8_t*) ubh_impl_allocate_program_tmp_storage();
+	flash_tmp = (uint8_t*) ubh_impl_go_upload_and_allocate_program_tmp_storage();
 	if(NULL == flash_tmp)
 	{
 		il_reply(req, 1, ENOMEM);
@@ -405,6 +405,7 @@ void blf_push_code(struct rpc_request* req)
 	if(0 == flash_stage)
 	{
 		il_reply(req, 1, ENOTCONN);
+		return;
 	}
 	
 	if(size < 3)

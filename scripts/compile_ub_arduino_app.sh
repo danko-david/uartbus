@@ -25,12 +25,15 @@ cd $OWD
 shopt -s extglob
 
 avr-g++ -mmcu=$1\
+	-std=c++11\
 	-I$I_COMM -I$I_BUSCOMM -I$I_RPC -I$I_WRAP\
+	-Wall\
 	-ffunction-sections\
 	-fdata-sections\
 	-fno-exceptions\
 	-DF_CPU=$2\
 	-DHOST_TABLE_ADDRESS=0x1fe0\
+	-Wl,--gc-sections\
 	-Wl,--section-start=.text=0x2020\
 	-Wl,--section-start=.app_start=0x2000\
 	-DARDUINO_HANDSOFF_UART -DARDUINO_HANDSOFF_TIMER0\
