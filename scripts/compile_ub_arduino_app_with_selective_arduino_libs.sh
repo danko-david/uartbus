@@ -2,6 +2,13 @@
 # usage: ./compile_ub_arduino_app_with_arduino_libs.sh $mcu $clock_hz $output_nameset $gcc_options_and_cpp_file
 # eg: ./compile_ub_arduino_app_with_arduino_libs.sh atmega328p 16000000 myprog    myprog.cpp -o 
 
+if [ "$#" -lt 3 ]; then
+	echo 'Usage: ./compile_ub_arduino_app_with_arduino_libs.sh $mcu $clock_hz $output_nameset $gcc_options_and_cpp_file'
+	echo 'eg: ./compile_ub_arduino_app_with_arduino_libs.sh atmega328p 16000000 myprog myprog.cpp -o'
+        exit 1
+fi
+
+
 SOURCES=()
 INCLUDES=()
 ETC=()
