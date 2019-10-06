@@ -28,6 +28,7 @@ avr-g++ -o ubb.o ub_bootloader.c ub_atmega.c ../bus/lib/common/ub.c ../utils/lib
 	-Wl,--section-start=.data=0x800702\
 	-Wl,-Tbss,0x800760
 
+#TODO check that build works with:	-Wl,--gc-sections\
 
 #TODO calculate data, bss, stack adresses
 #WARNING: bss, data and stack might collide and NOTHING NOTICES THAT!

@@ -12,6 +12,7 @@ extern "C"{
 __attribute__((noinline)) void*** getHostTableAddress()
 {
 	asm("jmp " SX(HOST_TABLE_ADDRESS));
+	return NULL;//keep the compiler happy
 }
 
 __attribute__ ((weak)) void setup(){};
@@ -24,10 +25,17 @@ __attribute__ ((weak)) void __do_clear_bss(){};
 extern void __do_copy_data();
 extern void __do_clear_bss();
 
+__attribute__ ((weak)) void init(){};
+
+extern void init();
+
+//TODO extern void __do_global_ctors() when the application is in C++
+
 static void init_app_section()
 {
 	__do_copy_data();
 	__do_clear_bss();
+	init();
 }
 
 //app_start section starts at 0x2000
@@ -64,7 +72,7 @@ bool send_packet(int16_t to, int NS, uint8_t* data, uint16_t size)
 	bool (*reg)(int16_t, uint8_t, uint8_t*, uint16_t) =
 		(bool (*)(int16_t, uint8_t, uint8_t*, uint16_t)) fns[2];
 		
-	reg(to, NS, data, size);
+	return reg(to, NS, data, size);
 }
 
 void register_packet_dispatch(void (*addr)(struct rpc_request* req))

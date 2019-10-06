@@ -303,6 +303,8 @@ public class UartbusCodeUploader
 		//restart with hard reset and grab (ensure not enter to application mode) 
 		restartGrabDevice(dev);
 				
+		
+		final int BLOCK_SIZE = 32;
 		dev.timeout = 20;
 		dev.retryCount = 100;
 		
@@ -388,7 +390,7 @@ public class UartbusCodeUploader
 							return false;
 						}
 						
-						byte[] cp = code.getCodePiece(off, 16);
+						byte[] cp = code.getCodePiece(off, BLOCK_SIZE);
 						info("Uploading: "+Long.toHexString(addr[0])+": "+Format.toHex(cp));
 						try
 						{
@@ -463,13 +465,11 @@ public class UartbusCodeUploader
 								return true;
 							}
 							
-							final int blockSize = 8;
-							
 							int off = (int) (addr[0]-code.startAddress);
 							
 							info("Verifying code at "+Long.toHexString(addr[0])+":");
 
-							byte[] cp = code.getCodePiece(off, blockSize);
+							byte[] cp = code.getCodePiece(off, BLOCK_SIZE);
 							
 							GenericStruct2<Short, byte[]> c = boot.readProgramCode(addr[0], (byte) cp.length);
 							if(addr[0] != c.a)
@@ -487,7 +487,7 @@ public class UartbusCodeUploader
 								throw new RuntimeException("Uploaded code verification failed.");
 							}
 							
-							addr[0] += blockSize;
+							addr[0] += BLOCK_SIZE;
 							
 							return false;
 						}

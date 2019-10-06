@@ -11,7 +11,7 @@ fi
 
 set -e
 OWD=$(pwd)
-cd "$(dirname "$0")"
+cd "$(dirname `readlink -f "$0"`)"
 cd ../source/uc
 
 I_COMM=$(readlink -f commons)

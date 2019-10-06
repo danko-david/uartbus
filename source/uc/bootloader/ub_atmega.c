@@ -705,8 +705,15 @@ __attribute__((section(".bootloader"))) void bootloader_main()
 	asm ("jmp 0x0");
 }
 
-__attribute__((section(".bootloader")))  void ubh_impl_write_program_page(uint32_t page, uint8_t *buf, uint8_t size)
+//modified version of:
+//https://www.nongnu.org/avr-libc/user-manual/group__avr__boot.html#gaeb0dba1dd9d338516a94c0bd8a8db78a
+__attribute__((section(".bootloader")))  void ubh_impl_write_program_page(const uint32_t page,const  uint8_t *buf,const uint8_t size)
 {
+	if(page < 0x2000 || (page > 0x7900+SPM_PAGESIZE) || size > SPM_PAGESIZE)
+	{
+		return;
+	}
+
     uint16_t i;
     uint8_t sreg;
     // Disable interrupts.
@@ -715,7 +722,7 @@ __attribute__((section(".bootloader")))  void ubh_impl_write_program_page(uint32
     eeprom_busy_wait ();
     boot_page_erase (page);
     boot_spm_busy_wait ();      // Wait until the memory is erased.
-    for (i=0; i<SPM_PAGESIZE; i+=2)
+    for (i=0; i<size; i+=2)
     {
         // Set up little-endian word.
         uint16_t w = *buf++;

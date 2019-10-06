@@ -96,7 +96,7 @@ uint8_t ubh_impl_read_code(uint16_t address, uint8_t length, uint8_t* buff);
  * Writes the application memory page (usually the program flash memory) 
  *
  */
-void ubh_impl_write_program_page(uint32_t address, uint8_t* data, uint8_t length);
+void ubh_impl_write_program_page(const uint32_t address,const uint8_t* data,const uint8_t length);
 
 
 

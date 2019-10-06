@@ -385,7 +385,7 @@ void fill_flash(uint8_t *buf, uint16_t size)
 		flash_tmp[flash_crnt_address % page_size] = buf[i];
 		++flash_crnt_address;
 		
-		//if page fullfilled => flush it.		
+		//if page fullfilled => flush it.
 		if(0 == flash_crnt_address % page_size)
 		{
 			ubh_impl_write_program_page
@@ -414,6 +414,12 @@ void blf_push_code(struct rpc_request* req)
 		return;
 	}
 	
+	if(flash_crnt_address < 0x1f00)
+	{
+		il_reply(req, 1, EFAULT);
+		return;
+	}
+	
 	if(data[0] != ((flash_crnt_address >> 8) & 0xff) || data[1] != (flash_crnt_address & 0xff))
 	{
 		il_reply(req, 1, ENXIO);
@@ -433,6 +439,12 @@ void commit_flash(struct rpc_request* req)
 		return;
 	}
 	
+	if(flash_crnt_address < 0x1f00)
+	{
+		il_reply(req, 1, EFAULT);
+		return;
+	}
+	
 	uint8_t page_size = ubh_impl_get_program_page_size();
 	
 	//something filled into the write buffer => writing page
@@ -442,11 +454,9 @@ void commit_flash(struct rpc_request* req)
 		(
 			flash_crnt_address & ~(page_size-1),
 			flash_tmp,
-			flash_crnt_address % (page_size-1)
+			1 + (flash_crnt_address % page_size)
 		);
 	}
-	
-	//free(flash_tmp);
 	
 	flash_stage = 0;
 	

@@ -212,7 +212,7 @@ public class UartbusPacketConnector implements Closeable
 		{
 			Mirror.propagateAnyway(exc);
 		}
-		throw new RuntimeException("Can't sent package bacause IOStream connection not available");
+		throw new RuntimeException("Can't sent packet because IOStream connection not available");
 	}
 	
 	public static byte[] frameBytes(byte[] data, byte terminator)
