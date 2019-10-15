@@ -448,13 +448,13 @@ void commit_flash(struct rpc_request* req)
 	uint8_t page_size = ubh_impl_get_program_page_size();
 	
 	//something filled into the write buffer => writing page
-	if(0 != ((flash_crnt_address-1) % (page_size-1)))
+	if(0 != flash_crnt_address % page_size)
 	{
 		ubh_impl_write_program_page
 		(
 			flash_crnt_address & ~(page_size-1),
 			flash_tmp,
-			1 + (flash_crnt_address % page_size)
+			(flash_crnt_address & (page_size-1))
 		);
 	}
 	
@@ -558,6 +558,7 @@ static void ub_rec_byte(struct uartbus* a, uint8_t data_byte)
 	}
 }
 
+#ifndef EXTERNAL_SEND_PACKET_PRIV
 
 bool send_packet_priv(int16_t to, uint8_t NS, uint8_t* data, uint8_t size)
 {
@@ -596,6 +597,8 @@ bool send_packet_priv(int16_t to, uint8_t NS, uint8_t* data, uint8_t size)
 	
 	return true;
 }
+
+#endif
 
 void dispatch(struct rpc_request* req)
 {

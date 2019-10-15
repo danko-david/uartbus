@@ -709,7 +709,7 @@ __attribute__((section(".bootloader"))) void bootloader_main()
 //https://www.nongnu.org/avr-libc/user-manual/group__avr__boot.html#gaeb0dba1dd9d338516a94c0bd8a8db78a
 __attribute__((section(".bootloader")))  void ubh_impl_write_program_page(const uint32_t page,const  uint8_t *buf,const uint8_t size)
 {
-	if(page < 0x2000 || (page > 0x7900+SPM_PAGESIZE) || size > SPM_PAGESIZE)
+	if(page < 0x2000 || page > 0x7900l || size > SPM_PAGESIZE)
 	{
 		return;
 	}
