@@ -118,7 +118,7 @@ public class UartbusPacketloss
 			}
 		}
 		
-		if(0 != pass && 0 != loss)
+		if(0 != pass || 0 != loss)
 		{
 			System.out.println("Statistic:");
 			System.out.println("\tSent packets: "+(pass+loss));
