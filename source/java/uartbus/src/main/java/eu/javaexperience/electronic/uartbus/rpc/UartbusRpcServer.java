@@ -15,6 +15,7 @@ import eu.javaexperience.interfaces.simple.SimpleGet;
 import eu.javaexperience.interfaces.simple.getBy.GetBy1;
 import eu.javaexperience.interfaces.simple.getBy.GetBy2;
 import eu.javaexperience.io.IOStream;
+import eu.javaexperience.io.IOTools;
 import eu.javaexperience.io.fd.IOStreamFactory;
 import eu.javaexperience.log.JavaExperienceLoggingFacility;
 import eu.javaexperience.log.LogLevel;
@@ -106,35 +107,38 @@ public class UartbusRpcServer
 		
 		JavaExperienceLoggingFacility.startLoggingIntoDirectory(new File(wd+"/log/"), "uartbus-rpc-server-");
 		
+		IOStream[] prev = new IOStream[1];
+		
 		SimpleGet<IOStream> socketFactory = ()->{
-			int[] reties = new int[]{100, 200, 500, 1_000, 2_000, 5_000, 10_000, 20_000, 30_000};
-			for(int i=0;i<reties.length;++i)
+			int[] retries = new int[]{100, 200, 500, 1_000, 2_000, 5_000, 10_000, 20_000, 30_000};
+			for(int i=0;i<retries.length;++i)
 			{
 				try
 				{
-					return SerialTools.openSerial(serial, baud);
+					return prev[0] = SerialTools.openSerial(serial, baud);
 				}
 				catch (IOException e)
 				{
 					LoggingTools.tryLogFormat(LOG, LogLevel.WARNING, "Can't open socket, waiting `%s` millisec before trying reconnect again.");
 					try
 					{
-						Thread.sleep(reties[i]);
+						Thread.sleep(retries[i]);
 					}
 					catch (InterruptedException e1)
 					{
 						return null;
 					}
-					if(i > reties.length)
+					
+					if(i > retries.length)
 					{
-						i = reties.length-1;
+						i = retries.length-1;
 					}
 				}
 			}
 			return null;
 		};
 		IOStream ser = socketFactory.get();
-		Runtime.getRuntime().addShutdownHook(new Thread(ser::close));
+		prev[0] = ser;
 		UartbusPacketConnector conn = new UartbusPacketConnector(ser, (byte)0xff);
 		if(reconnect)
 		{
@@ -144,6 +148,8 @@ public class UartbusRpcServer
 				conn.setIoStream(socketFactory.get());
 			});
 		}
+		
+		IOTools.closeOnExit(conn);
 		
 		UartbusRpcEndpoint bus = new UartbusRpcEndpoint(conn);
 		

@@ -3,6 +3,7 @@ package eu.javaexperience.electronic.uartbus;
 import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.util.Arrays;
@@ -27,6 +28,8 @@ public class UartbusPacketConnector implements Closeable
 	protected byte packetEscape;
 	protected SimplePublish1<byte[]> onPacketReceived;
 	
+	protected volatile boolean run = true;
+	
 	public UartbusPacketConnector(IOStream io, byte terminator)
 	{
 		this.io = io;
@@ -34,11 +37,11 @@ public class UartbusPacketConnector implements Closeable
 	}
 	
 	protected Thread receiver;
-	private SimpleCall onClosed;
+	protected SimpleCall onClosed;
 	
 	public void setPacketHook(SimplePublish1<byte[]> onPacketReceived)
 	{
-		synchronized (this)
+		synchronized(this)
 		{
 			this.onPacketReceived = onPacketReceived;
 		}
@@ -46,10 +49,20 @@ public class UartbusPacketConnector implements Closeable
 	
 	public void setSocketCloseListener(SimpleCall onClosed)
 	{
-		synchronized (this)
+		synchronized(this)
 		{
 			this.onClosed = onClosed;
 		}
+	}
+	
+	protected InputStream getInputStream()
+	{
+		return io.getInputStream();
+	}
+	
+	protected OutputStream getOutputStream()
+	{
+		return io.getOutputStream();
 	}
 	
 	public void setIoStream(IOStream io)
@@ -95,26 +108,35 @@ public class UartbusPacketConnector implements Closeable
 			public void run()
 			{
 				int read = 0;
-				while(null != io)
+				while(run)
 				{
 					try
 					{
-						while(0 < (read = io.getInputStream().read(read_buffer)))
+						while(0 < (read = getInputStream().read(read_buffer)))
 						{
 							feedBytes(read_buffer, read);
 						}
 						
 						ep = 0;
-						io = null;
-						if(null != onClosed)
-						{
-							onClosed.call();
-						}
 					}
-					catch(IOException e)
+					catch(Exception e)
 					{
+						synchronized(this)
+						{
+							io = null;
+							if(null != onClosed)
+							{
+								onClosed.call();
+							}
+						}
 						LoggingTools.tryLogFormatException(LOG, LogLevel.ERROR, e, "Exception while reading package");
 					}
+					
+					try
+					{
+						Thread.sleep(100);
+					}
+					catch (InterruptedException e){}
 				}
 			}
 		};
@@ -181,7 +203,7 @@ public class UartbusPacketConnector implements Closeable
 	{
 		byte[] send = frameBytes(data, packetEscape);
 		Exception exc = null;
-		while(null != io)
+		while(true)
 		{
 			synchronized(this)
 			{
@@ -194,7 +216,7 @@ public class UartbusPacketConnector implements Closeable
 				}
 				catch(Exception e)
 				{
-					LoggingTools.tryLogFormatException(LOG, LogLevel.ERROR, e, "Exception while sending package");
+					LoggingTools.tryLogFormatException(LOG, LogLevel.ERROR, e, "Exception while sending package ");
 					io = null;
 					if(null != onClosed)
 					{
@@ -203,7 +225,15 @@ public class UartbusPacketConnector implements Closeable
 					else
 					{
 						exc = e;
+						stop();
+						break;
 					}
+					
+					try
+					{
+						Thread.sleep(100);
+					}
+					catch (InterruptedException asd){}
 				}
 			}
 		}
@@ -256,6 +286,12 @@ public class UartbusPacketConnector implements Closeable
 		byte[] send = Arrays.copyOf(data, data.length+1);
 		send[data.length] = UartbusTools.crc8(data);
 		sendPacket(send);
+	}
+	
+	public void stop()
+	{
+		System.out.println("STOP");
+		run = false;
 	}
 	
 	public static void main(String[] args) throws Exception

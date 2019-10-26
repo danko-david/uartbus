@@ -4,11 +4,18 @@ import java.io.IOException;
 
 import eu.javaexperience.electronic.uartbus.rpc.UartbusConnection;
 import eu.javaexperience.interfaces.simple.publish.SimplePublish1;
+import eu.javaexperience.log.JavaExperienceLoggingFacility;
+import eu.javaexperience.log.LogLevel;
+import eu.javaexperience.log.Loggable;
+import eu.javaexperience.log.Logger;
+import eu.javaexperience.log.LoggingTools;
 import eu.javaexperience.rpc.bidirectional.BidirectionalRpcDefaultProtocol;
 import eu.javaexperience.rpc.javaclient.JavaRpcClientTools;
 
 public class UartbusRpcClientTools
 {
+	protected static final Logger LOG = JavaExperienceLoggingFacility.getLogger(new Loggable("UartbusRpcClientTools"));
+	
 	public static UartbusConnection connectTcp(String ip, int port) throws IOException
 	{
 		return JavaRpcClientTools.createApiWithIpPort
@@ -45,12 +52,19 @@ public class UartbusRpcClientTools
 				{
 					while(true)
 					{
-						onNewPacket.publish(conn.getNextPacket());
+						try
+						{
+							onNewPacket.publish(conn.getNextPacket());
+						}
+						catch(Exception e)
+						{
+							LoggingTools.tryLogFormatException(LOG, LogLevel.WARNING, e, "Exception while receiving and dispatching packet ");
+						}
 					}
 				}
-				catch(Exception e)
+				catch(Exception ex)
 				{
-					e.printStackTrace();
+					ex.printStackTrace();
 				}
 			}
 		};
