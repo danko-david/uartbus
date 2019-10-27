@@ -13,8 +13,10 @@ import eu.javaexperience.cli.CliEntry;
 import eu.javaexperience.cli.CliTools;
 import eu.javaexperience.database.ConnectionBuilder;
 import eu.javaexperience.database.JDBC;
+import eu.javaexperience.electronic.uartbus.rpc.UartbusConnection;
 import eu.javaexperience.electronic.uartbus.rpc.client.UartbusRpcClientTools;
 import eu.javaexperience.electronic.uartbus.rpc.client.UartbusRpcClientTools.PacketStreamThread;
+import eu.javaexperience.interfaces.simple.publish.SimplePublish1;
 import eu.javaexperience.log.JavaExperienceLoggingFacility;
 import eu.javaexperience.log.LogLevel;
 import eu.javaexperience.log.Loggable;
@@ -149,7 +151,7 @@ public class UartbusLogSql
 					LoggingTools.tryLogFormatException(LOG, LogLevel.ERROR, e1, "Exception ocurred while saving packet");
 				}
 			},
-			(connection)->
+			(SimplePublish1<UartbusConnection>)(connection)->
 			{
 				if(LOOPBACK.hasOption(pa))
 				{

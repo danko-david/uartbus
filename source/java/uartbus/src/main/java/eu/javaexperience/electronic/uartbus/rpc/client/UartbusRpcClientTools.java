@@ -88,7 +88,7 @@ public class UartbusRpcClientTools
 		return streamPacketsReconnect(ip, port, onNewPacket, null, -1);
 	}
 	
-	public static PacketStreamThread streamPacket(String ip, int port, SimplePublish1<byte[]> onNewPacket, @MayNull SimplePublish1<UartbusConnection> connectionInitializer) throws IOException
+	public static PacketStreamThread streamPackets(String ip, int port, SimplePublish1<byte[]> onNewPacket, @MayNull SimplePublish1<UartbusConnection> connectionInitializer) throws IOException
 	{
 		return streamPacketsReconnect(ip, port, onNewPacket, connectionInitializer, -1);
 	}
