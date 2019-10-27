@@ -2,6 +2,7 @@ package eu.javaexperience.electronic.uartbus.cli.apps;
 
 import static eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools.*;
 
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.util.Date;
@@ -147,12 +148,21 @@ public class UartbusLogSql
 				{
 					LoggingTools.tryLogFormatException(LOG, LogLevel.ERROR, e1, "Exception ocurred while saving packet");
 				}
+			},
+			(connection)->
+			{
+				if(LOOPBACK.hasOption(pa))
+				{
+					try
+					{
+						connection.setAttribute("loopback_send_packets", "true");
+					}
+					catch (IOException e1)
+					{
+						e1.printStackTrace();
+					}
+				}
 			}
 		);
-		
-		if(LOOPBACK.hasOption(pa))
-		{
-			stream.conn.setAttribute("loopback_send_packets", "true");
-		}
 	}
 }

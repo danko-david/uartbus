@@ -117,13 +117,22 @@ public class UartbusConsole
 				}
 				sb.append(UartbusTools.formatColonData(e));
 				System.out.println(sb.toString());
+			},
+			(connection)->
+			{
+				if(LOOPBACK.hasOption(pa))
+				{
+					try
+					{
+						connection.setAttribute("loopback_send_packets", "true");
+					}
+					catch (IOException e1)
+					{
+						e1.printStackTrace();
+					}
+				}
 			}
 		);
-		
-		if(LOOPBACK.hasOption(pa))
-		{
-			stream.conn.setAttribute("loopback_send_packets", "true");
-		}
 		
 		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 		String line = null;

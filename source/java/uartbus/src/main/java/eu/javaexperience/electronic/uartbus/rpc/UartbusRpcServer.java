@@ -11,6 +11,7 @@ import eu.javaexperience.cli.CliTools;
 import eu.javaexperience.datareprez.DataObject;
 import eu.javaexperience.electronic.SerialTools;
 import eu.javaexperience.electronic.uartbus.UartbusPacketConnector;
+import eu.javaexperience.electronic.uartbus.rpc.client.UartbusRpcClientTools;
 import eu.javaexperience.interfaces.simple.SimpleGet;
 import eu.javaexperience.interfaces.simple.getBy.GetBy1;
 import eu.javaexperience.interfaces.simple.getBy.GetBy2;
@@ -22,6 +23,7 @@ import eu.javaexperience.log.LogLevel;
 import eu.javaexperience.log.Loggable;
 import eu.javaexperience.log.Logger;
 import eu.javaexperience.log.LoggingTools;
+import eu.javaexperience.reflect.Mirror;
 import eu.javaexperience.rpc.JavaClassRpcUnboundFunctionsInstance;
 import eu.javaexperience.rpc.RpcTools;
 import eu.javaexperience.rpc.SimpleRpcRequest;
@@ -109,34 +111,25 @@ public class UartbusRpcServer
 		
 		IOStream[] prev = new IOStream[1];
 		
-		SimpleGet<IOStream> socketFactory = ()->{
-			int[] retries = new int[]{100, 200, 500, 1_000, 2_000, 5_000, 10_000, 20_000, 30_000};
-			for(int i=0;i<retries.length;++i)
+		SimpleGet<IOStream> socketFactory = UartbusRpcClientTools.waitReconnect
+		(
+			()->
 			{
 				try
 				{
-					return prev[0] = SerialTools.openSerial(serial, baud);
+					prev[0] = SerialTools.openSerial(serial, baud);
+					Thread.sleep(100);
+					prev[0].getInputStream();
+					prev[0].getOutputStream();
+					return prev[0];
 				}
-				catch (IOException e)
+				catch (Exception e)
 				{
-					LoggingTools.tryLogFormat(LOG, LogLevel.WARNING, "Can't open socket, waiting `%s` millisec before trying reconnect again.");
-					try
-					{
-						Thread.sleep(retries[i]);
-					}
-					catch (InterruptedException e1)
-					{
-						return null;
-					}
-					
-					if(i > retries.length)
-					{
-						i = retries.length-1;
-					}
+					Mirror.propagateAnyway(e);
+					return null;
 				}
-			}
-			return null;
-		};
+			},
+			"serial connection to the bus gateway");
 		IOStream ser = socketFactory.get();
 		prev[0] = ser;
 		UartbusPacketConnector conn = new UartbusPacketConnector(ser, (byte)0xff);

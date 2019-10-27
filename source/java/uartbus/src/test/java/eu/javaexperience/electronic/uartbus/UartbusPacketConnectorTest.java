@@ -129,7 +129,7 @@ public class UartbusPacketConnectorTest
 		int i=0;
 		while(++i<100 && null == h.data)
 		{
-			Thread.sleep(50);
+			Thread.sleep(100);
 		}
 		Assert.assertArrayEquals(data, h.data);
 	}

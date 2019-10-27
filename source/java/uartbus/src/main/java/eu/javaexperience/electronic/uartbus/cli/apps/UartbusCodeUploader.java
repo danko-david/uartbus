@@ -305,17 +305,17 @@ public class UartbusCodeUploader
 				
 		
 		final int BLOCK_SIZE = 32;
-		dev.timeout = 20;
+		dev.timeout = 50;
 		dev.retryCount = 100;
 		
 		UbBootloaderFunctions boot = root.getBootloaderFunctions();
 		UbbFlashFunctions flash = boot.getFlashFunctions();
 		
 		//TODO
-		if(0 != flash.getFlashStage())
+		/*if(0 != flash.getFlashStage())
 		{
 			throw new RuntimeException("Bus device is already in programming state, before we started the process. Maybe other code upload in progress. Or just try restart the device.");
-		}
+		}*/
 		
 		//start
 		try

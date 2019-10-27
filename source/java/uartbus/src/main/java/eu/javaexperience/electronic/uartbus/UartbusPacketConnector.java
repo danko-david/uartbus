@@ -12,6 +12,7 @@ import eu.javaexperience.electronic.SerialTools;
 import eu.javaexperience.interfaces.simple.SimpleCall;
 import eu.javaexperience.interfaces.simple.publish.SimplePublish1;
 import eu.javaexperience.io.IOStream;
+import eu.javaexperience.io.IOTools;
 import eu.javaexperience.log.JavaExperienceLoggingFacility;
 import eu.javaexperience.log.LogLevel;
 import eu.javaexperience.log.Loggable;
@@ -24,11 +25,11 @@ import eu.javaexperience.text.StringTools;
 public class UartbusPacketConnector implements Closeable
 {
 	protected static final Logger LOG = JavaExperienceLoggingFacility.getLogger(new Loggable("UartbusPacketConnector"));
-	protected IOStream io;
+	protected volatile IOStream io;
 	protected byte packetEscape;
 	protected SimplePublish1<byte[]> onPacketReceived;
 	
-	protected volatile boolean run = true;
+	protected volatile boolean run = false;
 	
 	public UartbusPacketConnector(IOStream io, byte terminator)
 	{
@@ -39,38 +40,39 @@ public class UartbusPacketConnector implements Closeable
 	protected Thread receiver;
 	protected SimpleCall onClosed;
 	
-	public void setPacketHook(SimplePublish1<byte[]> onPacketReceived)
+	public synchronized void setPacketHook(SimplePublish1<byte[]> onPacketReceived)
 	{
-		synchronized(this)
+		this.onPacketReceived = onPacketReceived;
+	}
+	
+	public synchronized void setSocketCloseListener(SimpleCall onClosed)
+	{
+		this.onClosed = onClosed;
+	}
+	
+	protected synchronized InputStream getInputStream()
+	{
+		InputStream ret = io.getInputStream();
+		if(LOG.mayLog(LogLevel.TRACE))
 		{
-			this.onPacketReceived = onPacketReceived;
+			LoggingTools.tryLogFormat(LOG, LogLevel.TRACE, "`%s`.getInputStream() [io:`%s`] => `%s`", this, io, ret);
 		}
+		return ret;
 	}
 	
-	public void setSocketCloseListener(SimpleCall onClosed)
+	protected synchronized OutputStream getOutputStream()
 	{
-		synchronized(this)
+		OutputStream ret = io.getOutputStream();
+		if(LOG.mayLog(LogLevel.TRACE))
 		{
-			this.onClosed = onClosed;
+			LoggingTools.tryLogFormat(LOG, LogLevel.TRACE, "`%s`.getOutputStream() [io:`%s`] => `%s`", this, io, ret);
 		}
+		return ret;
 	}
 	
-	protected InputStream getInputStream()
+	public synchronized void setIoStream(IOStream io)
 	{
-		return io.getInputStream();
-	}
-	
-	protected OutputStream getOutputStream()
-	{
-		return io.getOutputStream();
-	}
-	
-	public void setIoStream(IOStream io)
-	{
-		synchronized(this)
-		{
-			this.io = io;
-		}
+		this.io = io;
 	}
 	
 	protected void dispatchPacket(byte[] data)
@@ -102,26 +104,28 @@ public class UartbusPacketConnector implements Closeable
 			throw new IllegalStateException("Listening already started");
 		}
 		
+		run = true;
+		
 		receiver = new Thread()
 		{
 			@Override
 			public void run()
 			{
 				int read = 0;
-				while(run)
+				while(run /*&& null != io*/)
 				{
 					try
 					{
+						ep = 0;
 						while(0 < (read = getInputStream().read(read_buffer)))
 						{
 							feedBytes(read_buffer, read);
 						}
-						
-						ep = 0;
 					}
 					catch(Exception e)
 					{
-						synchronized(this)
+						LoggingTools.tryLogFormatException(LOG, LogLevel.ERROR, e, "Exception while reading package ");
+						synchronized(UartbusPacketConnector.this)
 						{
 							io = null;
 							if(null != onClosed)
@@ -129,7 +133,6 @@ public class UartbusPacketConnector implements Closeable
 								onClosed.call();
 							}
 						}
-						LoggingTools.tryLogFormatException(LOG, LogLevel.ERROR, e, "Exception while reading package");
 					}
 					
 					try
@@ -143,15 +146,14 @@ public class UartbusPacketConnector implements Closeable
 		receiver.start();
 	}
 	
-	int ep = 0;
-	byte[] buffer = new byte[10240];
-	boolean mayCut = false;
-
 	protected void feedBytes(byte[] data)
 	{
 		feedBytes(data, data.length);
 	}
 	
+	byte[] buffer = new byte[10240];
+	boolean mayCut = false;
+	int ep = 0;
 	protected void feedBytes(byte[] data, int length)
 	{
 		try
@@ -202,47 +204,33 @@ public class UartbusPacketConnector implements Closeable
 	public void sendPacket(byte[] data)
 	{
 		byte[] send = frameBytes(data, packetEscape);
-		Exception exc = null;
 		while(true)
 		{
-			synchronized(this)
+			if(!run)
 			{
+				throw new RuntimeException("This UartbusPacketConnector is not running, can't send packet to the network. Call startListen() to run this instance.");
+			}
+			
+			try
+			{
+				synchronized(this)
+				{
+				OutputStream os = getOutputStream();
+				os.write(send);
+				os.flush();
+				}
+				return;
+			}
+			catch(Exception e)
+			{
+				LoggingTools.tryLogFormatException(LOG, LogLevel.WARNING, e, "Error while writing framed packet ");
 				try
 				{
-					OutputStream os = io.getOutputStream();
-					os.write(send);
-					os.flush();
-					return;
+					Thread.sleep(100);
 				}
-				catch(Exception e)
-				{
-					LoggingTools.tryLogFormatException(LOG, LogLevel.ERROR, e, "Exception while sending package ");
-					io = null;
-					if(null != onClosed)
-					{
-						onClosed.call();
-					}
-					else
-					{
-						exc = e;
-						stop();
-						break;
-					}
-					
-					try
-					{
-						Thread.sleep(100);
-					}
-					catch (InterruptedException asd){}
-				}
+				catch (InterruptedException asd){}
 			}
 		}
-		
-		if(null != exc)
-		{
-			Mirror.propagateAnyway(exc);
-		}
-		throw new RuntimeException("Can't sent packet because IOStream connection not available");
 	}
 	
 	public static byte[] frameBytes(byte[] data, byte terminator)

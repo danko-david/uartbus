@@ -45,15 +45,25 @@ public class SerialTools
 				return false;
 			}
 			
+			protected void assertRunning()
+			{
+				if(!p.isAlive())
+				{
+					throw new RuntimeException("Communication process is dead");
+				}
+			}
+			
 			@Override
 			public OutputStream getOutputStream()
 			{
+				assertRunning();
 				return p.getOutputStream();
 			}
 			
 			@Override
 			public InputStream getInputStream()
 			{
+				assertRunning();
 				return p.getInputStream();
 			}
 			
