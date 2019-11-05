@@ -21,3 +21,4 @@ lct_*.junit.xml
 WD/
 **/*.bak
 **/*-cache.lib
+**/hs_err_pid*.log

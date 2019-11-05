@@ -343,11 +343,13 @@ uint8_t flash_stage = 0;
 uint16_t flash_crnt_address = 0;
 uint8_t* flash_tmp = NULL;
 
+//2:4:0
 void blf_get_flash_stage(struct rpc_request* req)
 {
 	il_reply(req, 2, 0, flash_stage);
 }
 
+//2:4:1
 void blf_start_flash(struct rpc_request* req)
 {
 	if(1 == flash_stage)
@@ -370,6 +372,7 @@ void blf_start_flash(struct rpc_request* req)
 	il_reply(req, 1, 0);
 }
 
+//2:4:2
 void blf_get_next_addr(struct rpc_request* req)
 {
 	il_reply(req, 2, ((flash_crnt_address >> 8) & 0xff), flash_crnt_address & 0xff); 
@@ -398,6 +401,7 @@ void fill_flash(uint8_t *buf, uint16_t size)
 	}
 }
 
+//2:4:3
 void blf_push_code(struct rpc_request* req)
 {
 	uint8_t* data = req->payload + req->procPtr;
@@ -431,6 +435,7 @@ void blf_push_code(struct rpc_request* req)
 	il_reply(req, 3, 0, (flash_crnt_address >> 8) & 0xff, flash_crnt_address & 0xff);
 }
 
+//2:4:4
 void commit_flash(struct rpc_request* req)
 {
 	if(0 == flash_stage)
@@ -463,6 +468,7 @@ void commit_flash(struct rpc_request* req)
 	il_reply(req, 1, 0);
 }
 
+//2:4:x
 void* BOOTLOADER_FLASH_FUNCTIONS[] =
 {
 	(void*) 5,
@@ -473,11 +479,13 @@ void* BOOTLOADER_FLASH_FUNCTIONS[] =
 	(void*) commit_flash
 };
 
+//2:4:x
 void rpc_bootloader_flash(struct rpc_request* req)
 {
 	dispatch_function_chain(BOOTLOADER_FLASH_FUNCTIONS, req);
 }
 
+//2:
 void* RPC_FUNCTIONS_BOOTLOADER[] =
 {
 	(void*) 5,
@@ -608,7 +616,7 @@ void dispatch(struct rpc_request* req)
 	}
 	
 	uint8_t ns = req->payload[req->procPtr];
-	
+
 	if(req->from >= 0 && 0 < ns && ns < 32)
 	{
 		dispatch_root(req);
@@ -627,7 +635,7 @@ static void try_dispatch_received_packet()
 	{
 		return;
 	}
-	
+
 	received = false;
 
 	//is the packet flawless?
@@ -674,6 +682,14 @@ static void try_dispatch_received_packet()
 			}
 		}
 	}
+
+#ifdef UBH_DEBUG_BROADCAST_PACKET_WITH_BAD_CRC
+	else
+	{
+		received_data[received_ep] = crc8(received_data, received_ep-1);
+		send_packet_priv(-10, 0, received_data, received_ep+1);
+	}
+#endif
 	
 	received_ep = 0;
 }
@@ -830,7 +846,7 @@ void** HOST_TABLE[] =
 __attribute__((section(".host_table"))) void** getHostTable()
 {
 	return HOST_TABLE;
-} 
+}
 
 /********************************** Host Main *********************************/
 
@@ -909,7 +925,7 @@ int main()
 			first = false;
 		}
 	}
-	
+
 	abort();
 }
 

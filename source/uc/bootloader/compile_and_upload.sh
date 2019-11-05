@@ -3,6 +3,13 @@
 # usage: ./compile_and_upload.sh $mcu $bus_address $ttyUSB$number
 # example: ./compile_and_upload.sh atmega328p 4 1
 
+if [ "$#" -lt 3 ]; then
+        echo 'Usage: ./compile_and_upload.sh $mcu $bus_address $ttyUSBnumber'
+        echo 'eg: ./compile_and_upload.sh atmega328p 4 1'
+        exit 1
+fi
+
+
 set -e
 
 avr-g++ -o ubb.o ub_bootloader.c ub_atmega.c ../bus/lib/common/ub.c ../utils/lib/rpc/rpc.c -mmcu=$1\
@@ -15,7 +22,6 @@ avr-g++ -o ubb.o ub_bootloader.c ub_atmega.c ../bus/lib/common/ub.c ../utils/lib
 	-fdata-sections\
 	-fno-exceptions\
 	-DDONT_USE_SOFT_FP=1\
-	-DF_CPU=16000000\
 	-DUB_HOST_VERSION=1\
 	-DBUS_ADDRESS=$2\
 	-Wl,--section-start=.host_table=0x1fe0\
@@ -28,7 +34,11 @@ avr-g++ -o ubb.o ub_bootloader.c ub_atmega.c ../bus/lib/common/ub.c ../utils/lib
 	-Wl,--section-start=.data=0x800702\
 	-Wl,-Tbss,0x800760
 
+
+
 #TODO check that build works with:	-Wl,--gc-sections\
+# No it doesn't, even if I exactly tell don't optimise oute the getHostTable function:
+#	-Wl,--gc-sections,--undefined=getHostTable\
 
 #TODO calculate data, bss, stack adresses
 #WARNING: bss, data and stack might collide and NOTHING NOTICES THAT!

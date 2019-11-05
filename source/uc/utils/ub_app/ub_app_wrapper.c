@@ -39,7 +39,7 @@ static void init_app_section()
 }
 
 //app_start section starts at 0x2000
-__attribute__((noinline, section(".app_start"))) void ub_app(bool first)
+__attribute__((weak, noinline, section(".app_start"))) void ub_app(bool first)
 {
 	if(first)
 	{
@@ -56,7 +56,7 @@ __attribute__((noinline, section(".app_start"))) void ub_app(bool first)
  * function will never be called and so it's saves the ub_app function,
  * but never calls.
  */
-int main(){ ub_app(true);}
+__attribute__ ((weak)) int main(){ ub_app(true);}
 
 /*
 void (*register_packet_dispatch)(void (*addr)(struct rpc_request* req));
