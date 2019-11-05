@@ -116,117 +116,13 @@
 	#define PACKET_ESCAPE 0xff
 #endif
 
-
-/**************************** queue management ********************************/
-
-void* mem_alloc(size_t s)
-{
-//	cli();
-	void* ret = malloc(s);
-//	sei();
-	return ret;
-}
-
-void mem_free(void* a)
-{
-//	cli();
-	free(a);
-//	sei();
-}
-
-struct queue_entry
-{
-	struct queue_entry* next;
-	uint8_t size;
-	uint8_t data[1];
-};
-
-struct queue
-{
-	struct queue_entry* head;
-	struct queue_entry* tail;
-};
-
-struct queue* new_queue()
-{
-	struct queue* ret = (struct queue*) mem_alloc(sizeof(struct queue));
-	memset(ret, 0, sizeof(struct queue));
-	return ret;
-}
-
-struct queue_entry* new_queue_entry(size_t size)
-{
-	struct queue_entry* ret = (struct queue_entry*) mem_alloc(sizeof(struct queue_entry)+size);
-	ret->next = NULL;
-	ret->size = 0;
-	return ret;
-}
-
-void free_queue_entry(struct queue_entry* ent)
-{
-	mem_free(ent);
-}
-
-void queue_push(struct queue* q, struct queue_entry* ent)
-{
-	//cli();
-	if(NULL == q->head)
-	{
-		q->head = ent;
-		q->tail = ent;
-	}
-	else
-	{
-		q->tail->next = ent;
-		q->tail = ent;
-	}
-	//sei();
-}
-
-struct queue_entry* queue_take(struct queue* q)
-{
-	struct queue_entry* ret = q->head;
-	if(NULL != ret)
-	{
-		//cli();
-		q->head = ret->next;
-		if(NULL == ret->next)
-		{
-			q->tail = NULL;
-		}
-		//sei();
-	}
-	return ret;
-}
-
-void queue_enqueue_content(struct queue* q, uint8_t* data, uint8_t size)
-{
-	struct queue_entry* add = new_queue_entry(size);
-	add->size = size;
-	for(size_t i = 0;i<size;++i)
-	{
-		add->data[i] = data[i];
-	}
-	queue_push(q, add);
-}
+#include "../../bus_gateway/bus_gateway_commons.c"
 
 /******************************** UARTBus *************************************/
 
 void flashLed()
 {
 	digitalWrite(NET_TRAFFIC_LED, !digitalRead(NET_TRAFFIC_LED));
-}
-
-struct queue* from_serial;
-
-struct uartbus bus;
-
-//int received_ep;
-//uint8_t received_data[MAX_PACKET_SIZE];
-
-uint8_t rando()
-{
-	return rand()%256;
 }
 
 void USART_Init(void)
@@ -263,7 +159,7 @@ ISR(USARTX_RX_vect)
 
 bool receive = false;
 
-static void ub_rec_byte(struct uartbus* a, uint8_t data_byte)
+void ub_rec_byte(struct uartbus* a, uint8_t data_byte)
 {
 	if(receive)
 	{
@@ -275,13 +171,13 @@ static void ub_rec_byte(struct uartbus* a, uint8_t data_byte)
 	}
 }
 
-static uint8_t ub_do_send_byte(struct uartbus* bus, uint8_t val)
+uint8_t ub_do_send_byte(struct uartbus* bus, uint8_t val)
 {
 	USART_SendByte(val);
 	return 0;
 }
 
-static void ub_event(struct uartbus* a, enum uartbus_event event)
+void ub_event(struct uartbus* a, enum uartbus_event event)
 {
 	if(ub_event_receive_start == event)
 	{
@@ -322,62 +218,13 @@ static void ub_event(struct uartbus* a, enum uartbus_event event)
 */
 }
 
-//yet another memory allocation beacuse of the wrong memory ownership design...
-uint8_t send_data[MAX_PACKET_SIZE];
-
-static uint8_t send_on_idle(struct uartbus* bus, uint8_t** data, uint16_t* size)
-{
-	//cli();
-	struct queue_entry* send;
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
-	{
-		send = queue_take(from_serial);
-	}
-	//sei();
-
-	if(NULL != send)
-	{
-		memcpy(send_data, send->data, send->size);
-		*data = send_data;
-		*size = send->size;
-		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
-		{
-			free_queue_entry(send);
-		}
-		return 0;
-	}
-	return 1;
-}
-
-void init_bus()
-{
-	//received_ep = 0;
-
-	bus.rand = (uint8_t (*)(struct uartbus*)) rando;
-	bus.current_usec = (uint32_t (*)(struct uartbus* bus)) micros;
-	bus.serial_byte_received = ub_rec_byte;
-	bus.serial_event = ub_event;
-	ub_init_baud(&bus, BAUD, 2);
-	bus.do_send_byte = ub_do_send_byte;
-	bus.cfg = 0
-//		|	ub_cfg_fairwait_after_send_high
-		|	ub_cfg_fairwait_after_send_low
-		|	ub_cfg_read_with_interrupt
-		|	ub_cfg_skip_collision_data
-	;
-	ub_init(&bus);
-}
-
-
-
 /********************************** serial ************************************/
-
 
 int ep = 0;
 bool mayCut = false;
 byte decode[MAX_PACKET_SIZE];
 
-void readSerial()
+void manage_data_from_pc()
 {
 	int i = 0;
 	while(SERIAL_PC.available() && ++i < 20)
@@ -389,12 +236,10 @@ void readSerial()
 			if(b == (byte)~PACKET_ESCAPE)
 			{
 				flashLed();
-				//cli();
 				ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 				{
 					queue_enqueue_content(from_serial, decode, ep);
 				}
-				//sei();
 				ep = 0;
 			}
 			else
@@ -417,24 +262,15 @@ void readSerial()
 	}
 }
 
-void ub_manage()
-{
-	ub_manage_connection(&bus, send_on_idle);
-}
-
 void setup()
 {
 	pinMode(NET_TRAFFIC_LED, OUTPUT);
 
-	from_serial = new_queue();
+	init_ubg_commons();
 
 	USART_Init();
 	
-	
-	SERIAL_PC.begin
-	(
-		BAUD
-	);
+	SERIAL_PC.begin(BAUD);
 	
 	init_bus();
 	sei();
@@ -442,9 +278,6 @@ void setup()
 
 void loop()
 {
-	//SERIAL_PC.flush();
-	ub_manage();
-	readSerial();
+	ubg_handle_events();
 }
-
 
