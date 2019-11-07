@@ -1,7 +1,6 @@
 package eu.javaexperience.electronic.uartbus.rpc;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +48,13 @@ public class UartbusRpcServer
 		"Serial device path",
 		"s", "-serial-device"
 	);
+	
+	protected static final CliEntry<String> DIRECT_SERIAL_DEVICE = CliEntry.createFirstArgParserEntry
+	(
+		(e)->e,
+		"Direct serial driver",
+		"i", "-direct-serial-device"
+	);
 
 	protected static final CliEntry[] PROG_CLI_ENTRIES =
 	{
@@ -56,7 +62,8 @@ public class UartbusRpcServer
 		RPC_PORT,
 		SERIAL_DEV,
 		SERIAL_BAUD,
-		RECONNECT
+		RECONNECT,
+		DIRECT_SERIAL_DEVICE
 	};
 	
 	public static void printHelpAndExit(int exit)
@@ -80,6 +87,7 @@ public class UartbusRpcServer
 		int port = RPC_PORT.tryParseOrDefault(pa, 2112);
 		String serial = SERIAL_DEV.tryParseOrDefault(pa, null);
 		int baud = SERIAL_BAUD.tryParseOrDefault(pa, -1);
+		String directCommand = DIRECT_SERIAL_DEVICE.tryParseOrDefault(pa, null);
 		
 		boolean reconnect = false;
 		
@@ -109,19 +117,25 @@ public class UartbusRpcServer
 		
 		JavaExperienceLoggingFacility.startLoggingIntoDirectory(new File(wd+"/log/"), "uartbus-rpc-server-");
 		
-		IOStream[] prev = new IOStream[1];
-		
 		SimpleGet<IOStream> socketFactory = UartbusRpcClientTools.waitReconnect
 		(
 			()->
 			{
 				try
 				{
-					prev[0] = SerialTools.openSerial(serial, baud);
+					IOStream  ret;
+					if(null != directCommand)
+					{
+						ret = SerialTools.openDirectSerial(directCommand, serial, baud);
+					}
+					else
+					{
+						ret = SerialTools.openSerial(serial, baud);
+					}
 					Thread.sleep(100);
-					prev[0].getInputStream();
-					prev[0].getOutputStream();
-					return prev[0];
+					ret.getInputStream();
+					ret.getOutputStream();
+					return ret;
 				}
 				catch (Exception e)
 				{
@@ -130,9 +144,7 @@ public class UartbusRpcServer
 				}
 			},
 			"serial connection to the bus gateway");
-		IOStream ser = socketFactory.get();
-		prev[0] = ser;
-		UartbusPacketConnector conn = new UartbusPacketConnector(ser, (byte)0xff);
+		UartbusPacketConnector conn = new UartbusPacketConnector(socketFactory.get(), (byte)0xff);
 		if(reconnect)
 		{
 			conn.setSocketCloseListener(()->

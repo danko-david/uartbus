@@ -100,8 +100,12 @@ uint8_t send_data[MAX_PACKET_SIZE];
 static uint8_t send_on_idle(struct uartbus* bus, uint8_t** data, uint16_t* size)
 {
 	struct queue_entry* send;
+
+#ifndef UBG_ALLOC_NO_SYNCHRONIZATION_NEEDED
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+#endif
 	{
+
 		send = queue_take(from_serial);
 	}
 
@@ -110,7 +114,10 @@ static uint8_t send_on_idle(struct uartbus* bus, uint8_t** data, uint16_t* size)
 		memcpy(send_data, send->data, send->size);
 		*data = send_data;
 		*size = send->size;
+
+#ifndef UBG_ALLOC_NO_SYNCHRONIZATION_NEEDED
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+#endif
 		{
 			free_queue_entry(send);
 		}

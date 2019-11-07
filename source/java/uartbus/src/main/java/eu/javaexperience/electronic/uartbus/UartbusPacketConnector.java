@@ -72,6 +72,10 @@ public class UartbusPacketConnector implements Closeable
 	
 	public synchronized void setIoStream(IOStream io)
 	{
+		if(null != this.io)
+		{
+			IOTools.silentClose(this.io);
+		}
 		this.io = io;
 	}
 	
@@ -95,8 +99,6 @@ public class UartbusPacketConnector implements Closeable
 		}
 	}
 	
-	byte[] read_buffer = new byte[10240];
-	
 	public void startListen()
 	{
 		if(null != receiver)
@@ -112,6 +114,7 @@ public class UartbusPacketConnector implements Closeable
 			public void run()
 			{
 				int read = 0;
+				byte[] read_buffer = new byte[10240];
 				while(run /*&& null != io*/)
 				{
 					try
@@ -164,7 +167,7 @@ public class UartbusPacketConnector implements Closeable
 				byte b = data[i];
 				if(trace)
 				{
-					LoggingTools.tryLogFormat(LOG, LogLevel.TRACE, "Feeding byte: %s, mayCut: %s, ep: %s, ", b, mayCut, ep, UartbusTools.formatColonData(Arrays.copyOf(buffer, ep)));
+					LoggingTools.tryLogFormat(LOG, LogLevel.TRACE, "Feeding byte: %s, mayCut: %s, ep: %s, ", 0xff & b, mayCut, ep, UartbusTools.formatColonData(Arrays.copyOf(buffer, ep)));
 				}
 				
 				if(mayCut)
@@ -215,9 +218,9 @@ public class UartbusPacketConnector implements Closeable
 			{
 				synchronized(this)
 				{
-				OutputStream os = getOutputStream();
-				os.write(send);
-				os.flush();
+					OutputStream os = getOutputStream();
+					os.write(send);
+					os.flush();
 				}
 				return;
 			}

@@ -3,8 +3,8 @@ package eu.javaexperience.electronic;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Arrays;
 
-import eu.javaexperience.interfaces.simple.SimpleCall;
 import eu.javaexperience.io.IOStream;
 
 public class SerialTools
@@ -13,10 +13,17 @@ public class SerialTools
 	
 	public static IOStream openSerial(final String dev, int baud) throws IOException
 	{
-		ProcessBuilder pb = new ProcessBuilder
-		(
-			"socat", dev+",b"+baud+",raw,echo=0", "-"
-		);
+		return openCommunicatorProcess("socat", dev+",b"+baud+",raw,echo=0", "-");
+	}
+	
+	public static IOStream openDirectSerial(String directCommand, String serial, int baud) throws IOException
+	{
+		return openCommunicatorProcess(directCommand, serial, String.valueOf(baud));
+	}
+	
+	public static IOStream openCommunicatorProcess(String... params) throws IOException
+	{
+		ProcessBuilder pb = new ProcessBuilder(params);
 		
 		final Process p = pb.start();
 		return new IOStream()
@@ -30,13 +37,13 @@ public class SerialTools
 			@Override
 			public String remoteAddress()
 			{
-				return "serial:"+dev;
+				return "Uartbus serial communication process :"+Arrays.toString(params);
 			}
 			
 			@Override
 			public String localAddress()
 			{
-				return "serial:"+dev;
+				return "Uartbus serial communication process :"+Arrays.toString(params);
 			}
 			
 			@Override
