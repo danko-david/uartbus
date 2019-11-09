@@ -1,5 +1,7 @@
 #!/bin/bash
 
+cd "$(dirname `readlink -f "$0"`)"
+
 gcc -g\
 	../../../bus/lib/common/ub.c\
 	../../../../../WD/toe/src/c/utils.c\
