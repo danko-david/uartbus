@@ -117,25 +117,29 @@ public class UartbusRpcServer
 		
 		JavaExperienceLoggingFacility.startLoggingIntoDirectory(new File(wd+"/log/"), "uartbus-rpc-server-");
 		
+		IOStream[] prev = new IOStream[1];
 		SimpleGet<IOStream> socketFactory = UartbusRpcClientTools.waitReconnect
 		(
 			()->
 			{
 				try
 				{
-					IOStream  ret;
+					if(null != prev[0])
+					{
+						IOTools.silentClose(prev[0]);
+					}
+					
 					if(null != directCommand)
 					{
-						ret = SerialTools.openDirectSerial(directCommand, serial, baud);
+						prev[0] = SerialTools.openDirectSerial(directCommand, serial, baud);
 					}
 					else
 					{
-						ret = SerialTools.openSerial(serial, baud);
+						prev[0] = SerialTools.openSerial(serial, baud);
 					}
-					Thread.sleep(100);
-					ret.getInputStream();
-					ret.getOutputStream();
-					return ret;
+					prev[0].getInputStream();
+					prev[0].getOutputStream();
+					return prev[0];
 				}
 				catch (Exception e)
 				{

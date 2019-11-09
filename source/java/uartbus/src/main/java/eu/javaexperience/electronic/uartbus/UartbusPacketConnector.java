@@ -19,13 +19,12 @@ import eu.javaexperience.log.Loggable;
 import eu.javaexperience.log.Logger;
 import eu.javaexperience.log.LoggingTools;
 import eu.javaexperience.parse.ParsePrimitive;
-import eu.javaexperience.reflect.Mirror;
 import eu.javaexperience.text.StringTools;
 
 public class UartbusPacketConnector implements Closeable
 {
 	protected static final Logger LOG = JavaExperienceLoggingFacility.getLogger(new Loggable("UartbusPacketConnector"));
-	protected volatile IOStream io;
+	protected IOStream io;
 	protected byte packetEscape;
 	protected SimplePublish1<byte[]> onPacketReceived;
 	
@@ -52,22 +51,40 @@ public class UartbusPacketConnector implements Closeable
 	
 	protected synchronized InputStream getInputStream()
 	{
-		InputStream ret = io.getInputStream();
-		if(LOG.mayLog(LogLevel.TRACE))
+		try
 		{
-			LoggingTools.tryLogFormat(LOG, LogLevel.TRACE, "`%s`.getInputStream() [io:`%s`] => `%s`", this, io, ret);
+			InputStream ret = io.getInputStream();
+			if(LOG.mayLog(LogLevel.TRACE))
+			{
+				LoggingTools.tryLogFormat(LOG, LogLevel.TRACE, "`%s`.getInputStream() [io:`%s`] => `%s`", this, io, ret);
+			}
+			return ret;
 		}
-		return ret;
+		catch(Exception e)
+		{
+			manageClosedConnection();
+		}
+		
+		return getInputStream();
 	}
 	
 	protected synchronized OutputStream getOutputStream()
 	{
-		OutputStream ret = io.getOutputStream();
-		if(LOG.mayLog(LogLevel.TRACE))
+		try
 		{
-			LoggingTools.tryLogFormat(LOG, LogLevel.TRACE, "`%s`.getOutputStream() [io:`%s`] => `%s`", this, io, ret);
+			OutputStream ret = io.getOutputStream();
+			if(LOG.mayLog(LogLevel.TRACE))
+			{
+				LoggingTools.tryLogFormat(LOG, LogLevel.TRACE, "`%s`.getOutputStream() [io:`%s`] => `%s`", this, io, ret);
+			}
+			return ret;
 		}
-		return ret;
+		catch(Exception e)
+		{
+			manageClosedConnection();
+		}
+		
+		return getOutputStream();
 	}
 	
 	public synchronized void setIoStream(IOStream io)
@@ -128,19 +145,12 @@ public class UartbusPacketConnector implements Closeable
 					catch(Exception e)
 					{
 						LoggingTools.tryLogFormatException(LOG, LogLevel.ERROR, e, "Exception while reading package ");
-						synchronized(UartbusPacketConnector.this)
-						{
-							io = null;
-							if(null != onClosed)
-							{
-								onClosed.call();
-							}
-						}
+						manageClosedConnection();
 					}
 					
 					try
 					{
-						Thread.sleep(100);
+						Thread.sleep(1000);
 					}
 					catch (InterruptedException e){}
 				}
@@ -204,6 +214,39 @@ public class UartbusPacketConnector implements Closeable
 		}
 	}
 	
+	protected void manageClosedConnection()
+	{
+		if(null != onClosed)
+		{
+			synchronized(this)
+			{
+				for(int i=0;i<100;++i)
+				{
+					try
+					{
+						onClosed.call();
+						
+						if(null != io)
+						{
+							io.getInputStream();
+							return;
+						}
+					}
+					catch(Exception e) {}
+					try
+					{
+						Thread.sleep(100);
+					}
+					catch (InterruptedException e)
+					{
+						e.printStackTrace();
+					}
+				}
+				throw new RuntimeException("Stream still closed after 100 retry");
+			}
+		}
+	}
+	
 	public void sendPacket(byte[] data)
 	{
 		byte[] send = frameBytes(data, packetEscape);
@@ -226,6 +269,7 @@ public class UartbusPacketConnector implements Closeable
 			}
 			catch(Exception e)
 			{
+				manageClosedConnection();
 				LoggingTools.tryLogFormatException(LOG, LogLevel.WARNING, e, "Error while writing framed packet ");
 				try
 				{

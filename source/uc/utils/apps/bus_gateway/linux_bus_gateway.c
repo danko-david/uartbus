@@ -56,8 +56,19 @@ void ub_rec_byte(struct uartbus* a, uint8_t data_byte)
 uint8_t ub_do_send_byte(struct uartbus* bus, uint8_t val)
 {
 	write(serial_fd, &val, 1);
-	fsync(serial_fd);
 	return 0;
+}
+
+uint16_t ub_read_byte(struct uartbus* bus)
+{
+	uint16_t ret;
+	if(read(serial_fd, &ret, 1) <= 0)
+	{
+		perror("Error while reading from the bus: ");
+		abort();
+	}
+
+	return ret;
 }
 
 void ub_event(struct uartbus* a, enum uartbus_event event)
@@ -111,10 +122,18 @@ void elevate_priority()
 		nice(i);
 	}
 
+/*
 	pthread_t this_thread = pthread_self();
 	struct sched_param params;
 	params.sched_priority = sched_get_priority_max(SCHED_FIFO);
 	int ret = pthread_setschedparam(this_thread, SCHED_FIFO, &params);
+*/
+	struct sched_param sch;
+	sch.__sched_priority = 90;//sched_get_priority_max(SCHED_FIFO);
+	#ifdef UBG_DEBUG_PRINT
+		fprintf(stderr, "max prio: %d\n", sch.__sched_priority);
+		fprintf(stderr, "sched_setscheduler return value %d\n", sched_setscheduler(0, SCHED_FIFO, &sch));
+	#endif
 }
 
 void manage_data_from_pc()
@@ -223,6 +242,7 @@ void init_bus(int baud)
 	bus.current_usec = (uint32_t (*)(struct uartbus* bus)) micros;
 	bus.serial_byte_received = ub_rec_byte;
 	bus.serial_event = ub_event;
+	bus.do_receive_byte = ub_read_byte;
 	ub_init_baud(&bus, baud, 2);
 	bus.do_send_byte = ub_do_send_byte;
 	bus.cfg = 0
@@ -279,6 +299,9 @@ int get_baud(int baud)
 	}
 }
 
+#include <linux/serial.h>
+#include <sys/ioctl.h>
+
 int tty(const char* tty, int baudSpeedSymbol)
 {
 	/*
@@ -311,14 +334,29 @@ int tty(const char* tty, int baudSpeedSymbol)
 	options.c_cflag |= (CLOCAL | CREAD);   // Enable the receiver and set local mode
 	options.c_cflag &= ~CSTOPB;// 1 stop bit
 	options.c_cflag &= ~CRTSCTS;   // Disable hardware flow control
+	options.c_cflag &= ~ICANON;
 	options.c_cc[VMIN]  = 1;
-	options.c_cc[VTIME] = 2;
+	options.c_cc[VTIME] = 0;
 
 	// Set the new attributes
 	if(tcsetattr(fd, TCSANOW, &options) < 0)
 	{
-		fprintf(stderr, "failed to set attr: %d, %s\n", fd, strerror(errno));
+		perror("failed to set serial TCSANOW: ");
 		exit(2);
+	}
+
+
+	struct serial_struct serial;
+	if(ioctl(fd, TIOCGSERIAL, &serial) < 0)
+	{
+		perror("failed to get serial TIOCGSERIAL: ");
+	}
+
+	serial.flags |= ASYNC_LOW_LATENCY;
+	//serial.xmit_fifo_size = FIFO_SIZE;	// what is "xmit" ??
+	if(ioctl(fd, TIOCSSERIAL, &serial) < 0)
+	{
+		perror("failed to set serial TIOCGSERIAL: ");
 	}
 
 	return fd;
@@ -386,8 +424,6 @@ void main(int argc, char* argv[])
 	}
 
 	serial_fd = tty(argv[1], baud_symbol);
-
-	elevate_priority();
 
 	init_bus(baud);
 
