@@ -137,6 +137,22 @@ uint8_t crc8(uint8_t* data, uint8_t length)
 	return crc;
 }
 
+static void ub_collision_happened(struct uartbus* bus)
+{
+	enum uartbus_status prev = bus->status;
+	bus->status = ub_stat_collision;
+
+	if(ub_stat_collision != prev)
+	{
+		bus->serial_event(bus, ub_event_collision_start);
+	}
+
+	if(ub_stat_sending == prev)
+	{
+		bus->serial_event(bus, ub_event_send_end);
+	}
+}
+
 __attribute__((noinline)) void ub_out_update_state(struct uartbus* bus)
 {
 	enum uartbus_status status = bus->status;
@@ -183,6 +199,13 @@ __attribute__((noinline)) void ub_out_update_state(struct uartbus* bus)
 		}
 		else if(ub_stat_sending == status)
 		{
+			//if there's next exprected value it means we missed the
+			//transmission deadline
+			if(bus->wi != ~0)
+			{
+				ub_collision_happened(bus);
+				return;
+			}
 			//a successfull send, so we might send the next packet
 			bus->to_send_size = 0;
 			bus->wi = get_fairwait_conf_cycles(bus);
@@ -215,20 +238,7 @@ static bool ub_check_and_handle_collision(struct uartbus* bus, uint16_t data)
 	//to consider alternative wait cycle.
 	if(data > 255 || (bus->wi != data) || is_slice_exceed(bus, true))
 	{
-		enum uartbus_status prev = bus->status;
-		bus->status = ub_stat_collision;
-		
-		//ub_update_last_activity_now(bus);
-
-		if(ub_stat_collision != prev)
-		{
-			bus->serial_event(bus, ub_event_collision_start);
-		}
-
-		if(ub_stat_sending == prev)
-		{
-			bus->serial_event(bus, ub_event_send_end);
-		}
+		ub_collision_happened(bus);
 
 		if(!(bus->cfg & ub_cfg_skip_collision_data))
 		{
@@ -241,7 +251,7 @@ static bool ub_check_and_handle_collision(struct uartbus* bus, uint16_t data)
 	{
 		bus->wi = ~0;
 	}
-	
+
 	return false;
 }
 

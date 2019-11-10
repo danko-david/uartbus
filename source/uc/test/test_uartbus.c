@@ -768,8 +768,8 @@ uint8_t ubt_loopback_stuck_when_value_20(struct uartbus* bus, uint8_t val)
 	if(val == 20)
 	{
 		ubt_step_byte_time(bus);
-		ubt_step_byte_time(bus);
-		ubt_step_byte_time(bus);
+		ub_out_update_state(bus);
+		TEST_ASSERT_EQUAL(ub_stat_collision, bus->status);
 	}
 
 	ub_out_rec_byte(bus, val);
@@ -795,33 +795,19 @@ void test_retransmit_on_missed_send_deadline()
 	bus->bus.do_send_byte = ubt_loopback_stuck_when_value_20;
 
 	TEST_ASSERT_EQUAL(-2, ub_manage_connection(&bus->bus, ub_send_on_idle_immedatly));
-
-
-	//well... maybe a max_retry feature gonna be good.
-/*	for(int i=0;i < 20;++i)
-	{
-
-		//we still should be in "sending" state
-		TEST_ASSERT_EQUAL(ub_stat_sending, bus->bus.status);
-
-		ub_out_rec_byte(&bus->bus, 99);
-
-		TEST_ASSERT_EQUAL(ub_stat_collision, bus->bus.status);
-
-		TEST_ASSERT_EQUAL(5, bus->bus.to_send_size);
-
-		ubt_go_idle(bus);
-	}
-*/
-
-	ubt_go_idle(bus);
-
-	TEST_ASSERT_EQUAL(-2, ub_manage_connection(&bus->bus, ub_send_on_idle_immedatly));
+	TEST_ASSERT_EQUAL(ub_stat_collision, bus->bus.status);
 	TEST_ASSERT_EQUAL(5, send_size);
 
 	ubt_go_idle(bus);
 
 	TEST_ASSERT_EQUAL(-2, ub_manage_connection(&bus->bus, ub_send_on_idle_immedatly));
+	TEST_ASSERT_EQUAL(ub_stat_collision, bus->bus.status);
+	TEST_ASSERT_EQUAL(5, send_size);
+
+	ubt_go_idle(bus);
+
+	TEST_ASSERT_EQUAL(-2, ub_manage_connection(&bus->bus, ub_send_on_idle_immedatly));
+	TEST_ASSERT_EQUAL(ub_stat_collision, bus->bus.status);
 	TEST_ASSERT_EQUAL(5, send_size);
 
 	ubt_go_idle(bus);
@@ -835,6 +821,7 @@ void test_retransmit_on_missed_send_deadline()
 
 	TEST_ASSERT_EQUAL(ub_stat_idle, bus->bus.status);
 }
+
 
 struct test_job* LCT_CURRENT_TEST_JOB;
 
