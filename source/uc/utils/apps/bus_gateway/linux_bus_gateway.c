@@ -92,7 +92,7 @@ bool may_log()
 		may_log_stat = NULL == getenv("UBG_LINUX_DIRECT_COMM_PROCESS_DEBUG")?1:2;
 	}
 
-	return 1 == may_log_stat;
+	return 2 == may_log_stat;
 }
 
 void ub_event(struct uartbus* a, enum uartbus_event event)
