@@ -81,7 +81,7 @@ public class UartbusPacketConnector implements Closeable
 		}
 		catch(Exception e)
 		{
-			manageClosedConnection(e, "Trying to write from the communication process");
+			manageClosedConnection(e, "Trying to write to the communication process");
 		}
 		
 		return getOutputStream();
@@ -215,7 +215,7 @@ public class UartbusPacketConnector implements Closeable
 	
 	protected void manageClosedConnection(Exception caused, String whileOp)
 	{
-		LoggingTools.tryLogFormatException(LOG, LogLevel.WARNING, caused, "Commonication process broken while: `%s`", whileOp);
+		LoggingTools.tryLogFormatException(LOG, LogLevel.WARNING, caused, "Communication process broken while: `%s` ", whileOp);
 		if(null != onClosed)
 		{
 			synchronized(this)

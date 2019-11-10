@@ -1,7 +1,19 @@
 
 //if you miss rerunnable_thread.c or worker_pool.c file call "./scripts/get_c_deps.sh"
 
-
+/*
+exit codes:
+1 - invalid argument
+2 - can't open serial port
+3 - can't setup serial port
+4 - error while reading from the bus
+5 - error while reading from the PC
+6 - catched segmentation fault
+7 - exit by sigint
+8 - exit by sighup
+9 - exit by sigterm
+10 - other signal
+*/
 #include "inttypes.h"
 #include <stdio.h>
 #include <string.h>
@@ -59,13 +71,14 @@ uint8_t ub_do_send_byte(struct uartbus* bus, uint8_t val)
 	return 0;
 }
 
+//this is unused now
 uint16_t ub_read_byte(struct uartbus* bus)
 {
 	uint16_t ret;
 	if(read(serial_fd, &ret, 1) <= 0)
 	{
 		perror("Error while reading from the bus: ");
-		abort();
+		exit(4);
 	}
 
 	return ret;
@@ -153,7 +166,7 @@ void manage_data_from_pc()
 		if(len <= 0)
 		{
 			perror("Error while reading from PC: ");
-			abort();
+			exit(5);
 		}
 
 		for(int i=0;i<len;++i)
@@ -224,7 +237,7 @@ void manage_data_from_bus()
 		if(len <= 0)
 		{
 			perror("Error while reading from serial: ");
-			abort();
+			exit(4);
 		}
 
 		#ifdef UBG_DEBUG_PRINT
@@ -312,7 +325,7 @@ int tty(const char* tty, int baudSpeedSymbol)
 	if(fd < 0)
 	{
 		fprintf(stderr, "failed to open tty: %s, %s\n", tty, strerror(errno));
-		exit(1);
+		exit(2);
 	}
 
 	struct termios options;// Terminal options
@@ -321,7 +334,7 @@ int tty(const char* tty, int baudSpeedSymbol)
 	if(tcgetattr(fd, &options) < 0)
 	{
 		fprintf(stderr, "failed to get attr: %d, %s\n", fd, strerror(errno));
-		exit(1);
+		exit(2);
 	}
 
 	// Set the baud rates to 230400
@@ -342,7 +355,7 @@ int tty(const char* tty, int baudSpeedSymbol)
 	if(tcsetattr(fd, TCSANOW, &options) < 0)
 	{
 		perror("failed to set serial TCSANOW: ");
-		exit(2);
+		exit(3);
 	}
 
 
@@ -389,7 +402,7 @@ void sigsegv_handler()
 
 	fflush(stdout);
 	free (strings);
-	abort();
+	exit(6);
 #else
 	printf("//TODO implement `print_stack_trace` on this platform!\n");
 #endif
@@ -405,9 +418,28 @@ void install_sigsegv_handler()
 	sigaction(SIGSEGV, &sa, NULL);
 }
 
+void handle_exit_signals(int signal)
+{
+	switch(signal)
+	{
+	case SIGINT: exit(7);
+	case SIGHUP: exit(8);
+	case SIGTERM: exit(9);
+	default: exit(10);
+	}
+}
+
+void install_signal_exit_handler()
+{
+	signal(SIGINT, handle_exit_signals);
+	signal(SIGHUP, handle_exit_signals);
+	signal(SIGTERM, handle_exit_signals);
+}
+
 void main(int argc, char* argv[])
 {
 	install_sigsegv_handler();
+	install_signal_exit_handler();
 
 	if(3 != argc)
 	{

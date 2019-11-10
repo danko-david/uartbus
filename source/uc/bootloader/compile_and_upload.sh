@@ -1,11 +1,8 @@
 #!/bin/bash
 
-# usage: ./compile_and_upload.sh $mcu $bus_address $ttyUSB$number
-# example: ./compile_and_upload.sh atmega328p 4 1
-
-if [ "$#" -lt 3 ]; then
-        echo 'Usage: ./compile_and_upload.sh $mcu $bus_address $ttyUSBnumber'
-        echo 'eg: ./compile_and_upload.sh atmega328p 4 1'
+if [ "$#" -lt 4 ]; then
+        echo 'Usage: ./compile_and_upload.sh $mcu $baud_rate $bus_address $ttyUSBnumber'
+        echo 'eg: ./compile_and_upload.sh atmega328p 115200 4 1'
         exit 1
 fi
 
@@ -23,10 +20,10 @@ avr-g++ -o ubb.o ub_bootloader.c ub_atmega.c ../bus/lib/common/ub.c ../utils/lib
 	-fno-exceptions\
 	-DDONT_USE_SOFT_FP=1\
 	-DUB_HOST_VERSION=1\
-	-DBUS_ADDRESS=$2\
+	-DBUS_ADDRESS=$3\
 	-Wl,--section-start=.host_table=0x1fe0\
 	-DHOST_TABLE_ADDRESS=0x1fe0\
-	-DBAUD_RATE=115200\
+	-DBAUD_RATE=$2\
 	-DF_CPU=16000000\
 	-DAPP_START_ADDRESS=0x2000\
 	-DAPP_CHECKSUM=0\
@@ -63,4 +60,4 @@ size ubb.o
 avr-objdump -S --disassemble  ubb.o > ubb.asm
 avr-nm --size-sort ubb.o > ubb.sizes
 
-avrdude -p $1 -b 19200 -c avrisp -P /dev/ttyUSB$3 -Uflash:w:ubb.hex:i
+avrdude -p $1 -b 19200 -c avrisp -P /dev/ttyUSB$4 -Uflash:w:ubb.hex:i

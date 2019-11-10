@@ -58,7 +58,7 @@ public class SerialTools
 			{
 				if(!p.isAlive())
 				{
-					throw new RuntimeException("Communication process is dead");
+					throw new RuntimeException("Communication process is dead. Exit status: "+p.exitValue());
 				}
 			}
 			
