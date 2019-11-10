@@ -187,9 +187,20 @@ void manage_data_from_pc()
 						fprintf(stderr, "Dispatching packet from PC\n");
 					#endif
 
-					while(NULL != send_data || bus.status != ub_stat_idle)
+					while(NULL != send_data || 0 != bus.to_send_size)
 					{
-						ub_manage_connection(&bus, send_on_idle);
+						int res = ub_manage_connection(&bus, send_on_idle);
+						usleep(bus.byte_time_us);
+						#ifdef UBG_DEBUG_PRINT
+							fprintf
+							(
+								stderr,
+								"dispatch from PC ub_manage_connection(...) = %d | send_data = %p | to_send_size = %d\n",
+								res,
+								send_data,
+								bus.to_send_size
+							);
+						#endif
 					}
 					ep = 0;
 				}
@@ -241,7 +252,7 @@ void manage_data_from_bus()
 		}
 
 		#ifdef UBG_DEBUG_PRINT
-			fprintf(stderr, "serial read: %d (%02X)\n", val, val);
+			fprintf(stderr, "serial read: %d (%02X) | bus.status = %d\n", val, val, bus.status);
 		#endif
 		ub_out_rec_byte(&bus, val);
 	}

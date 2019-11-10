@@ -2,6 +2,8 @@
 
 cd "$(dirname `readlink -f "$0"`)"
 
+rm linux_uartbus_gateway
+
 gcc -g\
 	../../../bus/lib/common/ub.c\
 	../../../../../WD/toe/src/c/utils.c\
@@ -12,5 +14,5 @@ gcc -g\
 	-I../../../bus/lib/common/\
 	linux_bus_gateway.c\
 	-lpthread\
-	-o linux_uartbus_gateway
-#	-DUBG_DEBUG_PRINT
+	-o linux_uartbus_gateway\
+	-DUBG_DEBUG_PRINT
