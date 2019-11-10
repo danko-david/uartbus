@@ -213,12 +213,12 @@ static bool ub_check_and_handle_collision(struct uartbus* bus, uint16_t data)
 	//handle collision
 	//maybe we can insert random wait by modifing get_packet_timeout_cycles
 	//to consider alternative wait cycle.
-	if(data > 255 || (bus->wi != data))
+	if(data > 255 || (bus->wi != data) || is_slice_exceed(bus, true))
 	{
 		enum uartbus_status prev = bus->status;
 		bus->status = ub_stat_collision;
 		
-		ub_update_last_activity_now(bus);
+		//ub_update_last_activity_now(bus);
 
 		if(ub_stat_collision != prev)
 		{
