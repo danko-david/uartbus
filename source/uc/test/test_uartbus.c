@@ -817,10 +817,12 @@ void test_retransmit_on_missed_send_deadline()
 	ubt_go_idle(bus);
 
 	TEST_ASSERT_EQUAL(-2, ub_manage_connection(&bus->bus, ub_send_on_idle_immedatly));
+	TEST_ASSERT_EQUAL(5, send_size);
 
 	ubt_go_idle(bus);
 
 	TEST_ASSERT_EQUAL(-2, ub_manage_connection(&bus->bus, ub_send_on_idle_immedatly));
+	TEST_ASSERT_EQUAL(5, send_size);
 
 	ubt_go_idle(bus);
 	ubt_set_successfull_loopback(bus);
