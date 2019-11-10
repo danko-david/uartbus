@@ -84,20 +84,33 @@ uint16_t ub_read_byte(struct uartbus* bus)
 	return ret;
 }
 
+int may_log_stat = 0;
+bool may_log()
+{
+	if(0 == may_log_stat)
+	{
+		may_log_stat = NULL == getenv("UBG_LINUX_DIRECT_COMM_PROCESS_DEBUG")?1:2;
+	}
+
+	return 1 == may_log_stat;
+}
+
 void ub_event(struct uartbus* a, enum uartbus_event event)
 {
 	if(ub_event_receive_start == event)
 	{
-		#ifdef UBG_DEBUG_PRINT
+		if(may_log())
+		{
 			fprintf(stderr, "UB packet start\n");
-		#endif
+		}
 		receive = true;
 	}
 	else if(ub_event_receive_end == event)
 	{
-		#ifdef UBG_DEBUG_PRINT
+		if(may_log())
+		{
 			fprintf(stderr, "UB packet end\n");
-		#endif
+		}
 		write(1, PACKET_END, 2);
 		receive = false;
 	}
@@ -143,10 +156,11 @@ void elevate_priority()
 */
 	struct sched_param sch;
 	sch.__sched_priority = 90;//sched_get_priority_max(SCHED_FIFO);
-	#ifdef UBG_DEBUG_PRINT
+	if(may_log())
+	{
 		fprintf(stderr, "max prio: %d\n", sch.__sched_priority);
 		fprintf(stderr, "sched_setscheduler return value %d\n", sched_setscheduler(0, SCHED_FIFO, &sch));
-	#endif
+	}
 }
 
 void manage_data_from_pc()
@@ -173,9 +187,10 @@ void manage_data_from_pc()
 		{
 			uint8_t b = buffer[i];
 
-		#ifdef UBG_DEBUG_PRINT
+		if(may_log())
+		{
 			fprintf(stderr, "PC read: %d (%02X)\n", b, b);
-		#endif
+		}
 
 			if(mayCut)
 			{
@@ -183,15 +198,17 @@ void manage_data_from_pc()
 				{
 					send_data = decode;
 					send_size = ep;
-					#ifdef UBG_DEBUG_PRINT
+					if(may_log())
+					{
 						fprintf(stderr, "Dispatching packet from PC\n");
-					#endif
+					}
 
 					while(NULL != send_data || 0 != bus.to_send_size)
 					{
 						int res = ub_manage_connection(&bus, send_on_idle);
 						usleep(bus.byte_time_us);
-						#ifdef UBG_DEBUG_PRINT
+						if(may_log())
+						{
 							fprintf
 							(
 								stderr,
@@ -200,7 +217,7 @@ void manage_data_from_pc()
 								send_data,
 								bus.to_send_size
 							);
-						#endif
+						}
 					}
 					ep = 0;
 				}
@@ -220,9 +237,10 @@ void manage_data_from_pc()
 				if(b == PACKET_ESCAPE)
 				{
 					mayCut = true;
-					#ifdef UBG_DEBUG_PRINT
+					if(may_log())
+					{
 						fprintf(stderr, "PC read: mayCut=true\n");
-					#endif
+					}
 				}
 				else
 				{
@@ -251,9 +269,10 @@ void manage_data_from_bus()
 			exit(4);
 		}
 
-		#ifdef UBG_DEBUG_PRINT
+		if(may_log())
+		{
 			fprintf(stderr, "serial read: %d (%02X) | bus.status = %d\n", val, val, bus.status);
-		#endif
+		}
 		ub_out_rec_byte(&bus, val);
 	}
 }
