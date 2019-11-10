@@ -22,3 +22,4 @@ WD/
 **/*.bak
 **/*-cache.lib
 **/hs_err_pid*.log
+**/linux_uartbus_gateway

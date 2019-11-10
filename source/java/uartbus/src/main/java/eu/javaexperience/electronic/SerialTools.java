@@ -3,6 +3,7 @@ package eu.javaexperience.electronic;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.ProcessBuilder.Redirect;
 import java.util.Arrays;
 
 import eu.javaexperience.io.IOStream;
@@ -25,6 +26,7 @@ public class SerialTools
 	{
 		ProcessBuilder pb = new ProcessBuilder(params);
 		
+		pb.redirectError(Redirect.INHERIT);
 		final Process p = pb.start();
 		return new IOStream()
 		{

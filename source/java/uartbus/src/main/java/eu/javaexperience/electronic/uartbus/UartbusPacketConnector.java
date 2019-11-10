@@ -62,7 +62,7 @@ public class UartbusPacketConnector implements Closeable
 		}
 		catch(Exception e)
 		{
-			manageClosedConnection();
+			manageClosedConnection(e, "Trying to read from the communication process");
 		}
 		
 		return getInputStream();
@@ -81,7 +81,7 @@ public class UartbusPacketConnector implements Closeable
 		}
 		catch(Exception e)
 		{
-			manageClosedConnection();
+			manageClosedConnection(e, "Trying to write from the communication process");
 		}
 		
 		return getOutputStream();
@@ -144,8 +144,7 @@ public class UartbusPacketConnector implements Closeable
 					}
 					catch(Exception e)
 					{
-						LoggingTools.tryLogFormatException(LOG, LogLevel.ERROR, e, "Exception while reading package ");
-						manageClosedConnection();
+						manageClosedConnection(e, "reading packet");
 					}
 					
 					try
@@ -214,8 +213,9 @@ public class UartbusPacketConnector implements Closeable
 		}
 	}
 	
-	protected void manageClosedConnection()
+	protected void manageClosedConnection(Exception caused, String whileOp)
 	{
+		LoggingTools.tryLogFormatException(LOG, LogLevel.WARNING, caused, "Commonication process broken while: `%s`", whileOp);
 		if(null != onClosed)
 		{
 			synchronized(this)
@@ -269,8 +269,7 @@ public class UartbusPacketConnector implements Closeable
 			}
 			catch(Exception e)
 			{
-				manageClosedConnection();
-				LoggingTools.tryLogFormatException(LOG, LogLevel.WARNING, e, "Error while writing framed packet ");
+				manageClosedConnection(e, "writing framed packet");
 				try
 				{
 					Thread.sleep(100);
