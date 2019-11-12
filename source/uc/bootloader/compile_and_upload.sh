@@ -60,4 +60,8 @@ size ubb.o
 avr-objdump -S --disassemble  ubb.o > ubb.asm
 avr-nm --size-sort ubb.o > ubb.sizes
 
-avrdude -p $1 -b 19200 -c avrisp -P /dev/ttyUSB$4 -Uflash:w:ubb.hex:i
+if [ $4 -gt 0 ]; then
+	avrdude -p $1 -b 19200 -c avrisp -P /dev/ttyUSB$4 -Uflash:w:ubb.hex:i
+fi
+
+

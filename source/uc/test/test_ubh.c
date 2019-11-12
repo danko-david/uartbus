@@ -14,6 +14,8 @@
 
 #include "../bootloader/ub_bootloader.c"
 
+#include "../bus/lib/common/ub.c"
+
 
 /****************************** test implementation ***************************/
 

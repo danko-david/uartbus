@@ -1,5 +1,6 @@
 #!/bin/bash
-cd "$(dirname "$0")"
+
+cd "$(dirname `readlink -f "$0"`)"
 cd ../source/java/uartbus
 # GO to the maven directory, package to final jar
 mvn package
