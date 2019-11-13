@@ -1,5 +1,7 @@
 #!/bin/bash
 
+cd "$(dirname `readlink -f "$0"`)"
+
 if [ "$#" -lt 4 ]; then
         echo 'Usage: ./compile_and_upload.sh $mcu $baud_rate $bus_address $ttyUSBnumber'
         echo 'eg: ./compile_and_upload.sh atmega328p 115200 4 1'
@@ -31,6 +33,10 @@ avr-g++ -o ubb.o ub_bootloader.c ub_atmega.c ../bus/lib/common/ub.c ../utils/lib
 	-Wl,--section-start=.data=0x800702\
 	-Wl,-Tbss,0x800760
 
+if [ -n "$UBH_COMPILE_ONLY" ]; then
+	echo "UBH_COMPILE_ONLY has been set, so exiting now without code modification and code upload"
+	exit 0
+fi
 
 
 #TODO check that build works with:	-Wl,--gc-sections\
