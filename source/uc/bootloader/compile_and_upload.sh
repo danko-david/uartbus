@@ -11,9 +11,10 @@ fi
 
 set -e
 
-avr-g++ -o ubb.o ub_bootloader.c ub_atmega.c ../bus/lib/common/ub.c ../utils/lib/rpc/rpc.c -mmcu=$1\
+avr-g++ -o ubb.o ub_bootloader.c ub_atmega.c ../bus/lib/common/ub.c ../bus/lib/addressing/addr16.c ../utils/lib/rpc/rpc.c -mmcu=$1\
 	-I../commons/\
 	-I../bus/lib/common/\
+	-I../bus/lib/addressing/\
 	-I../utils/lib/rpc/\
 	-Os\
 	-Wl,--section-start=.bootloader=0x7e00\

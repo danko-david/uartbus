@@ -14,13 +14,6 @@
 #include <stdlib.h>
 
 //TODO this arduino dependency MUST be removed.
-#ifdef ARDUINO
-	#if ARDUINO >= 100
-		#include "Arduino.h"
-	#else
-		#include "WProgram.h"
-	#endif
-#endif
 
 #ifndef UINT32_MAX
 	#define UINT32_MAX 0xffffffff

@@ -6,6 +6,7 @@
 
 #include "ub.h"
 #include "rpc.h"
+#include "addr16.h"
 
 /**
  * This variable is provided by the uart_bootloader main component.
