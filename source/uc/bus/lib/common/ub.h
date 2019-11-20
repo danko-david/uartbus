@@ -13,8 +13,6 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-//TODO this arduino dependency MUST be removed.
-
 #ifndef UINT32_MAX
 	#define UINT32_MAX 0xffffffff
 #endif

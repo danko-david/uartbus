@@ -2,7 +2,10 @@
 
 cd "$(dirname `readlink -f "$0"`)"
 cd ../WD
-mkdir arduino_ub_lib 
+
+mkdir -p arduino_ub_lib
+
+rm arduino_ub_lib/*
 
 set -e
 
@@ -13,3 +16,5 @@ cp ../../source/uc/bus/lib/common/ub.c ub.cpp
 cp ../../source/uc/bus/lib/common/ub.h .
 cp ../../source/uc/bus/lib/arduino/ub_arduino.c ub_arduino.cpp
 cp ../../source/uc/bus/lib/arduino/ub_arduino.h ub_arduino.h
+
+cp ../../source/uc/bus/lib/addressing/addr16.* .

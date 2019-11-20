@@ -5,7 +5,7 @@
 
 static void arduino_ub_rec_byte(struct uartbus* bus, uint8_t data_byte)
 {
-	struct uartbus_arduino* a = (struct uartbus_arduino*) bus->user_data;
+	UartBus* a = (UartBus*) bus->user_data;
 
 	if(a->receive_ep == a->receive_size)
 	{
@@ -20,17 +20,22 @@ static void arduino_ub_rec_byte(struct uartbus* bus, uint8_t data_byte)
 
 static void arduino_ub_event(struct uartbus* bus, enum uartbus_event event)
 {
-	struct uartbus_arduino* a = (struct uartbus_arduino*) bus->user_data;
 	if(ub_event_receive_end == event)
 	{
-		a->packet_received(a, a->receive_data, a->receive_ep);
+		UartBus* a = (UartBus*) bus->user_data;
+		a->packet_received
+		(
+			*a,
+			a->receive_data,
+			a->receive_ep
+		);
 		a->receive_ep = 0;
 	}
 }
 
 static uint8_t arduino_ub_do_send_byte(struct uartbus* bus, uint8_t val)
 {
-	struct uartbus_arduino* a = (struct uartbus_arduino*) bus->user_data;
+	UartBus* a = (UartBus*) bus->user_data;
 	a->stream->write(val);
 	a->stream->flush();
 	return 0;
@@ -38,16 +43,17 @@ static uint8_t arduino_ub_do_send_byte(struct uartbus* bus, uint8_t val)
 
 static int16_t arduino_ub_receive_byte(struct uartbus* bus)
 {
-	struct uartbus_arduino* a = (struct uartbus_arduino*) bus->user_data;
+	UartBus* a = (UartBus*) bus->user_data;
 	//while(0 == a->stream->available());
 	return a->stream->read();
 }
 
 static uint8_t arduino_ub_send_on_idle(struct uartbus* bus, uint8_t** data, uint16_t* size)
 {
-	struct uartbus_arduino* a = (struct uartbus_arduino*) bus->user_data;
+	UartBus* a = (UartBus*) bus->user_data;
 	if(a->send_size != 0)
 	{
+		//TODO check CRC and dst and broadcast address
 		*data = a->send_data;
 		*size = a->send_size;
 		a->send_size = 0;
@@ -56,57 +62,136 @@ static uint8_t arduino_ub_send_on_idle(struct uartbus* bus, uint8_t** data, uint
 	return 1;
 }
 
-void arduino_ub_init
+void UartBus::init
 (
-	struct uartbus_arduino* init,
-	Stream* stream,
+	Stream& stream,
+	uint16_t address,
 	uint32_t baudRate,
 	uint8_t maxPacketSize,
-	void (*onPacketReceived)(struct uartbus_arduino* bus, uint8_t* data, uint16_t size),
-	void* user_data
+	void (*onPacketReceived)(UartBus& bus, uint8_t* data, uint16_t size)
 )
 {
-	uint8_t receive_ep;
-	uint8_t* send_data;
-	uint8_t send_size;
+	this->receive_size = maxPacketSize;
+	this->receive_data = (uint8_t*) malloc(maxPacketSize);
+	this->send_data = (uint8_t*) malloc(maxPacketSize);
+	this->stream = &stream;
+	this->send_size = 0;
+	this->packet_received = onPacketReceived;
+	this->address = address;
+	bus.user_data = this;
 
-	init->receive_size = maxPacketSize;
-	init->receive_data =  (uint8_t*) malloc(maxPacketSize);
-	init->stream = stream;
-	init->send_size = 0;
-	init->packet_received = onPacketReceived;
-	init->user_data = user_data;
-
-	struct uartbus* bus = &init->bus;
-	bus->user_data = init;
-	
-	bus->serial_byte_received = arduino_ub_rec_byte;
-	bus->serial_event = arduino_ub_event;
-	ub_init_baud(bus, baudRate, 3);
-	bus->do_send_byte = arduino_ub_do_send_byte;
-	bus->do_receive_byte = arduino_ub_receive_byte;
-	bus->cfg = 0
+	bus.serial_byte_received = arduino_ub_rec_byte;
+	bus.serial_event = arduino_ub_event;
+	ub_init_baud(&bus, baudRate, 2);
+	bus.do_send_byte = arduino_ub_do_send_byte;
+	bus.do_receive_byte = arduino_ub_receive_byte;
+	bus.cfg = 0
 //		|	ub_cfg_fairwait_after_send_low
 		|	ub_cfg_fairwait_after_send_high
 	;
-	ub_init(bus);
+	ub_init(&bus);
 }
 
-
-bool arduino_ub_send_packet(struct uartbus_arduino* bus, uint8_t* data, uint8_t size)
+UartBus::UartBus
+(
+	Stream& stream,
+	uint16_t address,
+	uint32_t baudRate,
+	uint8_t maxPacketSize,
+	void (*onPacketReceived)(UartBus& bus, uint8_t* data, uint16_t size)
+)
 {
-	if(bus->send_size != 0)
+	init(stream, address, baudRate, maxPacketSize, onPacketReceived);
+}
+
+UartBus::UartBus
+(
+	HardwareSerial& stream,
+	uint16_t address,
+	uint32_t baudRate,
+	uint8_t maxPacketSize,
+	void (*onPacketReceived)(UartBus& bus, uint8_t* data, uint16_t size)
+)
+{
+	init(stream, address, baudRate, maxPacketSize, onPacketReceived);
+	stream.begin(baudRate);
+}
+
+void UartBus::intFeedByte(uint8_t val)
+{
+	ub_out_rec_byte(&this->bus, val);
+}
+
+int UartBus::manage()
+{
+	return ub_manage_connection(&this->bus, arduino_ub_send_on_idle);
+}
+
+Stream* UartBus::getStream()
+{
+	return this->stream;
+}
+
+int UartBus::sendRawPacket(uint8_t* data, uint8_t size)
+{
+	if(size > this->receive_size)
 	{
-		return false;
+		return -1;
 	}
-	bus->send_data = data;
-	bus->send_size = size;
-	return true;
+
+	if(0 != this->send_size)
+	{
+		return 1;
+	}
+
+	for(uint8_t i=0;i<size;++i)
+	{
+		this->send_data[i] = data[i];
+	}
+	this->send_size = size;
+	return 0;
 }
 
-void arduino_ub_manage_bus(struct uartbus_arduino* bus)
+int UartBus::sendTo(int16_t to, uint8_t* data, uint8_t size)
 {
-	ub_manage_connection(&bus->bus, arduino_ub_send_on_idle);
+	uint8_t buf[size+4];
+	uint8_t ep = 0;
+
+	uint8_t add;
+	if((add = ub_pack_16_value(to, buf, this->receive_size)) < 1)
+	{
+		return -10;
+	}
+
+	ep += add;
+
+	if((add = ub_pack_16_value(address, buf+ep, this->receive_size)) < 1)
+	{
+		return -11;
+	}
+
+	ep += add;
+
+	for(uint8_t i=0;i<size;++i)
+	{
+		buf[ep+i] = data[i];
+	}
+
+	ep += add;
+
+	buf[ep] = crc8(buf, ep);
+	++ep;
+
+	return this->sendRawPacket(buf, size);
+}
+
+void UartBus::processIncomingStream()
+{
+	Stream* ser = this->stream;
+	while(ser->available())
+	{
+		ub_out_rec_byte(&this->bus, ser->read());
+	}
 }
 
 #endif
