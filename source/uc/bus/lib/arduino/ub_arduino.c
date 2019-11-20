@@ -9,7 +9,7 @@ static void arduino_ub_rec_byte(struct uartbus* bus, uint8_t data_byte)
 
 	if(a->receive_ep == a->receive_size)
 	{
-		//brake the packet manually
+		//break the packet
 		a->receive_ep = 0;
 	}
 	else
@@ -53,7 +53,6 @@ static uint8_t arduino_ub_send_on_idle(struct uartbus* bus, uint8_t** data, uint
 	UartBus* a = (UartBus*) bus->user_data;
 	if(a->send_size != 0)
 	{
-		//TODO check CRC and dst and broadcast address
 		*data = a->send_data;
 		*size = a->send_size;
 		a->send_size = 0;
@@ -62,10 +61,14 @@ static uint8_t arduino_ub_send_on_idle(struct uartbus* bus, uint8_t** data, uint
 	return 1;
 }
 
+static uint8_t ub_random(struct uartbus* bus)
+{
+	return (uint8_t) random(0,255);
+}
+
 void UartBus::init
 (
 	Stream& stream,
-	uint16_t address,
 	uint32_t baudRate,
 	uint8_t maxPacketSize,
 	void (*onPacketReceived)(UartBus& bus, uint8_t* data, uint16_t size)
@@ -77,8 +80,9 @@ void UartBus::init
 	this->stream = &stream;
 	this->send_size = 0;
 	this->packet_received = onPacketReceived;
-	this->address = address;
 	bus.user_data = this;
+	bus.current_usec = (uint32_t(*)(struct uartbus*)) micros;
+	bus.rand = ub_random;
 
 	bus.serial_byte_received = arduino_ub_rec_byte;
 	bus.serial_event = arduino_ub_event;
@@ -92,30 +96,19 @@ void UartBus::init
 	ub_init(&bus);
 }
 
-UartBus::UartBus
+void UartBus::init
 (
-	Stream& stream,
-	uint16_t address,
+	HardwareSerial& serial,
 	uint32_t baudRate,
 	uint8_t maxPacketSize,
 	void (*onPacketReceived)(UartBus& bus, uint8_t* data, uint16_t size)
 )
 {
-	init(stream, address, baudRate, maxPacketSize, onPacketReceived);
+	init((Stream&)serial, baudRate, maxPacketSize, onPacketReceived);
+	serial.begin(baudRate);
 }
 
-UartBus::UartBus
-(
-	HardwareSerial& stream,
-	uint16_t address,
-	uint32_t baudRate,
-	uint8_t maxPacketSize,
-	void (*onPacketReceived)(UartBus& bus, uint8_t* data, uint16_t size)
-)
-{
-	init(stream, address, baudRate, maxPacketSize, onPacketReceived);
-	stream.begin(baudRate);
-}
+UartBus::UartBus(){}
 
 void UartBus::intFeedByte(uint8_t val)
 {
@@ -152,6 +145,7 @@ int UartBus::sendRawPacket(uint8_t* data, uint8_t size)
 	return 0;
 }
 
+/*
 int UartBus::sendTo(int16_t to, uint8_t* data, uint8_t size)
 {
 	uint8_t buf[size+4];
@@ -184,7 +178,7 @@ int UartBus::sendTo(int16_t to, uint8_t* data, uint8_t size)
 
 	return this->sendRawPacket(buf, size);
 }
-
+*/
 void UartBus::processIncomingStream()
 {
 	Stream* ser = this->stream;

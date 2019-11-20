@@ -25,26 +25,17 @@ public:
 	Stream* stream;
 	uint8_t* send_data;
 	uint8_t send_size;
-	uint16_t address;
 	void (*packet_received)(UartBus& bus, uint8_t* data, uint16_t size);
 	void* user_data;
 
 	//disable copy constructor
 	UartBus(const UartBus&) = delete;
 
-	UartBus
+	UartBus();
+
+	void init
 	(
 		Stream& stream,
-		uint16_t address,
-		uint32_t baudRate,
-		uint8_t maxPacketSize,
-		void (*onPacketReceived)(UartBus& bus, uint8_t* data, uint16_t size)
-	);
-
-	UartBus
-	(
-		HardwareSerial& stream,
-		uint16_t address,
 		uint32_t baudRate,
 		uint8_t maxPacketSize,
 		void (*onPacketReceived)(UartBus& bus, uint8_t* data, uint16_t size)
@@ -52,8 +43,7 @@ public:
 
 	void init
 	(
-		Stream& stream,
-		uint16_t address,
+		HardwareSerial& stream,
 		uint32_t baudRate,
 		uint8_t maxPacketSize,
 		void (*onPacketReceived)(UartBus& bus, uint8_t* data, uint16_t size)
@@ -65,19 +55,8 @@ public:
 	int manage();
 	int sendRawPacket(uint8_t* data, uint8_t size);
 	int sendCrc8Packet(uint8_t* data, uint8_t size);
-	int sendTo(int16_t to, uint8_t* data, uint8_t size);
+	//int sendTo(int16_t to, uint8_t* data, uint8_t size);
 };
-
-/*	uint16_t getAddress();
-	void setAddress(uint16_t addr);
-	bool isCrcChecked();
-	void setCrcCheck(bool check);
-
-	void setAcceptOtherAddress(bool accept);
-	void setAcceptOtherAddress(bool accept);
-
-	bool isAcceptBroadcast();
-	void setAcceptBroadcast(bool accept);*/
 
 #endif
 #endif
