@@ -12,6 +12,7 @@
 #define S(x) #x
 #define SX(x) S(x)
 
+extern struct uartbus bus;
 
 #ifndef  ARDUINO
 	#include <avr/interrupt.h>
@@ -764,7 +765,7 @@ ISR(USART_RX_vect)
 	uint8_t data = UDR0;
 	if(error)
 	{
-		//ub_out_rec_byte(&bus, ~0);		
+		//ub_out_rec_byte(&bus, ~0);
 	}
 	else
 	{

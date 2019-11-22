@@ -11,7 +11,7 @@ fi
 
 set -e
 
-avr-g++ -o ubb.o ub_bootloader.c ub_atmega.c ../bus/lib/common/ub.c ../bus/lib/addressing/addr16.c ../utils/lib/rpc/rpc.c -mmcu=$1\
+avr-g++ -o ubb.o ub_bootloader.c ub_atmega.c ub_uartbus.c ../bus/lib/common/ub.c ../bus/lib/addressing/addr16.c ../utils/lib/rpc/rpc.c -mmcu=$1\
 	-I../commons/\
 	-I../bus/lib/common/\
 	-I../bus/lib/addressing/\

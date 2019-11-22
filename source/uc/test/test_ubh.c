@@ -13,6 +13,7 @@
 #define EXTERNAL_SEND_PACKET_PRIV
 
 #include "../bootloader/ub_bootloader.c"
+#include "../bootloader/ub_uartbus.c"
 
 #include "../bus/lib/common/ub.c"
 

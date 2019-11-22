@@ -8,10 +8,16 @@
 #include "rpc.h"
 #include "addr16.h"
 
-/**
- * This variable is provided by the uart_bootloader main component.
- */
-extern struct uartbus bus;
+#ifndef MAX_PACKET_SIZE
+	#define MAX_PACKET_SIZE 48
+#endif
+
+extern int received_ep;
+extern uint8_t received_data[MAX_PACKET_SIZE];
+
+extern uint8_t send_size;
+extern uint8_t send_data[MAX_PACKET_SIZE];
+extern volatile bool received;
 
 /**
  * Do the microcontoller specific initialisation: eg.:
@@ -42,6 +48,11 @@ bool ubh_impl_has_app();
  * The current microsecounds eslaped since the device is turned on.
  */
 uint32_t micros();
+
+/**
+ * A random number between 0 - 255.
+ */
+uint8_t rando();
 
 
 void ubh_impl_enable_receive_detect_interrupt(bool enable);
@@ -115,5 +126,8 @@ void ubh_impl_call_app(bool first_call);
 
 
 void ubh_provide_dispatch_interrupt(void*);
+
+
+void init_bus();
 
 
