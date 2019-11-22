@@ -3,7 +3,7 @@
 
 __attribute__((noinline)) uint8_t arr_size(void** arr)
 {
-	return (uint8_t) arr[0];
+	return (uint8_t) ((uint16_t) arr[0]);
 }
 
 uint8_t rpc_append_size(uint8_t args, struct response_part** parts)
