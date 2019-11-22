@@ -2,6 +2,7 @@ package eu.javaexperience.electronic.uartbus;
 
 import eu.javaexperience.electronic.IhexCli;
 import eu.javaexperience.electronic.build.GccBuilderContext;
+import eu.javaexperience.electronic.uartbus.cli.apps.UartbusAttachProcess;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusBlink;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusCodeUploader;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusCollisionPacketloss;
@@ -77,6 +78,11 @@ public class UartBusCli
 	public static void logMysql(String... args) throws Throwable
 	{
 		UartbusLogSql.main(args);
+	}
+	
+	public static void attachProcess(String... args) throws Throwable
+	{
+		UartbusAttachProcess.main(args);
 	}
 	
 	//TODO discover, restart (--soft), appdump,

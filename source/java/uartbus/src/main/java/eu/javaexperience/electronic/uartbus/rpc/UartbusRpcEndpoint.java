@@ -20,6 +20,7 @@ import eu.javaexperience.reflect.CastTo;
 import eu.javaexperience.reflect.Mirror;
 import eu.javaexperience.rpc.RpcSession;
 import eu.javaexperience.rpc.RpcSessionTools;
+import eu.javaexperience.rpc.RpcTools;
 
 public class UartbusRpcEndpoint implements UartbusConnection
 {
@@ -58,9 +59,19 @@ public class UartbusRpcEndpoint implements UartbusConnection
 	
 	protected Set<PacketEndpointQueue> sessions = Collections.newSetFromMap(new WeakHashMap<>());
 	
+	protected boolean default_echo_loopback = true;
+	protected boolean default_loopback_send_packets = false;
+	
 	protected static class PacketEndpointQueue
 	{
+		public PacketEndpointQueue(UartbusRpcEndpoint uartbusRpcEndpoint)
+		{
+			echo_loopback = uartbusRpcEndpoint.default_echo_loopback;
+			loopback_send_packets = uartbusRpcEndpoint.default_loopback_send_packets;
+		}
+		
 		public static final PacketEndpointQueue[] emptyPacketEndpointQueue = new PacketEndpointQueue[0];
+		protected boolean echo_loopback = true;
 		protected boolean loopback_send_packets = false;
 		protected BlockingQueue<byte[]> queue = new LinkedBlockingQueue<>();
 		protected RpcSession rpcSession;
@@ -77,7 +88,7 @@ public class UartbusRpcEndpoint implements UartbusConnection
 			pq = (PacketEndpointQueue) map.get(SESSION_KEY);
 			if(null == pq)
 			{
-				pq = new PacketEndpointQueue();
+				pq = new PacketEndpointQueue(this);
 				pq.rpcSession = sess;
 				map.put(SESSION_KEY, pq);
 				sessions.add(pq);
@@ -103,11 +114,13 @@ public class UartbusRpcEndpoint implements UartbusConnection
 			LoggingTools.tryLogFormat(LOG, LogLevel.TRACE, "sendPacket trying loopback on sessions: `%s`", Arrays.toString(queues));
 		}
 		
+		RpcSession csess = RpcSessionTools.getCurrentRpcSession();
+		
 		for(PacketEndpointQueue sess:queues)
 		{
 			try
 			{
-				if(sess.loopback_send_packets)
+				if(sess.loopback_send_packets && (sess.echo_loopback || sess != csess))
 				{
 					sess.queue.put(data);
 				}
@@ -133,6 +146,11 @@ public class UartbusRpcEndpoint implements UartbusConnection
 			return String.valueOf(getSessionQueue().loopback_send_packets);
 		}
 		
+		if("echo_loopback".equals(key))
+		{
+			return String.valueOf(getSessionQueue().echo_loopback);
+		}
+		
 		return null;
 	}
 
@@ -149,6 +167,18 @@ public class UartbusRpcEndpoint implements UartbusConnection
 			PacketEndpointQueue sess = getSessionQueue();
 			LoggingTools.tryLogFormat(LOG, LogLevel.DEBUG, "Set loopback 'loopback_send_packets' to `%s` for session `%s`", set, sess);
 			sess.loopback_send_packets = set;
+		}
+		
+		if("echo_loopback".equals(key))
+		{
+			Boolean set = (Boolean) CastTo.Boolean.cast(value);
+			if(null == set)
+			{
+				throw new RuntimeException("The given value `"+value+"` can not be casted to boolean.");
+			}
+			PacketEndpointQueue sess = getSessionQueue();
+			LoggingTools.tryLogFormat(LOG, LogLevel.DEBUG, "Set loopback 'echo_loopback' to `%s` for session `%s`", set, sess);
+			sess.echo_loopback = set;
 		}
 	}
 
@@ -169,7 +199,6 @@ public class UartbusRpcEndpoint implements UartbusConnection
 	@Override
 	public byte[] getNextPacket() throws IOException
 	{
-		
 		try
 		{
 			return getSessionQueue().queue.take();

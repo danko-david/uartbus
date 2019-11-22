@@ -6,8 +6,6 @@
 volatile bool app_run;
 volatile uint8_t reset_flag;
 
-void ub_manage();
-
 void (*app_int_handler)(void*);
 
 void ubh_provide_dispatch_interrupt(void* from)
@@ -470,6 +468,10 @@ bool send_packet_priv(int16_t to, uint8_t NS, uint8_t* data, uint8_t size)
 	send_data[ep+size] = crc8(send_data, ep+size);
 	send_size = size+ep+1;
 	
+#ifdef UBH_CALLBACK_ENQUEUE_PACKET
+	ubh_callback_enqueue_packet();
+#endif
+
 	return true;
 }
 
@@ -683,7 +685,7 @@ int main()
 		while(!afterMicro(&t, 500000))
 		{
 			ubh_impl_wdt_checkpoint();
-			ub_manage();
+			ubh_manage_bus();
 		}
 	}
 	
@@ -692,7 +694,7 @@ int main()
 	while(1)
 	{
 		ubh_impl_wdt_checkpoint();
-		ub_manage();
+		ubh_manage_bus();
 		ubh_impl_wdt_checkpoint();
 		
 		if(app_run && ubh_impl_has_app())

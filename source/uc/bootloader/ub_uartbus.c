@@ -116,7 +116,7 @@ uint8_t send_on_idle(struct uartbus* bus, uint8_t** data, uint16_t* size)
 	return 1;
 }
 
-void ub_manage()
+void ubh_manage_bus()
 {
 	ub_manage_connection(&bus, send_on_idle);
 	try_dispatch_received_packet();

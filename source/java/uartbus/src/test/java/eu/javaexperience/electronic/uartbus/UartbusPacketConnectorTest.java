@@ -20,7 +20,7 @@ import eu.javaexperience.reflect.Mirror;
 
 public class UartbusPacketConnectorTest
 {
-	public static UartbusPacketConnector createLoopback(byte escape)
+	public static UartbusEscapedStreamPacketConnector createLoopback(byte escape)
 	{
 		BlockingQueue<Byte> bs = new LinkedBlockingQueue<>();
 		OutputStream os = new OutputStream()
@@ -98,7 +98,7 @@ public class UartbusPacketConnectorTest
 			}
 		};
 		
-		return new UartbusPacketConnector
+		return new UartbusEscapedStreamPacketConnector
 		(
 			IOStreamFactory.fromInAndOutputStream(is, os),
 			escape
@@ -172,7 +172,7 @@ public class UartbusPacketConnectorTest
 		
 		List<byte[]> actual = new ArrayList<>();
 		
-		UartbusPacketConnector conn = createLoopback((byte) 0xff);
+		UartbusEscapedStreamPacketConnector conn = createLoopback((byte) 0xff);
 		conn.setPacketHook(new SimplePublish1<byte[]>()
 		{
 			@Override
@@ -217,7 +217,7 @@ public class UartbusPacketConnectorTest
 		
 		List<byte[]> actual = new ArrayList<>();
 		
-		UartbusPacketConnector conn = createLoopback((byte) 0xff);
+		UartbusEscapedStreamPacketConnector conn = createLoopback((byte) 0xff);
 		conn.setPacketHook(new SimplePublish1<byte[]>()
 		{
 			@Override

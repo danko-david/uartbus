@@ -47,6 +47,14 @@ public class UartbusCliTools
 		"x", "-loopback-sent"
 	);
 	
+	public static final CliEntry<String> OPTIONS = CliEntry.createFirstArgParserEntry
+	(
+		(e)->e,
+		"Other options",
+		"o", "-options"
+	);
+	
+	
 	public static final int DEFAULT_FROM_ADDRESS = 63;
 	public static int parseFrom(Map<String, List<String>> args)
 	{

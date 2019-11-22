@@ -130,4 +130,5 @@ void ubh_provide_dispatch_interrupt(void*);
 
 void init_bus();
 
+void ubh_manage_bus();
 
