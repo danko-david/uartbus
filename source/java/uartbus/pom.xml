@@ -6,7 +6,7 @@
 
   <groupId>javaexperience</groupId>
   <artifactId>uartbus</artifactId>
-  <version>1.1.0</version>
+  <version>1.4.1</version>
 
   <name>uartbus</name>
   <url>http://javaexperience.eu</url>
@@ -36,7 +36,7 @@
 	<dependency>
 		<groupId>javaexperience</groupId>
 		<artifactId>core</artifactId>
-		<version>0.1.19</version>
+		<version>0.1.25</version>
 	</dependency>
 	
 	<dependency>
@@ -56,6 +56,14 @@
 		<artifactId>linux</artifactId>
 		<version>1.0</version>
 	</dependency>
+	
+	<!-- https://mvnrepository.com/artifact/org.xerial/sqlite-jdbc -->
+	<dependency>
+		<groupId>org.xerial</groupId>
+		<artifactId>sqlite-jdbc</artifactId>
+		<version>3.25.2</version>
+	</dependency>
+	
   </dependencies>
 
   	<distributionManagement>

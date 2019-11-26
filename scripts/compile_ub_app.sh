@@ -1,10 +1,16 @@
 #!/bin/bash
 # usage: ./compile_ub_app.sh $mcu $clock_hz $output_nameset $gcc_options_and_cpp_file
-# eg: ./compile_ub_app.sh atmega328p 16000000 myprog    myprog.cpp -o 
+# eg: ./compile_ub_app.sh atmega328p 16000000 myprog myprog.cpp -o 
+
+if [ "$#" -lt 3 ]; then
+	echo 'Usage: ./compile_ub_app.sh $mcu $clock_hz $output_nameset $gcc_options_and_cpp_file'
+	echo 'eg: ./compile_ub_app.sh atmega328p 16000000 myprog myprog.cpp'
+	exit 1
+fi
 
 set -e
 OWD=$(pwd)
-cd "$(dirname "$0")"
+cd "$(dirname `readlink -f "$0"`)"
 cd ../source/uc
 
 I_COMM=$(readlink -f commons)

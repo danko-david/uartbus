@@ -12,13 +12,12 @@ extern "C"{
 __attribute__((noinline)) void*** getHostTableAddress()
 {
 	asm("jmp " SX(HOST_TABLE_ADDRESS));
+	return NULL;//keep the compiler happy
 }
 
 __attribute__ ((weak)) void setup(){};
 
 __attribute__ ((weak)) void loop(){};
-
-int main(){}
 
 __attribute__ ((weak)) void __do_copy_data(){};
 __attribute__ ((weak)) void __do_clear_bss(){};
@@ -26,14 +25,21 @@ __attribute__ ((weak)) void __do_clear_bss(){};
 extern void __do_copy_data();
 extern void __do_clear_bss();
 
+__attribute__ ((weak)) void init(){};
+
+extern void init();
+
+//TODO extern void __do_global_ctors() when the application is in C++
+
 static void init_app_section()
 {
 	__do_copy_data();
 	__do_clear_bss();
+	init();
 }
 
 //app_start section starts at 0x2000
-__attribute__((noinline, section(".app_start"))) void ub_app(bool first)
+__attribute__((weak, noinline, section(".app_start"))) void ub_app(bool first)
 {
 	if(first)
 	{
@@ -43,6 +49,14 @@ __attribute__((noinline, section(".app_start"))) void ub_app(bool first)
 	loop();
 	asm ("ret");
 }
+
+/**
+ * I use this way to prevent -Wl,--gc-sections to optimise out ub_app.
+ * main() function is required by the compilation but normally this main
+ * function will never be called and so it's saves the ub_app function,
+ * but never calls.
+ */
+__attribute__ ((weak)) int main(){ ub_app(true);}
 
 /*
 void (*register_packet_dispatch)(void (*addr)(struct rpc_request* req));
@@ -58,7 +72,7 @@ bool send_packet(int16_t to, int NS, uint8_t* data, uint16_t size)
 	bool (*reg)(int16_t, uint8_t, uint8_t*, uint16_t) =
 		(bool (*)(int16_t, uint8_t, uint8_t*, uint16_t)) fns[2];
 		
-	reg(to, NS, data, size);
+	return reg(to, NS, data, size);
 }
 
 void register_packet_dispatch(void (*addr)(struct rpc_request* req))
@@ -78,6 +92,11 @@ __attribute__((weak)) uint32_t micros()
 	uint32_t (*f)() = (uint32_t (*)()) fns[4];
 		
 	return f();
+}
+
+__attribute__((weak)) uint32_t millis()
+{
+	return micros()/1000;
 }
 
 void init_ub_app()

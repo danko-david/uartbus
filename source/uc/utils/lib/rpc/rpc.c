@@ -3,7 +3,7 @@
 
 __attribute__((noinline)) uint8_t arr_size(void** arr)
 {
-	return (uint8_t) (((uint16_t) arr[0]));
+	return (uint8_t) ((uint16_t) arr[0]);
 }
 
 uint8_t rpc_append_size(uint8_t args, struct response_part** parts)
@@ -54,7 +54,7 @@ bool il_reply_arr(struct rpc_request* req, uint8_t* data, uint8_t size)
 	struct response_part* arr[1];
 	arr[0] = &e;
 	
-	req->reply(req, 1, arr);
+	return req->reply(req, 1, arr);
 }
 
 bool il_reply(struct rpc_request* req, uint8_t size, ...)
@@ -75,7 +75,7 @@ bool il_reply(struct rpc_request* req, uint8_t size, ...)
 	
 	struct response_part* arr[1];
 	arr[0] = &e;
-	req->reply(req, 1, arr);
+	return req->reply(req, 1, arr);
 }
 
 /****************************** Dispatch utils ********************************/

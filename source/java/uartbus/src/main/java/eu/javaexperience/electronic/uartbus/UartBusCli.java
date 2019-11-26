@@ -1,10 +1,12 @@
 package eu.javaexperience.electronic.uartbus;
 
-import eu.javaexperience.electronic.IntelHexFile;
-import eu.javaexperience.electronic.build.GccBuilderContext;
+import eu.javaexperience.electronic.IhexCli;
+import eu.javaexperience.electronic.uartbus.cli.apps.UartbusAttachProcess;
+import eu.javaexperience.electronic.uartbus.cli.apps.UartbusBlink;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusCodeUploader;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusCollisionPacketloss;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusConsole;
+import eu.javaexperience.electronic.uartbus.cli.apps.UartbusLogSql;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusPacketloss;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusPing;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusRpcServer;
@@ -52,11 +54,6 @@ public class UartBusCli
 		UartbusCollisionPacketloss.main(args);
 	}
 	
-	public static void compile(String... args) throws Throwable
-	{
-		GccBuilderContext.main(args);
-	}
-	
 	public static void upload(String... args) throws Throwable
 	{
 		UartbusCodeUploader.main(args);
@@ -64,7 +61,22 @@ public class UartBusCli
 	
 	public static void ihex(String... args) throws Throwable
 	{
-		IntelHexFile.main(args);
+		IhexCli.main(args);
+	}
+	
+	public static void blink(String... args) throws Throwable
+	{
+		UartbusBlink.main(args);
+	}
+	
+	public static void logMysql(String... args) throws Throwable
+	{
+		UartbusLogSql.main(args);
+	}
+	
+	public static void attachProcess(String... args) throws Throwable
+	{
+		UartbusAttachProcess.main(args);
 	}
 	
 	//TODO discover, restart (--soft), appdump,

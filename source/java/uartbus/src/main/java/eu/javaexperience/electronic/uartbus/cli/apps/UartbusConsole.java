@@ -14,6 +14,7 @@ import eu.javaexperience.electronic.uartbus.UartbusTools;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusConnection;
 import eu.javaexperience.electronic.uartbus.rpc.client.UartbusRpcClientTools;
+import eu.javaexperience.electronic.uartbus.rpc.client.UartbusRpcClientTools.PacketStreamThread;
 import eu.javaexperience.log.JavaExperienceLoggingFacility;
 import eu.javaexperience.log.Loggable;
 import eu.javaexperience.log.Logger;
@@ -29,7 +30,7 @@ public class UartbusConsole
 	(
 		(e)->UartbusTools.parseColonData(e),
 		"Data to send (colon separated uint8_t)",
-		"d", "-d"
+		"d", "-data"
 	);
 	
 	protected static final CliEntry<Boolean> EXIT = CliEntry.createFirstArgParserEntry
@@ -47,7 +48,8 @@ public class UartbusConsole
 		TO,
 		DATA,
 		EXIT,
-		LOG_TIME
+		LOG_TIME,
+		LOOPBACK
 	};
 	
 	public static void printHelpAndExit(int exit)
@@ -95,7 +97,7 @@ public class UartbusConsole
 		}
 		
 		//TODO partial parse packet
-		UartbusRpcClientTools.streamPackets
+		PacketStreamThread stream = UartbusRpcClientTools.streamPackets
 		(
 			RPC_HOST.tryParseOrDefault(pa, "127.0.0.1"),
 			RPC_PORT.tryParseOrDefault(pa, 2112),
@@ -115,6 +117,20 @@ public class UartbusConsole
 				}
 				sb.append(UartbusTools.formatColonData(e));
 				System.out.println(sb.toString());
+			},
+			(connection)->
+			{
+				if(LOOPBACK.hasOption(pa))
+				{
+					try
+					{
+						connection.setAttribute("loopback_send_packets", "true");
+					}
+					catch (IOException e1)
+					{
+						e1.printStackTrace();
+					}
+				}
 			}
 		);
 		

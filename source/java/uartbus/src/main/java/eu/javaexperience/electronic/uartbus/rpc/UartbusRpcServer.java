@@ -1,6 +1,7 @@
 package eu.javaexperience.electronic.uartbus.rpc;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.List;
 import java.util.Map;
@@ -9,14 +10,22 @@ import eu.javaexperience.cli.CliEntry;
 import eu.javaexperience.cli.CliTools;
 import eu.javaexperience.datareprez.DataObject;
 import eu.javaexperience.electronic.SerialTools;
+import eu.javaexperience.electronic.uartbus.UartbusEscapedStreamPacketConnector;
 import eu.javaexperience.electronic.uartbus.UartbusPacketConnector;
+import eu.javaexperience.electronic.uartbus.rpc.client.UartbusRpcClientTools;
+import eu.javaexperience.interfaces.simple.SimpleGet;
 import eu.javaexperience.interfaces.simple.getBy.GetBy1;
 import eu.javaexperience.interfaces.simple.getBy.GetBy2;
+import eu.javaexperience.interfaces.simple.publish.SimplePublish1;
 import eu.javaexperience.io.IOStream;
+import eu.javaexperience.io.IOTools;
 import eu.javaexperience.io.fd.IOStreamFactory;
 import eu.javaexperience.log.JavaExperienceLoggingFacility;
+import eu.javaexperience.log.LogLevel;
 import eu.javaexperience.log.Loggable;
 import eu.javaexperience.log.Logger;
+import eu.javaexperience.log.LoggingTools;
+import eu.javaexperience.reflect.Mirror;
 import eu.javaexperience.rpc.JavaClassRpcUnboundFunctionsInstance;
 import eu.javaexperience.rpc.RpcTools;
 import eu.javaexperience.rpc.SimpleRpcRequest;
@@ -42,13 +51,31 @@ public class UartbusRpcServer
 		"Serial device path",
 		"s", "-serial-device"
 	);
+	
+	protected static final CliEntry<String> DIRECT_SERIAL_DEVICE = CliEntry.createFirstArgParserEntry
+	(
+		(e)->e,
+		"Direct serial driver",
+		"i", "-direct-serial-device"
+	);
+	
+	//this makes possible to open an RPC server to a bus subnet, eg a whole network available trough device 12 with a specific namespace.
+	public static final CliEntry<String> MODE = CliEntry.createFirstArgParserEntry
+	(
+		(e)->e,
+		"Rpc backend mode (serial, dummy)",
+		"m", "-mode"
+	);
 
 	protected static final CliEntry[] PROG_CLI_ENTRIES =
 	{
-		WORK_DIR,
-		RPC_PORT,
-		SERIAL_DEV,
-		SERIAL_BAUD
+		WORK_DIR,//-d
+		RPC_PORT,//-p
+		SERIAL_DEV,//-s
+		SERIAL_BAUD,//-b
+		RECONNECT,//-r
+		DIRECT_SERIAL_DEVICE,//-i
+		MODE
 	};
 	
 	public static void printHelpAndExit(int exit)
@@ -58,20 +85,18 @@ public class UartbusRpcServer
 		System.exit(1);
 	}
 	
-	public static void main(String[] args) throws Throwable
+	protected static UartbusPacketConnector createSerialPacketConnector(Map<String, List<String>> args)
 	{
-		JavaExperienceLoggingFacility.addStdOut();
-		Map<String, List<String>> pa = CliTools.parseCliOpts(args);
-		String un = CliTools.getFirstUnknownParam(pa, PROG_CLI_ENTRIES);
-		if(null != un)
-		{
-			printHelpAndExit(1);
-		}
+		String serial = SERIAL_DEV.tryParseOrDefault(args, null);
+		int baud = SERIAL_BAUD.tryParseOrDefault(args, -1);
+		String directCommand = DIRECT_SERIAL_DEVICE.tryParseOrDefault(args, null);
 		
-		String wd = WORK_DIR.tryParseOrDefault(pa, ".");
-		int port = RPC_PORT.tryParseOrDefault(pa, 2112);
-		String serial = SERIAL_DEV.tryParseOrDefault(pa, null);
-		int baud = SERIAL_BAUD.tryParseOrDefault(pa, -1);
+		boolean reconnect = false;
+		
+		if(RECONNECT.hasOption(args))
+		{
+			reconnect = true;
+		}
 		
 		boolean error = false;
 		if(null == serial)
@@ -88,19 +113,124 @@ public class UartbusRpcServer
 		
 		if(error)
 		{
+			return null;
+		}
+		
+		IOStream[] prev = new IOStream[1];
+		SimpleGet<IOStream> socketFactory = UartbusRpcClientTools.waitReconnect
+		(
+			()->
+			{
+				try
+				{
+					if(null != prev[0])
+					{
+						IOTools.silentClose(prev[0]);
+					}
+					
+					if(null != directCommand)
+					{
+						prev[0] = SerialTools.openDirectSerial(directCommand, serial, baud);
+					}
+					else
+					{
+						prev[0] = SerialTools.openSerial(serial, baud);
+					}
+					prev[0].getInputStream();
+					prev[0].getOutputStream();
+					return prev[0];
+				}
+				catch (Exception e)
+				{
+					Mirror.propagateAnyway(e);
+					return null;
+				}
+			},
+			"serial connection to the bus gateway"
+		);
+		
+		UartbusEscapedStreamPacketConnector conn = new UartbusEscapedStreamPacketConnector(socketFactory.get(), (byte)0xff);
+		if(reconnect)
+		{
+			conn.setSocketCloseListener(()->
+			{
+				LoggingTools.tryLogFormat(LOG, LogLevel.ERROR, "Socket error, reconnecting");
+				conn.setIoStream(socketFactory.get());
+			});
+		}
+		
+		IOTools.closeOnExit(conn);
+		
+		return conn;
+	}
+	
+	protected static UartbusPacketConnector createDummyConnector(Map<String, List<String>> args)
+	{
+		return new UartbusPacketConnector()
+		{
+			@Override
+			public void close() throws IOException {}
+			
+			@Override
+			public void startListen() {}
+			
+			@Override
+			public void setPacketHook(SimplePublish1<byte[]> process){}
+			
+			@Override
+			public void sendPacket(byte[] data){}
+		};
+	}
+	
+	protected static String getMode(Map<String, List<String>> args)
+	{
+		return MODE.tryParseOrDefault(args, "serial");
+	}
+	
+	protected static UartbusPacketConnector createPacketConnector(Map<String, List<String>> args)
+	{
+		String mode = getMode(args);
+		
+		switch(mode)
+		{
+		case "serial":
+			return createSerialPacketConnector(args);
+		
+		case "dummy":
+			return createDummyConnector(args);
+			
+		default:
+			return null;
+		}
+	}
+	
+	public static void main(String[] args) throws Throwable
+	{
+		JavaExperienceLoggingFacility.addStdOut();
+		Map<String, List<String>> pa = CliTools.parseCliOpts(args);
+		String un = CliTools.getFirstUnknownParam(pa, PROG_CLI_ENTRIES);
+		if(null != un)
+		{
+			printHelpAndExit(1);
+		}
+		
+		String wd = WORK_DIR.tryParseOrDefault(pa, ".");
+		int port = RPC_PORT.tryParseOrDefault(pa, 2112);
+		
+		UartbusPacketConnector conn = createPacketConnector(pa);
+		
+		if(null == conn)
+		{
 			printHelpAndExit(2);
 		}
 		
 		JavaExperienceLoggingFacility.startLoggingIntoDirectory(new File(wd+"/log/"), "uartbus-rpc-server-");
 		
 		
-		IOStream ser = SerialTools.openSerial(serial, baud);
-		Runtime.getRuntime().addShutdownHook(new Thread(ser::close));
-		UartbusPacketConnector conn = new UartbusPacketConnector(ser, (byte)0xff);
-		
-		//TODO bus packet logging
-		
 		UartbusRpcEndpoint bus = new UartbusRpcEndpoint(conn);
+		boolean dummy = "dummy".equals(getMode(pa));
+		bus.default_loopback_send_packets = dummy;
+		bus.default_echo_loopback = !dummy;
 		
 		GetBy1<DataObject, SimpleRpcRequest> dispatcher = RpcTools.createSimpleNamespaceDispatcherWithDiscoverApi
 		(

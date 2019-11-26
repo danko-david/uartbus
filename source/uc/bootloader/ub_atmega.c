@@ -12,6 +12,7 @@
 #define S(x) #x
 #define SX(x) S(x)
 
+extern struct uartbus bus;
 
 #ifndef  ARDUINO
 	#include <avr/interrupt.h>
@@ -159,6 +160,534 @@ __attribute__((noinline))  uint32_t ub_impl_get_current_usec()
 	return micros();
 }
 
+#define REG_INT(X) ISR(X){ubh_provide_dispatch_interrupt((void*)X);}
+
+
+/**
+ * https://www.nongnu.org/avr-libc/user-manual/group__avr__interrupts.html
+ *
+ * v = document.querySelectorAll("table")[5].querySelectorAll("tr");
+ * for(var i=0;i<v.length;++i){console.log(v[0].querySelector("td").textContent);}
+ *
+ *
+ *	#ifdef (.*_vect
+	REG_INT((.*_vect)
+#endif
+) => #ifdef $1\n\tREG_INT($1)\n#endif\n
+ *
+ * #ifdef TWI_vect REG_INT(TWI_vect); #endif
+ *
+ *
+ * Don't panic only the defined handler gonna be compiled and placed into
+ * the assemly
+ *
+ * */
+
+
+/*
+ used by the bootloader
+#ifdef TIMER0_OVF_vect
+	REG_INT(TIMER0_OVF_vect)
+#endif
+*/
+
+/*
+USART_RX used by the bootloader
+#ifdef USART_RX_vect
+	REG_INT(USART_RX_vect)
+#endif
+*/
+
+/*
+
+
+#ifdef ADC_vect
+	REG_INT(ADC_vect)
+#endif
+
+#ifdef ANALOG_COMP_0_vect
+	REG_INT(ANALOG_COMP_0_vect)
+#endif
+
+#ifdef ANALOG_COMP_1_vect
+	REG_INT(ANALOG_COMP_1_vect)
+#endif
+
+#ifdef ANALOG_COMP_2_vect
+	REG_INT(ANALOG_COMP_2_vect)
+#endif
+
+#ifdef ANALOG_COMP_vect
+	REG_INT(ANALOG_COMP_vect)
+#endif
+
+#ifdef ANA_COMP_vect
+	REG_INT(ANA_COMP_vect)
+#endif
+
+#ifdef CANIT_vect
+	REG_INT(CANIT_vect)
+#endif
+
+#ifdef EEPROM_READY_vect
+	REG_INT(EEPROM_READY_vect)
+#endif
+
+#ifdef EE_RDY_vect
+	REG_INT(EE_RDY_vect)
+#endif
+
+#ifdef EE_READY_vect
+	REG_INT(EE_READY_vect)
+#endif
+
+#ifdef EXT_INT0_vect
+	REG_INT(EXT_INT0_vect)
+#endif
+
+#ifdef INT0_vect
+	REG_INT(INT0_vect)
+#endif
+
+#ifdef INT1_vect
+	REG_INT(INT1_vect)
+#endif
+
+#ifdef INT2_vect
+	REG_INT(INT2_vect)
+#endif
+
+#ifdef INT3_vect
+	REG_INT(INT3_vect)
+#endif
+
+#ifdef INT4_vect
+	REG_INT(INT4_vect)
+#endif
+
+#ifdef INT5_vect
+	REG_INT(INT5_vect)
+#endif
+
+#ifdef INT6_vect
+	REG_INT(INT6_vect)
+#endif
+
+#ifdef INT7_vect
+	REG_INT(INT7_vect)
+#endif
+
+#ifdef IO_PINS_vect
+	REG_INT(IO_PINS_vect)
+#endif
+
+#ifdef LCD_vect
+	REG_INT(LCD_vect)
+#endif
+
+#ifdef LOWLEVEL_IO_PINS_vect
+	REG_INT(LOWLEVEL_IO_PINS_vect)
+#endif
+
+#ifdef OVRIT_vect
+	REG_INT(OVRIT_vect)
+#endif
+
+#ifdef PCINT0_vect
+	REG_INT(PCINT0_vect)
+#endif
+
+#ifdef PCINT1_vect
+	REG_INT(PCINT1_vect)
+#endif
+
+#ifdef PCINT2_vect
+	REG_INT(PCINT2_vect)
+#endif
+
+#ifdef PCINT3_vect
+	REG_INT(PCINT3_vect)
+#endif
+
+#ifdef PCINT_vect
+	REG_INT(PCINT_vect)
+#endif
+
+#ifdef PSC0_CAPT_vect
+	REG_INT(PSC0_CAPT_vect)
+#endif
+
+#ifdef PSC0_EC_vect
+	REG_INT(PSC0_EC_vect)
+#endif
+
+#ifdef PSC1_CAPT_vect
+	REG_INT(PSC1_CAPT_vect)
+#endif
+
+#ifdef PSC1_EC_vect
+	REG_INT(PSC1_EC_vect)
+#endif
+
+#ifdef PSC2_CAPT_vect
+	REG_INT(PSC2_CAPT_vect)
+#endif
+
+#ifdef PSC2_EC_vect
+	REG_INT(PSC2_EC_vect)
+#endif
+
+#ifdef SPI_STC_vect
+	REG_INT(SPI_STC_vect)
+#endif
+
+#ifdef SPM_RDY_vect
+	REG_INT(SPM_RDY_vect)
+#endif
+
+#ifdef SPM_READY_vect
+	REG_INT(SPM_READY_vect)
+#endif
+
+#ifdef TIM0_COMPA_vect
+	REG_INT(TIM0_COMPA_vect)
+#endif
+
+#ifdef TIM0_COMPB_vect
+	REG_INT(TIM0_COMPB_vect)
+#endif
+
+#ifdef TIM0_OVF_vect
+	REG_INT(TIM0_OVF_vect)
+#endif
+
+#ifdef TIM1_CAPT_vect
+	REG_INT(TIM1_CAPT_vect)
+#endif
+
+#ifdef TIM1_COMPA_vect
+	REG_INT(TIM1_COMPA_vect)
+#endif
+
+#ifdef TIM1_COMPB_vect
+	REG_INT(TIM1_COMPB_vect)
+#endif
+
+#ifdef TIM1_OVF_vect
+	REG_INT(TIM1_OVF_vect)
+#endif
+
+#ifdef TIMER0_CAPT_vect
+	REG_INT(TIMER0_CAPT_vect)
+#endif
+
+#ifdef TIMER0_COMPA_vect
+	REG_INT(TIMER0_COMPA_vect)
+#endif
+
+#ifdef TIMER0_COMPB_vect
+	REG_INT(TIMER0_COMPB_vect)
+#endif
+
+#ifdef TIMER0_COMP_A_vect
+	REG_INT(TIMER0_COMP_A_vect)
+#endif
+
+#ifdef TIMER0_COMP_vect
+	REG_INT(TIMER0_COMP_vect)
+#endif
+
+#ifdef TIMER0_OVF0_vect
+	REG_INT(TIMER0_OVF0_vect)
+#endif
+
+
+#ifdef TIMER1_CAPT1_vect
+	REG_INT(TIMER1_CAPT1_vect)
+#endif
+
+#ifdef TIMER1_CAPT_vect
+	REG_INT(TIMER1_CAPT_vect)
+#endif
+
+#ifdef TIMER1_CMPA_vect
+	REG_INT(TIMER1_CMPA_vect)
+#endif
+
+#ifdef TIMER1_CMPB_vect
+	REG_INT(TIMER1_CMPB_vect)
+#endif
+
+#ifdef TIMER1_COMP1_vect
+	REG_INT(TIMER1_COMP1_vect)
+#endif
+
+#ifdef TIMER1_COMPA_vect
+	REG_INT(TIMER1_COMPA_vect)
+#endif
+
+#ifdef TIMER1_COMPB_vect
+	REG_INT(TIMER1_COMPB_vect)
+#endif
+
+#ifdef TIMER1_COMPC_vect
+	REG_INT(TIMER1_COMPC_vect)
+#endif
+
+#ifdef TIMER1_COMPD_vect
+	REG_INT(TIMER1_COMPD_vect)
+#endif
+
+#ifdef TIMER1_COMP_vect
+	REG_INT(TIMER1_COMP_vect)
+#endif
+
+#ifdef TIMER1_OVF1_vect
+	REG_INT(TIMER1_OVF1_vect)
+#endif
+
+#ifdef TIMER1_OVF_vect
+	REG_INT(TIMER1_OVF_vect)
+#endif
+
+#ifdef TIMER2_COMPA_vect
+	REG_INT(TIMER2_COMPA_vect)
+#endif
+
+#ifdef TIMER2_COMPB_vect
+	REG_INT(TIMER2_COMPB_vect)
+#endif
+
+#ifdef TIMER2_COMP_vect
+	REG_INT(TIMER2_COMP_vect)
+#endif
+
+#ifdef TIMER2_OVF_vect
+	REG_INT(TIMER2_OVF_vect)
+#endif
+
+#ifdef TIMER3_CAPT_vect
+	REG_INT(TIMER3_CAPT_vect)
+#endif
+
+#ifdef TIMER3_COMPA_vect
+	REG_INT(TIMER3_COMPA_vect)
+#endif
+
+#ifdef TIMER3_COMPB_vect
+	REG_INT(TIMER3_COMPB_vect)
+#endif
+
+#ifdef TIMER3_COMPC_vect
+	REG_INT(TIMER3_COMPC_vect)
+#endif
+
+#ifdef TIMER3_OVF_vect
+	REG_INT(TIMER3_OVF_vect)
+#endif
+
+#ifdef TIMER4_CAPT_vect
+	REG_INT(TIMER4_CAPT_vect)
+#endif
+
+#ifdef TIMER4_COMPA_vect
+	REG_INT(TIMER4_COMPA_vect)
+#endif
+
+#ifdef TIMER4_COMPB_vect
+	REG_INT(TIMER4_COMPB_vect)
+#endif
+
+#ifdef TIMER4_COMPC_vect
+	REG_INT(TIMER4_COMPC_vect)
+#endif
+
+#ifdef TIMER4_OVF_vect
+	REG_INT(TIMER4_OVF_vect)
+#endif
+
+#ifdef TIMER5_CAPT_vect
+	REG_INT(TIMER5_CAPT_vect)
+#endif
+
+#ifdef TIMER5_COMPA_vect
+	REG_INT(TIMER5_COMPA_vect)
+#endif
+
+#ifdef TIMER5_COMPB_vect
+	REG_INT(TIMER5_COMPB_vect)
+#endif
+
+#ifdef TIMER5_COMPC_vect
+	REG_INT(TIMER5_COMPC_vect)
+#endif
+
+#ifdef TIMER5_OVF_vect
+	REG_INT(TIMER5_OVF_vect)
+#endif
+
+#ifdef TWI_vect
+	REG_INT(TWI_vect)
+#endif
+
+#ifdef TXDONE_vect
+	REG_INT(TXDONE_vect)
+#endif
+
+#ifdef TXEMPTY_vect
+	REG_INT(TXEMPTY_vect)
+#endif
+
+#ifdef UART0_RX_vect
+	REG_INT(UART0_RX_vect)
+#endif
+
+#ifdef UART0_TX_vect
+	REG_INT(UART0_TX_vect)
+#endif
+
+#ifdef UART0_UDRE_vect
+	REG_INT(UART0_UDRE_vect)
+#endif
+
+#ifdef UART1_RX_vect
+	REG_INT(UART1_RX_vect)
+#endif
+
+#ifdef UART1_TX_vect
+	REG_INT(UART1_TX_vect)
+#endif
+
+#ifdef UART1_UDRE_vect
+	REG_INT(UART1_UDRE_vect)
+#endif
+
+#ifdef UART_RX_vect
+	REG_INT(UART_RX_vect)
+#endif
+
+#ifdef UART_TX_vect
+	REG_INT(UART_TX_vect)
+#endif
+
+#ifdef UART_UDRE_vect
+	REG_INT(UART_UDRE_vect)
+#endif
+
+#ifdef USART0_RXC_vect
+	REG_INT(USART0_RXC_vect)
+#endif
+
+#ifdef USART0_RX_vect
+	REG_INT(USART0_RX_vect)
+#endif
+
+#ifdef USART0_TXC_vect
+	REG_INT(USART0_TXC_vect)
+#endif
+
+#ifdef USART0_TX_vect
+	REG_INT(USART0_TX_vect)
+#endif
+
+#ifdef USART0_UDRE_vect
+	REG_INT(USART0_UDRE_vect)
+#endif
+
+#ifdef USART1_RXC_vect
+	REG_INT(USART1_RXC_vect)
+#endif
+
+#ifdef USART1_RX_vect
+	REG_INT(USART1_RX_vect)
+#endif
+
+#ifdef USART1_TXC_vect
+	REG_INT(USART1_TXC_vect)
+#endif
+
+#ifdef USART1_TX_vect
+	REG_INT(USART1_TX_vect)
+#endif
+
+#ifdef USART1_UDRE_vect
+	REG_INT(USART1_UDRE_vect)
+#endif
+
+#ifdef USART2_RX_vect
+	REG_INT(USART2_RX_vect)
+#endif
+
+#ifdef USART2_TX_vect
+	REG_INT(USART2_TX_vect)
+#endif
+
+#ifdef USART2_UDRE_vect
+	REG_INT(USART2_UDRE_vect)
+#endif
+
+#ifdef USART3_RX_vect
+	REG_INT(USART3_RX_vect)
+#endif
+
+#ifdef USART3_TX_vect
+	REG_INT(USART3_TX_vect)
+#endif
+
+#ifdef USART3_UDRE_vect
+	REG_INT(USART3_UDRE_vect)
+#endif
+
+#ifdef USART_RXC_vect
+	REG_INT(USART_RXC_vect)
+#endif
+
+#ifdef USART_TXC_vect
+	REG_INT(USART_TXC_vect)
+#endif
+
+#ifdef USART_TX_vect
+	REG_INT(USART_TX_vect)
+#endif
+
+#ifdef USART_UDRE_vect
+	REG_INT(USART_UDRE_vect)
+#endif
+
+#ifdef USI_OVERFLOW_vect
+	REG_INT(USI_OVERFLOW_vect)
+#endif
+
+#ifdef USI_OVF_vect
+	REG_INT(USI_OVF_vect)
+#endif
+
+#ifdef USI_START_vect
+	REG_INT(USI_START_vect)
+#endif
+
+#ifdef USI_STRT_vect
+	REG_INT(USI_STRT_vect)
+#endif
+
+#ifdef USI_STR_vect
+#pragma message "USI"
+	REG_INT(USI_STR_vect)
+#endif
+
+#ifdef WATCHDOG_vect
+	REG_INT(WATCHDOG_vect)
+#endif
+
+#ifdef WDT_OVERFLOW_vect
+	REG_INT(WDT_OVERFLOW_vect)
+#endif
+
+#ifdef WDT_vect
+	REG_INT(WDT_vect)
+#endif
+
+	*/
 
 /***************************** USART functions ********************************/
 
@@ -199,8 +728,15 @@ __attribute__((section(".bootloader"))) void bootloader_main()
 	asm ("jmp 0x0");
 }
 
-__attribute__((section(".bootloader")))  void ubh_impl_write_program_page(uint32_t page, uint8_t *buf, uint8_t size)
+//modified version of:
+//https://www.nongnu.org/avr-libc/user-manual/group__avr__boot.html#gaeb0dba1dd9d338516a94c0bd8a8db78a
+__attribute__((section(".bootloader")))  void ubh_impl_write_program_page(const uint32_t page,const  uint8_t *buf,const uint8_t size)
 {
+	if(page < 0x2000 || page > 0x7900l || size > SPM_PAGESIZE)
+	{
+		return;
+	}
+
     uint16_t i;
     uint8_t sreg;
     // Disable interrupts.
@@ -209,7 +745,7 @@ __attribute__((section(".bootloader")))  void ubh_impl_write_program_page(uint32
     eeprom_busy_wait ();
     boot_page_erase (page);
     boot_spm_busy_wait ();      // Wait until the memory is erased.
-    for (i=0; i<SPM_PAGESIZE; i+=2)
+    for (i=0; i<size; i+=2)
     {
         // Set up little-endian word.
         uint16_t w = *buf++;
@@ -251,7 +787,7 @@ ISR(USART_RX_vect)
 	uint8_t data = UDR0;
 	if(error)
 	{
-		//ub_out_rec_byte(&bus, ~0);		
+		//ub_out_rec_byte(&bus, ~0);
 	}
 	else
 	{
@@ -317,8 +853,24 @@ uint8_t ubh_impl_get_program_page_size()
 	return SPM_PAGESIZE;
 }
 
-uint8_t* ubh_impl_allocate_program_tmp_storage()
+uint8_t* ubh_impl_go_upload_and_allocate_program_tmp_storage()
 {
+	//TODO disable all unrelated ISRs
+	//ok at this point i realized it is a fragile and messy solution to
+	//collect all the Interrupt flags and reset them (with making special care
+	//eg PCICR input masking). I don't do, because:
+	//1) Collecting is a manual thing to do, and can be difficult, especially
+	//	with point 2.
+	//2) Fragile, because if you miss one interrupt or later you just use this
+	// code with other microcontrollers with an interrupt not managed here, you
+	// might face with random restart during try to upload a new code after
+	// using this unlisted interrupt.
+	//
+	// The solution lies on the other side: before we stating to upload a new
+	// code. First we reset and grab the device to not enter into the
+	// application mode. If we do so, no interrupt will be enabled except the
+	// defaults the the UHB uses, exactly what we need.
+
 	return (uint8_t*) RAMSTART;//(uint8_t*) malloc(SPM_PAGESIZE);
 }
 

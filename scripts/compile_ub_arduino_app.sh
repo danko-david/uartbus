@@ -2,9 +2,16 @@
 # usage: ./compile_ub_app.sh $mcu $clock_hz $output_nameset $gcc_options_and_cpp_file
 # eg: ./compile_ub_app.sh atmega328p 16000000 myprog    myprog.cpp -o 
 
+if [ "$#" -lt 3 ]; then
+	echo 'Usage: ./compile_ub_app.sh $mcu $clock_hz $output_nameset $gcc_options_and_cpp_file'
+	echo 'eg: ./compile_ub_app.sh atmega328p 16000000 myprog myprog.cpp -o'
+        exit 1
+fi
+
+
 set -e
 OWD=$(pwd)
-cd "$(dirname "$0")"
+cd "$(dirname `readlink -f "$0"`)"
 cd ../source/uc
 
 I_COMM=$(readlink -f commons)
@@ -22,20 +29,32 @@ ARDUINO_DIR=/usr/share/arduino/
 
 cd $OWD
 
+shopt -s extglob
+
 avr-g++ -mmcu=$1\
+	-std=c++11\
 	-I$I_COMM -I$I_BUSCOMM -I$I_RPC -I$I_WRAP\
+	-Wall\
 	-ffunction-sections\
 	-fdata-sections\
 	-fno-exceptions\
 	-DF_CPU=$2\
 	-DHOST_TABLE_ADDRESS=0x1fe0\
+	-Wl,--gc-sections\
 	-Wl,--section-start=.text=0x2020\
 	-Wl,--section-start=.app_start=0x2000\
+	-DARDUINO_HANDSOFF_UART -DARDUINO_HANDSOFF_TIMER0\
 	-Os -o $3.o "${@:4}" $C_RPC $C_WRAP\
 	-I${ARDUINO_DIR}hardware/arduino/cores/\
 	-I${ARDUINO_DIR}hardware/arduino/cores/arduino\
 	-I${ARDUINO_DIR}hardware/arduino/variants/standard\
-	${ARDUINO_DIR}hardware/arduino/cores/arduino/wiring{,_analog,_digital,_pulse,_shift}.c
+	${ARDUINO_DIR}hardware/arduino/cores/arduino/!(hooks|main|wiring_pulse).c{,pp}\
+
+#	${ARDUINO_DIR}hardware/arduino/cores/arduino/wiring{,_analog,_digital,_pulse,_shift}.c\
+#	${ARDUINO_DIR}hardware/arduino/cores/arduino/{new,Print,Stream,String}.cpp
+
+#	${ARDUINO_DIR}hardware/arduino/cores/arduino/avr-libc/{malloc,realloc,WInterrupts}.c\
+
 
 avr-objcopy -O ihex -R .eeprom $3.o $3.hex
 avr-objdump -S --disassemble  $3.o > $3.asm

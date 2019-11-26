@@ -29,40 +29,35 @@ CC_FLAGS  = $(GENERAL_FLAGS)
 
 # location of include files
 
-INCLUDE_FILES = "-I$(ARDUINO_DIR)hardware/arduino/cores/" "-I$(ARDUINO_DIR)hardware/arduino/cores/arduino" "-I$(ARDUINO_DIR)hardware/arduino/variants/mega" "-I../../../../bus/lib/arduino" "-I../../../../bus/lib/common"
+INCLUDE_FILES = "-I$(ARDUINO_DIR)hardware/arduino/cores/" "-I$(ARDUINO_DIR)hardware/arduino/cores/arduino" "-I$(ARDUINO_DIR)hardware/arduino/variants/$(ARDUINO_VARIANT)/" "-I../../../../bus/lib/arduino" "-I../../../../bus/lib/common" "-I."
 
 # library sources
 LIBRARY_DIR = "$(ARDUINO_DIR)hardware/arduino/cores/arduino/"
 
 build:
-	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) $(MAIN_SKETCH) -o $(MAIN_SKETCH).e
-	$(CC) $(CC_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)avr-libc/malloc.c -o malloc.c.o 
-	$(CC) $(CC_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)avr-libc/realloc.c -o realloc.c.o 
+	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) $(MAIN_SKETCH) -o $(MAIN_SKETCH).o
+#	$(CC) $(CC_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)avr-libc/malloc.c -o malloc.c.o 
+#	$(CC) $(CC_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)avr-libc/realloc.c -o realloc.c.o 
 	$(CC) $(CC_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)WInterrupts.c -o WInterrupts.c.o 
 	$(CC) $(CC_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)wiring.c -o wiring.c.o 
 	$(CC) $(CC_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)wiring_analog.c -o wiring_analog.c.o 
 	$(CC) $(CC_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)wiring_digital.c -o wiring_digital.c.o 
 	$(CC) $(CC_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)wiring_pulse.c -o wiring_pulse.c.o 
 	$(CC) $(CC_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)wiring_shift.c -o wiring_shift.c.o
-	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)CDC.cpp -o CDC.cpp.o 
-	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) -include HardwareSerial.h $(LIBRARY_DIR)HardwareSerial.cpp -o HardwareSerial.cpp.o 
-	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)HID.cpp -o HID.cpp.o 
-	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)IPAddress.cpp -o IPAddress.cpp.o 
+	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) -include HardwareSerial.h $(LIBRARY_DIR)HardwareSerial.cpp -o HardwareSerial.cpp.o
+	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) -include HardwareSerial.h $(LIBRARY_DIR)HardwareSerial0.cpp -o HardwareSerial0.cpp.o 
 	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)main.cpp -o main.cpp.o 
 	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)new.cpp -o new.cpp.o 
 	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)Print.cpp -o Print.cpp.o 
-	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)Stream.cpp -o Stream.cpp.o 
-	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)Tone.cpp -o Tone.cpp.o 
-	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)USBCore.cpp -o USBCore.cpp.o 
-	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)WMath.cpp -o WMath.cpp.o 
-	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)WString.cpp -o WString.cpp.o
+	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)Stream.cpp -o Stream.cpp.o
+	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) ./AltSoftSerial.cpp -o AltSoftSerial.cpp.o
 	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) ../../../../bus/lib/common/ub.c -o ub.cpp.o
-#	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) ../../../../bus/lib/arduino/ub_arduino.cpp -o ub_arduino.cpp.o 
 	$(AR) rcs core.a *.{c,cpp}.o
-	$(CC) -Os -Wl,--gc-sections -mmcu=$(MCU) -o $(MAIN_SKETCH).elf $(MAIN_SKETCH).e core.a -lm 
+	$(CC) -Os -Wl,--gc-sections -mmcu=$(MCU) -o $(MAIN_SKETCH).elf core.a -lm 
 	$(OBJ_COPY) -O ihex -j .eeprom --set-section-flags=.eeprom=alloc,load --no-change-warnings --change-section-lma .eeprom=0 $(MAIN_SKETCH).elf $(MAIN_SKETCH).eep 
 	$(OBJ_COPY) -O ihex -R .eeprom $(MAIN_SKETCH).elf $(MAIN_SKETCH).hex
 	avr-objdump -S --disassemble $(MAIN_SKETCH).elf > $(MAIN_SKETCH).asm
 
 clean:
-	rm *.{e,o,d,a,hex,eep,elf}
+	rm *.{o,d,a,hex,eep,elf}
+

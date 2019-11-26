@@ -1,19 +1,16 @@
 package eu.javaexperience.electronic.uartbus.rpc;
 
-import static eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools.FROM;
-import static eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools.RPC_HOST;
-import static eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools.RPC_PORT;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
 import eu.javaexperience.cli.CliEntry;
-import eu.javaexperience.cli.CliTools;
 import eu.javaexperience.electronic.uartbus.rpc.client.UartBus;
 
 public class UartbusCliTools
 {
+	private UartbusCliTools()
+	{}
 	
 	public static final CliEntry<Integer> SERIAL_BAUD = CliEntry.createFirstArgParserEntry
 	(
@@ -43,6 +40,21 @@ public class UartbusCliTools
 		"f", "-from"
 	);
 	
+	public static final CliEntry<Boolean> LOOPBACK = CliEntry.createFirstArgParserEntry
+	(
+		(e)->true,
+		"Show sent packet",
+		"x", "-loopback-sent"
+	);
+	
+	public static final CliEntry<String> OPTIONS = CliEntry.createFirstArgParserEntry
+	(
+		(e)->e,
+		"Other options",
+		"o", "-options"
+	);
+	
+	
 	public static final int DEFAULT_FROM_ADDRESS = 63;
 	public static int parseFrom(Map<String, List<String>> args)
 	{
@@ -68,6 +80,13 @@ public class UartbusCliTools
 		(e) -> true,
 		"Log times",
 		"l", "-log-times"
+	);
+	
+	public static final CliEntry<Boolean> RECONNECT = CliEntry.createFirstArgParserEntry
+	(
+		(e) -> true,
+		"Reconnect",
+		"r", "-reconnect"
 	);
 	
 	public static UartBus cliBusConnect(Map<String, List<String>> cliArgs) throws IOException

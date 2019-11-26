@@ -6,11 +6,18 @@
 
 #include "ub.h"
 #include "rpc.h"
+#include "addr16.h"
 
-/**
- * This variable is provided by the uart_bootloader main component.
- */
-extern struct uartbus bus;
+#ifndef MAX_PACKET_SIZE
+	#define MAX_PACKET_SIZE 48
+#endif
+
+extern int received_ep;
+extern uint8_t received_data[MAX_PACKET_SIZE];
+
+extern uint8_t send_size;
+extern uint8_t send_data[MAX_PACKET_SIZE];
+extern volatile bool received;
 
 /**
  * Do the microcontoller specific initialisation: eg.:
@@ -42,6 +49,11 @@ bool ubh_impl_has_app();
  */
 uint32_t micros();
 
+/**
+ * A random number between 0 - 255.
+ */
+uint8_t rando();
+
 
 void ubh_impl_enable_receive_detect_interrupt(bool enable);
 
@@ -59,10 +71,14 @@ void ubh_impl_wdt_start(bool);
  *	to program device. The size of the area specified by your
  * uint8_t ubh_impl_get_program_page_size() return value
  *
- * This may erase userspace data, because device will be resetted anyway after
+ * It also does the necessary operations to the application code can be
+ * 	overwritten eg: disable all interrupt handler not related to the uartbus
+ * 	infrastructure
+ *
+ * This may erase userspace data, because device will be reseted anyway after
  * the code upload operation.
  */
-uint8_t* ubh_impl_allocate_program_tmp_storage();
+uint8_t* ubh_impl_go_upload_and_allocate_program_tmp_storage();
 
 
 /**
@@ -92,7 +108,7 @@ uint8_t ubh_impl_read_code(uint16_t address, uint8_t length, uint8_t* buff);
  * Writes the application memory page (usually the program flash memory) 
  *
  */
-void ubh_impl_write_program_page(uint32_t address, uint8_t* data, uint8_t length);
+void ubh_impl_write_program_page(const uint32_t address,const uint8_t* data,const uint8_t length);
 
 
 
@@ -107,3 +123,12 @@ uint8_t ubh_impl_get_power_state();
 
 
 void ubh_impl_call_app(bool first_call);
+
+
+void ubh_provide_dispatch_interrupt(void*);
+
+
+void init_bus();
+
+void ubh_manage_bus();
+

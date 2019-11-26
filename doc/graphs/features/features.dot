@@ -1,0 +1,69 @@
+digraph uartbus_features
+{
+	overlap=prism; overlap_scaling=0.01; ratio=0.3;
+
+	"Microcontroller" -> "Bus driver";
+	
+	subgraph cluster0
+	{
+		"Bus driver" -> "Wired connection"
+		"Wired connection" -> "12V Pull up one wire FET line driver";
+	}
+
+	"Microcontroller" -> "UARTBus datalink layer";
+	subgraph cluster1
+	{
+		
+		"UARTBus datalink layer" -> "Time based packet framing";
+		"Time based packet framing" -> "Collision handling";
+		"Time based packet framing" -> "Interrupt based receive";
+
+		"Collision handling" -> "Packet integrity check"
+		"Collision handling" -> "Fast collision detection";
+		"Collision handling" -> "Simple anti flood protection";
+		"Collision handling" -> "Retransmit collided packet";
+	
+		"Time based packet framing" -> "Multi instance connection";
+	}
+
+
+	"Microcontroller" -> "UARTBus addressing";
+	subgraph cluster2
+	{
+		"UARTBus addressing" -> "Basic packet format";
+		"Basic packet format" -> "Address and broadcast support";
+		"UARTBus addressing" -> "Variable length addressing";
+	}
+	
+
+	"Microcontroller" -> "UARTBus microcontroller RPC";
+	subgraph cluster3
+	{
+		"UARTBus microcontroller RPC" -> "RPC packet format";
+		"RPC packet format" -> "UARTBus RPC namespace conventions";
+		"RPC packet format" -> "RPC parameter types and call conventions";
+		"RPC parameter types and call conventions" -> "RPC request dispatcher";
+	}
+
+	"Computer" -> "Gateway";
+	"Microcontroller" -> "Gateway";
+	subgraph cluster4
+	{
+		"Gateway" -> "Frame packets to stream on serial";
+		"Frame packets to stream on serial" -> "Computer side bus packet receiver";
+		"Computer side bus packet receiver" -> "TCP RPC server aka `ub rpcServer`";
+		"TCP RPC server aka `ub rpcServer`" -> "Steady server, serial reconnection";
+	}
+	
+	"Microcontroller" -> "UARTBus host";
+	subgraph cluster5
+	{
+		
+		"UARTBus host" -> "Basic node host function";
+		"Basic node host function" -> "Response ping, blink user_led, reboot";
+		"Basic node host function" -> "Upload applications";
+		"UARTBus host" -> "Application management";
+	}
+	
+	
+}

@@ -203,7 +203,7 @@ public class UartBus implements Closeable
 		{
 			if(!waitResponse(timeout, unit))
 			{
-				throw new TransactionException("Device (`"+to+"`) not responded in time "+timeout+" "+unit+" for the request"+(null == errAppendMsg?"":": "+errAppendMsg));
+				throw new TransactionException("Device (`"+to+"`) not responded within "+timeout+" "+unit+" for the request"+(null == errAppendMsg?"":": "+errAppendMsg));
 			}
 			
 			return responsePayload;
@@ -271,7 +271,7 @@ public class UartBus implements Closeable
 			ip,
 			port,
 			ret.packetReceived
-		);
+		).thread;
 		
 		return ret;
 	}
