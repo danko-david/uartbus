@@ -1,7 +1,6 @@
 package eu.javaexperience.electronic.uartbus;
 
 import eu.javaexperience.electronic.IhexCli;
-import eu.javaexperience.electronic.build.GccBuilderContext;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusAttachProcess;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusBlink;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusCodeUploader;
@@ -53,11 +52,6 @@ public class UartBusCli
 	public static void collisionPacketloss(String... args) throws Throwable
 	{
 		UartbusCollisionPacketloss.main(args);
-	}
-	
-	public static void compile(String... args) throws Throwable
-	{
-		GccBuilderContext.main(args);
 	}
 	
 	public static void upload(String... args) throws Throwable
