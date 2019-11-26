@@ -30,15 +30,25 @@ uint32_t micros()
 //empty call
 void ub_init_infrastructure(){};
 
+uint16_t ubh_address = 0;
+
 uint16_t ubh_linux_get_bus_address()
 {
-	//TODO read from env
-	return 1;
+	return ubh_address;
 }
 
 void ubh_impl_init()
 {
+	char* addr = getenv("UBH_ADDRESS");
+	if(NULL != addr)
+	{
+		ubh_address = (uint16_t) atoi(addr);
+	}
 
+	if(ubh_address < 0)
+	{
+		ubh_address = 1;
+	}
 }
 
 void ub_read_stdin()
@@ -151,7 +161,7 @@ uint8_t rando()
 	return (uint8_t) rand()%256;
 }
 
-void ubh_impl_call_app(bool first_call)
+__attribute__ ((weak)) void ubh_impl_call_app(bool first_call)
 {
 	sleep(1000);
 };
