@@ -35,13 +35,6 @@ public class UartbusBlink
 		INTERVAL
 	};
 	
-	public static void printHelpAndExit(int exit)
-	{
-		System.err.println("Usage of UartbusBlink:\n");
-		System.err.println(CliTools.renderListAllOption(PROG_CLI_ENTRIES));
-		System.exit(1);
-	}
-	
 	public static void main(String[] args) throws InterruptedException, Throwable
 	{
 		JavaExperienceLoggingFacility.addStdOut();
@@ -49,7 +42,7 @@ public class UartbusBlink
 		String un = CliTools.getFirstUnknownParam(pa, PROG_CLI_ENTRIES);
 		if(null != un)
 		{
-			printHelpAndExit(1);
+			CliTools.printHelpAndExit("UartbusBlink", 1, PROG_CLI_ENTRIES);
 		}
 		
 		int from = UartbusCliTools.parseFrom(pa);

@@ -38,12 +38,6 @@ public class UartbusAttachProcess
 		PROGRAM
 	};
 	
-	public static void printHelpAndExit(int exit)
-	{
-		System.err.println("Usage of UartbusAttachProcess:\n");
-		System.err.println(CliTools.renderListAllOption(PROG_CLI_ENTRIES));
-		System.exit(exit);
-	}
 	
 	public static void main(String[] args) throws Exception
 	{
@@ -52,7 +46,7 @@ public class UartbusAttachProcess
 		String un = CliTools.getFirstUnknownParam(pa, PROG_CLI_ENTRIES);
 		if(null != un)
 		{
-			printHelpAndExit(1);
+			CliTools.printHelpAndExit("UartbusAttachProcess", 1, PROG_CLI_ENTRIES);
 		}
 		
 		String prog = PROGRAM.tryParse(pa);
@@ -60,7 +54,7 @@ public class UartbusAttachProcess
 		if(null == prog)
 		{
 			System.err.println("No program specified");
-			printHelpAndExit(1);
+			CliTools.printHelpAndExit("UartbusAttachProcess", 1, PROG_CLI_ENTRIES);
 		}
 		
 		ProcessBuilder pb = new ProcessBuilder(translateCommandline(prog));

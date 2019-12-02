@@ -52,13 +52,6 @@ public class UartbusConsole
 		LOOPBACK
 	};
 	
-	public static void printHelpAndExit(int exit)
-	{
-		System.err.println("Usage of UartbusConsole:\n");
-		System.err.println(CliTools.renderListAllOption(PROG_CLI_ENTRIES));
-		System.exit(1);
-	}
-	
 	public static void main(String[] args) throws IOException
 	{
 		JavaExperienceLoggingFacility.addStdOut();
@@ -66,7 +59,7 @@ public class UartbusConsole
 		String un = CliTools.getFirstUnknownParam(pa, PROG_CLI_ENTRIES);
 		if(null != un)
 		{
-			printHelpAndExit(1);
+			CliTools.printHelpAndExit("UartbusConsole", 1, PROG_CLI_ENTRIES);
 		}
 		
 		int from = UartbusCliTools.parseFrom(pa);

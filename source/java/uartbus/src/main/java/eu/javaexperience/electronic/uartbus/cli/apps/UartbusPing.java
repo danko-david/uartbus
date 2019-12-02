@@ -43,13 +43,6 @@ public class UartbusPing
 		COUNT_OF_PACKETS
 	};
 	
-	public static void printHelpAndExit(int exit)
-	{
-		System.err.println("Usage of UartbusPing:\n");
-		System.err.println(CliTools.renderListAllOption(PROG_CLI_ENTRIES));
-		System.exit(1);
-	}
-	
 	public static void main(String[] args) throws InterruptedException, Throwable
 	{
 		JavaExperienceLoggingFacility.addStdOut();
@@ -57,7 +50,7 @@ public class UartbusPing
 		String un = CliTools.getFirstUnknownParam(pa, PROG_CLI_ENTRIES);
 		if(null != un)
 		{
-			printHelpAndExit(1);
+			CliTools.printHelpAndExit("UartbusPing", 1, PROG_CLI_ENTRIES);
 		}
 		
 		int from = UartbusCliTools.parseFrom(pa);

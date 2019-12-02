@@ -46,20 +46,9 @@ public class UartbusCollisionPacketloss
 		COUNT_OF_PACKETS
 	};
 	
-	public static void printHelpAndExit(int exit)
-	{
-		System.err.println("Usage of UartbusCollisionPacketloss:\n");
-		System.err.println(CliTools.renderListAllOption(PROG_CLI_ENTRIES));
-		System.exit(1);
-	}
-	
 	public static class DevCollisionStat
 	{
 		public Map<Integer, Integer> lens = new TreeMap<>(); 
-		/*public int oneByteCollision;
-		public int twoByteCollision;
-		public int multiByteCollision;
-		public int concaterationCollision;*/
 	}
 	
 	public static void regPacketLostStatPrintOnExit(int[] sent, Map<Integer, ReplyCollector> rec,  DevCollisionStat ds)
@@ -175,7 +164,7 @@ public class UartbusCollisionPacketloss
 		String un = CliTools.getFirstUnknownParam(pa, PROG_CLI_ENTRIES);
 		if(null != un)
 		{
-			printHelpAndExit(1);
+			CliTools.printHelpAndExit("UartbusCollisionPacketloss", 1, PROG_CLI_ENTRIES);
 		}
 		
 		int from = UartbusCliTools.parseFrom(pa);
