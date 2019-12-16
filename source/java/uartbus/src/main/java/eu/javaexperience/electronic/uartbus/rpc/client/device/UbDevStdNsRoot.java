@@ -1,6 +1,7 @@
 package eu.javaexperience.electronic.uartbus.rpc.client.device;
 
 import eu.javaexperience.electronic.uartbus.rpc.client.device.fns.UbBusFunctions;
+import eu.javaexperience.electronic.uartbus.rpc.client.device.fns.reflect.UbReflectNs;
 import eu.javaexperience.electronic.uartbus.rpc.client.device.fns.ubb.UbBootloaderFunctions;
 
 public interface UbDevStdNsRoot extends UbDeviceNs
@@ -13,4 +14,9 @@ public interface UbDevStdNsRoot extends UbDeviceNs
 	
 	@UbIndex(ns=32)
 	public UbDeviceNs getAppFunctions();
+	
+	
+	@UbIndex(ns=255)
+	public UbReflectNs getReflectFunctions();
+	
 }
