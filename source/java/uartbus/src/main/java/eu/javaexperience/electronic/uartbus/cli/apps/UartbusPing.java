@@ -15,6 +15,7 @@ import eu.javaexperience.electronic.uartbus.UartbusTools;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusConnection;
 import eu.javaexperience.electronic.uartbus.rpc.client.UartbusRpcClientTools;
+import eu.javaexperience.electronic.uartbus.rpc.client.UartbusStreamerEndpoint;
 import eu.javaexperience.log.JavaExperienceLoggingFacility;
 
 public class UartbusPing
@@ -58,22 +59,26 @@ public class UartbusPing
 		int interval = INTERVAL.tryParseOrDefault(pa, 1000);
 		int count = COUNT_OF_PACKETS.tryParseOrDefault(pa, 0);
 		
-		UartbusRpcClientTools.streamPackets
+		UartbusStreamerEndpoint rpc = UartbusRpcClientTools.openIpEndpoint
 		(
 			RPC_HOST.tryParseOrDefault(pa, "127.0.0.1"),
 			RPC_PORT.tryParseOrDefault(pa, 2112),
-			(e) ->
+			null,
+			false
+		);
+		
+		rpc.getPacketStreamer().addEventListener
+		(
+			e ->
 			{
 				boolean valid = UartbusTools.crc8(e, e.length-1) == e[e.length-1];
 				System.out.println((valid?"":"!")+UartbusTools.formatColonData(e));
 			}
 		);
 		
-		UartbusConnection conn = UartbusRpcClientTools.connectTcp
-		(
-			RPC_HOST.tryParseOrDefault(pa, "127.0.0.1"),
-			RPC_PORT.tryParseOrDefault(pa, 2112)
-		);
+		rpc.startStreaming();
+		
+		UartbusConnection conn = rpc.getApi();
 		
 		byte[] packet = null;
 		{

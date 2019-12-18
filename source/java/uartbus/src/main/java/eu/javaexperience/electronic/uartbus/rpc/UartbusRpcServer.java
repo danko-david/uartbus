@@ -5,9 +5,18 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.RejectedExecutionHandler;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 import eu.javaexperience.cli.CliEntry;
 import eu.javaexperience.cli.CliTools;
+import eu.javaexperience.collection.map.MapTools;
 import eu.javaexperience.datareprez.DataObject;
 import eu.javaexperience.electronic.SerialTools;
 import eu.javaexperience.electronic.uartbus.UartbusEscapedStreamPacketConnector;
@@ -25,13 +34,19 @@ import eu.javaexperience.log.LogLevel;
 import eu.javaexperience.log.Loggable;
 import eu.javaexperience.log.Logger;
 import eu.javaexperience.log.LoggingTools;
+import eu.javaexperience.multithread.TaskExecutorPool;
 import eu.javaexperience.reflect.Mirror;
 import eu.javaexperience.rpc.JavaClassRpcUnboundFunctionsInstance;
+import eu.javaexperience.rpc.RpcProtocolHandler;
+import eu.javaexperience.rpc.RpcSession;
+import eu.javaexperience.rpc.RpcSessionTools;
 import eu.javaexperience.rpc.RpcTools;
 import eu.javaexperience.rpc.SimpleRpcRequest;
 import eu.javaexperience.rpc.SimpleRpcSession;
 import eu.javaexperience.rpc.SocketRpcServer;
 import eu.javaexperience.rpc.bidirectional.BidirectionalRpcDefaultProtocol;
+import eu.javaexperience.semantic.references.MayNull;
+
 import static eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools.*;
 
 public class UartbusRpcServer
@@ -75,15 +90,8 @@ public class UartbusRpcServer
 		SERIAL_BAUD,//-b
 		RECONNECT,//-r
 		DIRECT_SERIAL_DEVICE,//-i
-		MODE
+		MODE//-m
 	};
-	
-	public static void printHelpAndExit(int exit)
-	{
-		System.err.println("Usage of UarbusRpcServer:\n");
-		System.err.println(CliTools.renderListAllOption(PROG_CLI_ENTRIES));
-		System.exit(1);
-	}
 	
 	protected static UartbusPacketConnector createSerialPacketConnector(Map<String, List<String>> args)
 	{
@@ -211,7 +219,7 @@ public class UartbusRpcServer
 		String un = CliTools.getFirstUnknownParam(pa, PROG_CLI_ENTRIES);
 		if(null != un)
 		{
-			printHelpAndExit(1);
+			CliTools.printHelpAndExit("UarbusRpcServer", 1, PROG_CLI_ENTRIES);
 		}
 		
 		String wd = WORK_DIR.tryParseOrDefault(pa, ".");
@@ -221,7 +229,7 @@ public class UartbusRpcServer
 		
 		if(null == conn)
 		{
-			printHelpAndExit(2);
+			CliTools.printHelpAndExit("UarbusRpcServer", 2, PROG_CLI_ENTRIES);
 		}
 		
 		JavaExperienceLoggingFacility.startLoggingIntoDirectory(new File(wd+"/log/"), "uartbus-rpc-server-");
@@ -237,21 +245,87 @@ public class UartbusRpcServer
 			new JavaClassRpcUnboundFunctionsInstance<>("uartbus", bus, UartbusConnection.class)
 		);
 		
-		SocketRpcServer<IOStream, SimpleRpcSession> srv = RpcTools.newServer
+		GetBy2<SimpleRpcSession, IOStream, RpcProtocolHandler> sessionCreator = RpcTools.getSimpleSessionCreator();
+		
+		Executor exec =
+			//new ThreadPoolExecutor(30, 300, 60, TimeUnit.SECONDS, new LinkedBlockingDeque<>());
+			new TaskExecutorPool();
+		
+		AtomicLong ref = new AtomicLong();
+		ConcurrentHashMap<Long, Boolean> missed = new ConcurrentHashMap<>();
+		
+		exec.execute(()->
+		{
+			while(true)
+			{
+				try {
+					Thread.sleep(500);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				System.out.println(MapTools.toStringMultiline(missed));
+			}
+		});
+		
+		SocketRpcServer<IOStream, RpcSession> srv = new SocketRpcServer<IOStream, RpcSession>
 		(
 			IOStreamFactory.fromServerSocket(new ServerSocket(port)),
 			5,
-			BidirectionalRpcDefaultProtocol.DEFAULT_PROTOCOL_HANDLER_WITH_CLASS,
-			RpcTools.getSimpleSessionCreator(),
-			new GetBy2<DataObject, SimpleRpcSession, DataObject>()
+			BidirectionalRpcDefaultProtocol.DEFAULT_PROTOCOL_HANDLER_WITH_CLASS
+		)
+		{
+			@Override
+			protected RpcSession init(IOStream socket)
 			{
-				@Override
-				public DataObject getBy(SimpleRpcSession a, DataObject b)
-				{
-					return dispatcher.getBy(new SimpleRpcRequest(a, b));
-				}
+				return sessionCreator.getBy(socket, handler);
 			}
-		);
+			
+			@Override
+			protected void responseRequest(SimplePublish1<DataObject> response, RpcSession sess, DataObject request, Object extraCtx)
+			{
+				long val = ref.incrementAndGet();
+				missed.put(val, Boolean.TRUE);
+				
+				//new Thread
+				exec.execute
+				(
+					()->
+					{
+						RpcSessionTools.setCurrentRpcSession(sess);
+						try
+						{
+							DataObject resp = handleRequest(sess, request);
+							if(null != resp)
+							{
+								response.publish(resp);
+							}
+							else
+								
+							System.out.println("NULL response");
+						}
+						catch(Throwable t)
+						{
+							t.printStackTrace();
+						}
+						finally
+						{
+							RpcSessionTools.setCurrentRpcSession(null);
+						}
+						missed.remove(val);
+					}
+				)
+				
+				//.start()
+				;
+			}
+
+			@Override
+			protected @MayNull DataObject handleRequest(RpcSession sess, DataObject request)
+			{
+				return dispatcher.getBy(new SimpleRpcRequest(sess, request));
+			}
+		};
 		
 		srv.start();
 	}

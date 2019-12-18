@@ -20,7 +20,6 @@ import eu.javaexperience.reflect.CastTo;
 import eu.javaexperience.reflect.Mirror;
 import eu.javaexperience.rpc.RpcSession;
 import eu.javaexperience.rpc.RpcSessionTools;
-import eu.javaexperience.rpc.RpcTools;
 
 public class UartbusRpcEndpoint implements UartbusConnection
 {
@@ -28,7 +27,6 @@ public class UartbusRpcEndpoint implements UartbusConnection
 	
 	protected UartbusPacketConnector conn;
 	
-	//TODO add packed warehouse
 	//TODO add packed delay to manage packet flow rate
 	//TODO packed flow delay disable for emergency situation 
 	public UartbusRpcEndpoint(UartbusPacketConnector connector)

@@ -13,37 +13,19 @@ import eu.javaexperience.log.LoggingTools;
 import eu.javaexperience.reflect.Mirror;
 import eu.javaexperience.rpc.bidirectional.BidirectionalRpcDefaultProtocol;
 import eu.javaexperience.rpc.javaclient.JavaRpcClientTools;
-import eu.javaexperience.semantic.references.MayNull;
+import eu.javaexperience.rpc.javaclient.JavaRpcParallelClient;
 
 public class UartbusRpcClientTools
 {
+	private UartbusRpcClientTools(){}
+	
 	protected static final Logger LOG = JavaExperienceLoggingFacility.getLogger(new Loggable("UartbusRpcClientTools"));
 	
-	public static UartbusConnection connectTcp(String ip, int port) throws IOException
-	{
-		return JavaRpcClientTools.createApiWithIpPort
-		(
-			UartbusConnection.class,
-			ip,
-			port,
-			"uartbus",
-			BidirectionalRpcDefaultProtocol.DEFAULT_PROTOCOL_HANDLER_WITH_CLASS
-		);
-	}
-	
-	public static class PacketStreamThread
-	{
-		public PacketStreamThread(Thread thread)
-		{
-			this.thread = thread;
-		}
-		
-		public final Thread thread;
-	}
+	protected static final int[] RECONNECT_RETRY_DELAYS = new int[] {100, 200, 500, 1_000, 2_000, 5_000, 10_000};
 	
 	public static <T> SimpleGet<T> waitReconnect(SimpleGet<T> connect, String entity)
 	{
-		return waitReconnect(connect, entity, 100, 200, 500, 1_000, 2_000, 5_000, 10_000);
+		return waitReconnect(connect, entity, RECONNECT_RETRY_DELAYS);
 	}
 	
 	public static <T> SimpleGet<T> waitReconnect(SimpleGet<T> connect, String entity, int... reconnectWaitTimes)
@@ -83,25 +65,57 @@ public class UartbusRpcClientTools
 		};
 	}
 	
-	public static PacketStreamThread streamPackets(String ip, int port, SimplePublish1<byte[]> onNewPacket) throws IOException
+	public static JavaRpcParallelClient openIpParallelClient(String ip, int port) throws IOException
 	{
-		return streamPacketsReconnect(ip, port, onNewPacket, null, -1);
+		LoggingTools.tryLogFormat(LOG, LogLevel.DEBUG, "openIpParallelClient(%s, %s)", ip,port);
+		JavaRpcParallelClient ret = JavaRpcClientTools.createClientWithIpPort(ip, port, BidirectionalRpcDefaultProtocol.DEFAULT_PROTOCOL_HANDLER_WITH_CLASS);
+		ret.startPacketRead();
+		return ret;
 	}
 	
-	public static PacketStreamThread streamPackets(String ip, int port, SimplePublish1<byte[]> onNewPacket, @MayNull SimplePublish1<UartbusConnection> connectionInitializer) throws IOException
+	public static UartbusConnection createApi(JavaRpcParallelClient cli)
 	{
-		return streamPacketsReconnect(ip, port, onNewPacket, connectionInitializer, -1);
+		return cli.createApiObject(UartbusConnection.class, "uartbus");
 	}
 	
-	public static PacketStreamThread streamPacketsReconnect(String ip, int port, SimplePublish1<byte[]> onNewPacket, @MayNull SimplePublish1<UartbusConnection> connectionInitializer, int... reconnectRetryDelays) throws IOException
+	public static UartbusStreamerEndpoint openIpEndpoint(String ip, int port, SimplePublish1<UartbusConnection> connectionInitializer, boolean reconnect)
 	{
-		SimpleGet<UartbusConnection> tcpReconnect = waitReconnect
+		if(reconnect)
+		{
+			return openIpEndpoint(ip, port, connectionInitializer, RECONNECT_RETRY_DELAYS);
+		}
+		else
+		{
+			return new UartbusStreamerEndpoint(()->
+			{
+				try
+				{
+					return createApi(openIpParallelClient(ip, port));
+				}
+				catch (IOException e)
+				{
+					Mirror.propagateAnyway(e);
+					return null;
+				}
+			});
+		}
+	}
+	
+	public static UartbusStreamerEndpoint openIpEndpoint(String ip, int port, SimplePublish1<UartbusConnection> connectionInitializer, int... reconnectRetryDelays)
+	{
+		SimpleGet<JavaRpcParallelClient> apiReconnect = waitReconnect
 		(
 			()->
 			{
 				try
 				{
-					return connectTcp(ip, port);
+					JavaRpcParallelClient ret = openIpParallelClient(ip, port);
+					ret.getServerEventMediator().addEventListener((e)->System.err.println("UNHANDLED: "+e));
+					if(null != connectionInitializer)
+					{
+						connectionInitializer.publish(createApi(ret));
+					}
+					return ret;
 				}
 				catch(IOException e)
 				{
@@ -109,38 +123,10 @@ public class UartbusRpcClientTools
 					return null;
 				}
 			},
-			"Uartbus TCP connection to "+ip+":"+port,
+			"Uartbus API connection to "+ip+":"+port,
 			reconnectRetryDelays
 		);
 		
-		Thread t = new Thread()
-		{
-			@Override
-			public void run()
-			{
-				while(true)
-				{
-					try(UartbusConnection conn = tcpReconnect.get())
-					{
-						if(null != connectionInitializer)
-						{
-							connectionInitializer.publish(conn);
-						}
-						while(true)
-						{
-							onNewPacket.publish(conn.getNextPacket());
-						}
-					}
-					catch(Exception ex)
-					{
-						LoggingTools.tryLogFormatException(LOG, LogLevel.WARNING, ex, "Exception while receiving and dispatching packet ");
-					}
-				}
-			}
-		};
-		
-		t.setDaemon(true);
-		t.start();
-		return new PacketStreamThread(t);
+		return new UartbusStreamerEndpoint(()->createApi(apiReconnect.get()));
 	}
 }

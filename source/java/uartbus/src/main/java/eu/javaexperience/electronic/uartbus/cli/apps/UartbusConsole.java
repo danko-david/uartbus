@@ -14,7 +14,7 @@ import eu.javaexperience.electronic.uartbus.UartbusTools;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusConnection;
 import eu.javaexperience.electronic.uartbus.rpc.client.UartbusRpcClientTools;
-import eu.javaexperience.electronic.uartbus.rpc.client.UartbusRpcClientTools.PacketStreamThread;
+import eu.javaexperience.electronic.uartbus.rpc.client.UartbusStreamerEndpoint;
 import eu.javaexperience.log.JavaExperienceLoggingFacility;
 import eu.javaexperience.log.Loggable;
 import eu.javaexperience.log.Logger;
@@ -67,34 +67,30 @@ public class UartbusConsole
 		
 		boolean logTimes = LOG_TIME.hasOption(pa);
 		
-		//TODO recfator to proper untangled RPC call
-		UartbusConnection conn = UartbusRpcClientTools.connectTcp
-		(
-			RPC_HOST.tryParseOrDefault(pa, "127.0.0.1"),
-			RPC_PORT.tryParseOrDefault(pa, 2112)
-		);
-		
-		PacketAssembler asm = new PacketAssembler();
-		
-		if(null != DATA.getSimple(pa))
-		{
-			asm.writeAddressing(from, to);
-			asm.write(DATA.tryParse(pa));
-			asm.appendCrc8();
-			byte[] data = asm.done();
-			conn.sendPacket(data);
-			if(null != EXIT.getAll(pa))
-			{
-				System.exit(0);
-			}
-		}
-		
-		//TODO partial parse packet
-		PacketStreamThread stream = UartbusRpcClientTools.streamPackets
+		UartbusStreamerEndpoint rpc = UartbusRpcClientTools.openIpEndpoint
 		(
 			RPC_HOST.tryParseOrDefault(pa, "127.0.0.1"),
 			RPC_PORT.tryParseOrDefault(pa, 2112),
-			(e) ->
+			(connection)->
+			{
+				if(LOOPBACK.hasOption(pa))
+				{
+					try
+					{
+						connection.setAttribute("loopback_send_packets", "true");
+					}
+					catch (IOException e1)
+					{
+						e1.printStackTrace();
+					}
+				}
+			},
+			false
+		);
+		
+		rpc.getPacketStreamer().addEventListener
+		(
+			e ->
 			{
 				boolean valid = UartbusTools.crc8(e, e.length-1) == e[e.length-1];
 				StringBuilder sb = new StringBuilder();
@@ -110,22 +106,27 @@ public class UartbusConsole
 				}
 				sb.append(UartbusTools.formatColonData(e));
 				System.out.println(sb.toString());
-			},
-			(connection)->
-			{
-				if(LOOPBACK.hasOption(pa))
-				{
-					try
-					{
-						connection.setAttribute("loopback_send_packets", "true");
-					}
-					catch (IOException e1)
-					{
-						e1.printStackTrace();
-					}
-				}
 			}
 		);
+		
+		rpc.startStreaming();
+		
+		UartbusConnection conn = rpc.getApi();
+		
+		PacketAssembler asm = new PacketAssembler();
+		
+		if(null != DATA.getSimple(pa))
+		{
+			asm.writeAddressing(from, to);
+			asm.write(DATA.tryParse(pa));
+			asm.appendCrc8();
+			byte[] data = asm.done();
+			conn.sendPacket(data);
+			if(null != EXIT.getAll(pa))
+			{
+				System.exit(0);
+			}
+		}
 		
 		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 		String line = null;

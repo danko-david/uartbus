@@ -19,6 +19,7 @@ import eu.javaexperience.cli.CliTools;
 import eu.javaexperience.electronic.uartbus.UartbusTools;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusConnection;
 import eu.javaexperience.electronic.uartbus.rpc.client.UartbusRpcClientTools;
+import eu.javaexperience.electronic.uartbus.rpc.client.UartbusStreamerEndpoint;
 import eu.javaexperience.log.JavaExperienceLoggingFacility;
 
 public class UartbusAttachProcess
@@ -61,16 +62,29 @@ public class UartbusAttachProcess
 		pb.redirectError(Redirect.INHERIT);
 		Process proc = pb.start();
 		
-		UartbusConnection conn = UartbusRpcClientTools.connectTcp
-		(
-			RPC_HOST.tryParseOrDefault(pa, "127.0.0.1"),
-			RPC_PORT.tryParseOrDefault(pa, 2112)
-		);
-		
-		UartbusRpcClientTools.streamPackets
+		UartbusStreamerEndpoint rpc = UartbusRpcClientTools.openIpEndpoint
 		(
 			RPC_HOST.tryParseOrDefault(pa, "127.0.0.1"),
 			RPC_PORT.tryParseOrDefault(pa, 2112),
+			(connection)->
+			{
+				if(LOOPBACK.hasOption(pa))
+				{
+					try
+					{
+						connection.setAttribute("loopback_send_packets", "true");
+					}
+					catch (IOException e1)
+					{
+						e1.printStackTrace();
+					}
+				}
+			},
+			false
+		);
+		
+		rpc.getPacketStreamer().addEventListener
+		(
 			e ->
 			{
 				//write to process
@@ -86,23 +100,13 @@ public class UartbusAttachProcess
 				{
 					e1.printStackTrace();
 				}
-			},
-			(connection)->
-			{
-				if(LOOPBACK.hasOption(pa))
-				{
-					try
-					{
-						connection.setAttribute("loopback_send_packets", "true");
-					}
-					catch (IOException e1)
-					{
-						e1.printStackTrace();
-					}
-				}
 			}
 		);
 		
+		rpc.startStreaming();
+		
+		UartbusConnection conn = rpc.getApi();
+
 		BufferedReader br = new BufferedReader(new InputStreamReader(proc.getInputStream()));
 		String line = null;
 		

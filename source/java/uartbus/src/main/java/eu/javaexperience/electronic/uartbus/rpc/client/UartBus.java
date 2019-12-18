@@ -8,13 +8,10 @@ import java.util.concurrent.TimeUnit;
 import eu.javaexperience.asserts.AssertArgument;
 import eu.javaexperience.datastorage.TransactionException;
 import eu.javaexperience.electronic.uartbus.UartbusTools;
-import eu.javaexperience.electronic.uartbus.rpc.UartbusConnection;
 import eu.javaexperience.electronic.uartbus.rpc.client.device.UartBusDevice;
-import eu.javaexperience.electronic.uartbus.rpc.client.device.UbDevStdNsRoot;
 import eu.javaexperience.exceptions.IllegalOperationException;
 import eu.javaexperience.interfaces.simple.publish.SimplePublish1;
 import eu.javaexperience.io.IOTools;
-import eu.javaexperience.measurement.MeasurementSerie;
 import eu.javaexperience.multithread.notify.WaitForSingleEvent;
 import eu.javaexperience.patterns.behavioral.mediator.EventMediator;
 
@@ -23,8 +20,9 @@ public class UartBus implements Closeable
 	//TODO abstract stream pair to make capable to connect directly to the
 		//bus through ttyUSBX
 	
-	protected UartbusConnection conn;
-	protected Thread receiverThread;
+	protected UartbusStreamerEndpoint conn;
+	//protected UartbusConnection conn;
+	//protected Thread receiverThread;
 	protected int fromAddress;
 	
 	protected final EventMediator<ParsedUartBusPacket> onNewValidPackageReceived = new EventMediator<>();
@@ -152,7 +150,7 @@ public class UartBus implements Closeable
 			byte[] send = toPacket();
 			synchronized(conn)
 			{
-				conn.sendPacket(send);
+				conn.getApi().sendPacket(send);
 			}
 		}
 		
@@ -263,16 +261,10 @@ public class UartBus implements Closeable
 	public static UartBus fromTcp(String ip, int port, int fromAddress) throws IOException
 	{
 		UartBus ret = new UartBus();
-		ret.conn = UartbusRpcClientTools.connectTcp(ip, port);
+		ret.conn = UartbusRpcClientTools.openIpEndpoint(ip, port, null, true);
 		ret.fromAddress = fromAddress;
-		
-		ret.receiverThread = UartbusRpcClientTools.streamPackets
-		(
-			ip,
-			port,
-			ret.packetReceived
-		).thread;
-		
+		ret.conn.getPacketStreamer().addEventListener(ret.packetReceived);
+		ret.conn.startStreaming();
 		return ret;
 	}
 
@@ -280,7 +272,6 @@ public class UartBus implements Closeable
 	public void close() throws IOException
 	{
 		IOTools.silentClose(conn);
-		receiverThread.interrupt();
 	}
 
 	public int getFromAddress()
@@ -291,66 +282,5 @@ public class UartBus implements Closeable
 	public UartBusDevice device(int addr)
 	{
 		return new UartBusDevice(this, addr);
-	}
-	
-	public static void main(String[] args) throws Throwable
-	{
-		UartBus bus = fromTcp("127.0.0.1", 2112, 63);
-		UartBusDevice dev = bus.device(1);
-		UbDevStdNsRoot root = dev.getRpcRoot();
-		
-		//root.getBusFunctions().ping();
-		
-		//root.getBootloaderFunctions().getPowerFunctions().hardwareReset();
-		
-		/*if(true)
-		{
-			return;
-		}*/
-		
-		
-		MeasurementSerie ser = new MeasurementSerie();
-		
-		
-		for(int m=0;m<20;++m)
-		{
-			try
-			{
-				for(int i=0;i<1000;++i)
-				{
-					//ensure host is online
-					root.getBusFunctions().ping();
-					
-					System.out.println(i+". pong");
-					Thread.sleep(5);
-					
-					/*UartbusTransaction reboot = bus.subscribeResponse(-1, 1, new byte[]{0});
-					root.getBootloaderFunctions().getPowerFunctions().hardwareReset();
-					//this waits until reboot complete
-					reboot.ensureResponse(3, TimeUnit.SECONDS);
-					System.out.println("reboot done");
-					//remove SOS and start app
-					System.out.println(root.getBootloaderFunctions().getVar(UbBootloaderVariable.IS_SIGNALING_SOS));
-					root.getBootloaderFunctions().setVar(UbBootloaderVariable.IS_SIGNALING_SOS, (byte) 0);
-					System.out.println(root.getBootloaderFunctions().getVar(UbBootloaderVariable.IS_SIGNALING_SOS));
-					
-					System.out.println(root.getBootloaderFunctions().getVar(UbBootloaderVariable.IS_APPLICATION_RUNNING));
-					root.getBootloaderFunctions().setVar(UbBootloaderVariable.IS_APPLICATION_RUNNING, (byte) 0x1);
-					System.out.println(root.getBootloaderFunctions().getVar(UbBootloaderVariable.IS_APPLICATION_RUNNING));
-					
-					System.out.println("external reset done");
-					*/
-					root.getBusFunctions().ping();
-					
-					System.out.println("TRANSACTION END");
-				}
-			}
-			catch(Exception e)
-			{
-				continue;
-			}
-			break;
-		}
-		System.exit(0);
 	}
 }
