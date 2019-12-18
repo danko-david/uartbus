@@ -1,0 +1,4 @@
+md_root_dir=.
+resources_m=./resources
+wrapper=wrapper.html?body_content
+target_file_extension=html
