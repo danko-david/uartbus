@@ -59,6 +59,7 @@ struct rpc_node* rpc_il_create_function_node
 	ret->ns = ns,
 	ret->name = name;
 	ret->modifiers = rpc_modifier_function;
+	ret->rpc_function = rpc_function;
 	ret->name = name;
 
 	if(0 != return_params + request_params)
@@ -112,14 +113,7 @@ struct rpc_node* rpc_get_ns(struct rpc_node* node, uint8_t ns)
 	return NULL;
 }
 
-/*
-
-
-
-
-
-*/
-
+#include <stdio.h>
 
 bool rpc_dispatch_with_mode
 (
@@ -128,18 +122,34 @@ bool rpc_dispatch_with_mode
 	enum rpc_dispatch_mode mode
 )
 {
-	//walk the namespaces
-
-	struct rpc_node* crnt = node;
-	//while(node->modifiers & rpc_modifier_namespace)
-	if(node->modifiers & rpc_modifier_namespace)
+	if(mode <= rpc_dispatch_mode_response)
 	{
-		if()
+		//walk the namespaces
+		struct rpc_node* crnt = node;
+		while(req->procPtr < req->size && NULL != crnt)
 		{
+			if(crnt->modifiers & rpc_modifier_namespace)
+			{
+				crnt = rpc_get_ns(crnt, req->payload[req->procPtr++]);
+			}
 
+			if(NULL != crnt && (crnt->modifiers & rpc_modifier_function))
+			{
+				if(crnt->modifiers & rpc_modifier_advanced_handler)
+				{
+					return crnt->rpc_ext_function(crnt, req, mode);
+				}
+				else if(mode == rpc_dispatch_mode_request)
+				{
+					crnt->rpc_function(req);
+					return true;
+				}
+				return false;
+			}
 		}
+		return false;
 	}
-
+	return false;
 }
 
 bool rpc_dispatch_root(struct rpc_node* root, struct rpc_request* req)
@@ -150,7 +160,6 @@ bool rpc_dispatch_root(struct rpc_node* root, struct rpc_request* req)
 	}
 
 	int ns = req->payload[req->procPtr];
-
 	switch(ns)
 	{
 	case 0:
@@ -160,12 +169,8 @@ bool rpc_dispatch_root(struct rpc_node* root, struct rpc_request* req)
 
 
 	case 255:
-		//dispatch reflect request
-
-		//TODO handle reflect other way
-		++req->procPtr;
-		return rpc_dispatch_with_mode(root, req, rpc_dispatch_mode_reflect);
-
+		//++req->procPtr;
+		//return rpc_dispatch_with_mode(root, req, rpc_dispatch_mode_reflect);
 	default:
 		//dispatch request
 		return rpc_dispatch_with_mode(root, req, rpc_dispatch_mode_request);

@@ -9,5 +9,6 @@ public interface UbRemoteString
 	@UbIndex(ns=1)
 	public VSigned getLength();
 	
+	@UbIndex(ns=2)
 	public byte[] getPart(VUnsigned from, VUnsigned to);
 }
