@@ -7,6 +7,8 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.util.Arrays;
 
+import eu.javaexperience.binary.FramedPacketCutter;
+import eu.javaexperience.binary.PacketFramingTools;
 import eu.javaexperience.electronic.SerialTools;
 import eu.javaexperience.interfaces.simple.SimpleCall;
 import eu.javaexperience.interfaces.simple.publish.SimplePublish1;
@@ -26,12 +28,23 @@ public class UartbusEscapedStreamPacketConnector implements UartbusPacketConnect
 	protected IOStream io;
 	protected byte packetEscape;
 	protected SimplePublish1<byte[]> onPacketReceived;
+	protected FramedPacketCutter cutter;
 	
 	protected volatile boolean run = false;
 	
 	public UartbusEscapedStreamPacketConnector(IOStream io, byte terminator)
 	{
 		this.io = io;
+		cutter = new FramedPacketCutter
+		(
+			terminator,
+			b->
+			{
+				if(null != onPacketReceived)
+				{
+					onPacketReceived.publish(b);
+				}
+			});
 		this.packetEscape = terminator;
 	}
 	
@@ -135,10 +148,10 @@ public class UartbusEscapedStreamPacketConnector implements UartbusPacketConnect
 				{
 					try
 					{
-						ep = 0;
+						cutter.clear();
 						while(0 < (read = getInputStream().read(read_buffer)))
 						{
-							feedBytes(read_buffer, read);
+							cutter.feedBytes(read_buffer, read);
 						}
 					}
 					catch(Exception e)
@@ -155,61 +168,6 @@ public class UartbusEscapedStreamPacketConnector implements UartbusPacketConnect
 			}
 		};
 		receiver.start();
-	}
-	
-	protected void feedBytes(byte[] data)
-	{
-		feedBytes(data, data.length);
-	}
-	
-	byte[] buffer = new byte[10240];
-	boolean mayCut = false;
-	int ep = 0;
-	protected void feedBytes(byte[] data, int length)
-	{
-		try
-		{
-			boolean trace = LOG.mayLog(LogLevel.TRACE);
-			for(int i=0;i<length;++i)
-			{
-				byte b = data[i];
-				if(trace)
-				{
-					LoggingTools.tryLogFormat(LOG, LogLevel.TRACE, "Feeding byte: %s, mayCut: %s, ep: %s, ", 0xff & b, mayCut, ep, UartbusTools.formatColonData(Arrays.copyOf(buffer, ep)));
-				}
-				
-				if(mayCut)
-				{
-					if(b == packetEscape)
-					{
-						buffer[ep++] = packetEscape;
-					}
-					else
-					{
-						dispatchPacket(Arrays.copyOf(buffer, ep));
-						ep = 0;
-					}
-					mayCut = false;
-				}
-				else
-				{
-					if(b == packetEscape)
-					{
-						mayCut = true;
-					}
-					else
-					{
-						buffer[ep++] = b;
-					}
-				}
-			}
-		}
-		catch(IndexOutOfBoundsException ex)
-		{
-			//just break the packet, it was way toooo long.
-			ep = 0;
-			ex.printStackTrace();
-		}
 	}
 	
 	protected void manageClosedConnection(Exception caused, String whileOp)
@@ -248,7 +206,7 @@ public class UartbusEscapedStreamPacketConnector implements UartbusPacketConnect
 	
 	public void sendPacket(byte[] data)
 	{
-		byte[] send = frameBytes(data, packetEscape);
+		byte[] send = PacketFramingTools.frameBytes(data, packetEscape);
 		while(true)
 		{
 			if(!run)
@@ -276,36 +234,6 @@ public class UartbusEscapedStreamPacketConnector implements UartbusPacketConnect
 				catch (InterruptedException asd){}
 			}
 		}
-	}
-	
-	public static byte[] frameBytes(byte[] data, byte terminator)
-	{
-		int w = 0;
-		for(int i=0;i<data.length;++i)
-		{
-			if(data[i] == terminator)
-			{
-				++w;
-			}
-		}
-		
-		byte[] ret = new byte[data.length+w+2];
-		
-		w = 0;
-		
-		for(int i=0;i<data.length;++i)
-		{
-			ret[w++] = data[i];
-			if(terminator == data[i])
-			{
-				ret[w++] = terminator;
-			}			
-		}
-		
-		ret[w++] = terminator;
-		ret[w] = (byte) ~terminator;
-		
-		return ret;
 	}
 	
 	@Override
@@ -369,5 +297,10 @@ public class UartbusEscapedStreamPacketConnector implements UartbusPacketConnect
 			pa.appendCrc8();
 			conn.sendPacket(pa.done());
 		}
+	}
+
+	public void feedBytes(byte[] bs)
+	{
+		cutter.feedBytes(bs, bs.length);
 	}
 }

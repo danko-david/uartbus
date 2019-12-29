@@ -53,14 +53,7 @@ public class UartbusPacketloss
 		TIMEOUT
 		
 	};
-	
-	public static void printHelpAndExit(int exit)
-	{
-		System.err.println("Usage of UartbusPacketloss:\n");
-		System.err.println(CliTools.renderListAllOption(PROG_CLI_ENTRIES));
-		System.exit(1);
-	}
-	
+
 	public static void main(String[] args) throws InterruptedException, Throwable
 	{
 		JavaExperienceLoggingFacility.addStdOut();
@@ -68,7 +61,7 @@ public class UartbusPacketloss
 		String un = CliTools.getFirstUnknownParam(pa, PROG_CLI_ENTRIES);
 		if(null != un)
 		{
-			printHelpAndExit(1);
+			CliTools.printHelpAndExit("UartbusPacketloss", 1, PROG_CLI_ENTRIES);
 		}
 		
 		int to = TO.tryParseOrDefault(pa, -1);

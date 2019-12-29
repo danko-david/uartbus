@@ -11,8 +11,6 @@ import eu.javaexperience.electronic.uartbus.cli.apps.UartbusPacketloss;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusPing;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusRpcServer;
 import eu.javaexperience.generic.annotations.Ignore;
-import eu.javaexperience.rpc.JavaClassRpcUnboundFunctionsInstance;
-import eu.javaexperience.rpc.RpcFacility;
 import eu.javaexperience.rpc.cli.RpcCliTools;
 
 public class UartBusCli
@@ -20,13 +18,7 @@ public class UartBusCli
 	@Ignore
 	public static void main(String[] args)
 	{
-		RpcFacility rpc = new JavaClassRpcUnboundFunctionsInstance<>(new UartBusCli(), UartBusCli.class);
-		if(0 == args.length)
-		{
-			System.err.println(RpcCliTools.generateCliHelp(rpc));
-			System.exit(1);
-		}
-		RpcCliTools.cliExecute(null, rpc, args).getImpl();
+		RpcCliTools.tryExecuteCommandCollectorClassOrExit(new UartBusCli(), 1, args);
 	}
 	
 	public static void rpcServer(String... args) throws Throwable
@@ -69,7 +61,7 @@ public class UartBusCli
 		UartbusBlink.main(args);
 	}
 	
-	public static void logMysql(String... args) throws Throwable
+	public static void logSql(String... args) throws Throwable
 	{
 		UartbusLogSql.main(args);
 	}

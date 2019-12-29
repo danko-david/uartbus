@@ -64,13 +64,6 @@ public class UartbusCodeUploader
 		NO_VERIFY
 	};
 	
-	public static void printHelpAndExit(int exit)
-	{
-		System.err.println("Usage of UartbusCodeUploader:\n");
-		System.err.println(CliTools.renderListAllOption(PROG_CLI_ENTRIES));
-		System.exit(1);
-	}
-	
 	protected static UartBus connect(String... args) throws IOException
 	{
 		Map<String, List<String>> pa = CliTools.parseCliOpts(args);
@@ -258,7 +251,7 @@ public class UartbusCodeUploader
 		String un = CliTools.getFirstUnknownParam(pa, PROG_CLI_ENTRIES);
 		if(null != un)
 		{
-			printHelpAndExit(1);
+			CliTools.printHelpAndExit("UartbusCodeUploader", 1, PROG_CLI_ENTRIES);
 		}
 		
 		String sfile = CODE.tryParse(pa);

@@ -67,13 +67,6 @@ public class UartbusLogSql
 		SQL_PASSWORD
 	};
 	
-	public static void printHelpAndExit(int exit)
-	{
-		System.err.println("Usage of UartbusLogSql:\n");
-		System.err.println(CliTools.renderListAllOption(PROG_CLI_ENTRIES));
-		System.exit(1);
-	}
-	
 	protected static void prepareTable(Connection conn, String type, String table) throws Exception
 	{
 		if(!JDBC.isTableExists(conn, table))
@@ -106,7 +99,7 @@ public class UartbusLogSql
 		String un = CliTools.getFirstUnknownParam(pa, PROG_CLI_ENTRIES);
 		if(null != un)
 		{
-			printHelpAndExit(1);
+			CliTools.printHelpAndExit("UartbusLogSql", 1, PROG_CLI_ENTRIES);
 		}
 		
 		//initializes the drivers
