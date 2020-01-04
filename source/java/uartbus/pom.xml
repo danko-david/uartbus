@@ -6,7 +6,7 @@
 
   <groupId>javaexperience</groupId>
   <artifactId>uartbus</artifactId>
-  <version>1.4.2</version>
+  <version>1.4.3</version>
 
   <name>uartbus</name>
   <url>http://javaexperience.eu</url>
@@ -36,7 +36,7 @@
 	<dependency>
 		<groupId>javaexperience</groupId>
 		<artifactId>core</artifactId>
-		<version>0.1.34</version>
+		<version>0.1.37</version>
 	</dependency>
 	
 	<dependency>

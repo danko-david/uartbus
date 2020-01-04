@@ -6,6 +6,7 @@ import eu.javaexperience.electronic.uartbus.cli.apps.UartbusBlink;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusCodeUploader;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusCollisionPacketloss;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusConsole;
+import eu.javaexperience.electronic.uartbus.cli.apps.UartbusLogFile;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusLogSql;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusPacketloss;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusPing;
@@ -64,6 +65,11 @@ public class UartBusCli
 	public static void logSql(String... args) throws Throwable
 	{
 		UartbusLogSql.main(args);
+	}
+	
+	public static void logFile(String... args) throws Throwable
+	{
+		UartbusLogFile.main(args);
 	}
 	
 	public static void attachProcess(String... args) throws Throwable
