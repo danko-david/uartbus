@@ -148,7 +148,7 @@ public class UartbusLogFile
 
 		protected T openNextLogUnit()
 		{
-			File f = new File(prefix+""+Format.UTC_SQL_TIMESTAMP_MS.format(new Date())+postfix);
+			File f = new File(prefix+""+Format.FILE_SQL_TIMESTAMP.format(new Date())+postfix);
 			FileTools.createDirectoryForFile(f);
 			return openLogFile.getBy(f);
 		}
@@ -185,7 +185,7 @@ public class UartbusLogFile
 				},
 				(f, d)->
 				{
-					f.println(Format.UTC_FILE_SQL_TIMESTAMP.format(new Date())+"|"+UartbusTools.formatColonData(d));
+					f.println(Format.UTC_SQL_TIMESTAMP_MS.format(new Date())+"|"+UartbusTools.formatColonData(d));
 					f.flush();
 				}
 			)
