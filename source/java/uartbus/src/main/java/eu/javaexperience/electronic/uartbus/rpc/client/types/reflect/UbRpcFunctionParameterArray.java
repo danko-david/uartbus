@@ -1,7 +1,7 @@
 package eu.javaexperience.electronic.uartbus.rpc.client.types.reflect;
 
 import eu.javaexperience.electronic.uartbus.rpc.client.device.UbIndex;
-import eu.javaexperience.electronic.uartbus.rpc.client.device.VUnsigned;
+import eu.javaexperience.electronic.uartbus.rpc.data_type.VUnsigned;
 
 public interface UbRpcFunctionParameterArray
 {

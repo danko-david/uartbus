@@ -9,6 +9,7 @@ import eu.javaexperience.electronic.uartbus.cli.apps.UartbusConsole;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusLogSql;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusPacketloss;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusPing;
+import eu.javaexperience.electronic.uartbus.cli.apps.UartbusReflect;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusRpcServer;
 import eu.javaexperience.generic.annotations.Ignore;
 import eu.javaexperience.rpc.cli.RpcCliTools;
@@ -69,6 +70,11 @@ public class UartBusCli
 	public static void attachProcess(String... args) throws Throwable
 	{
 		UartbusAttachProcess.main(args);
+	}
+	
+	public static void reflect(String... args) throws Throwable
+	{
+		UartbusReflect.main(args);
 	}
 	
 	//TODO discover, restart (--soft), appdump,

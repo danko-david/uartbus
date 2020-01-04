@@ -2,6 +2,12 @@
 #include "rpc_node.h"
 #include <stdlib.h>
 
+#define DEBUG_PRINT_STDERR
+
+#ifdef DEBUG_PRINT_STDERR
+#include <stdio.h>
+#endif
+
 struct rpc_function_parameter* rpc_il_create_parameter
 (
 	enum rpc_data_type value_type,
@@ -113,8 +119,6 @@ struct rpc_node* rpc_get_ns(struct rpc_node* node, uint8_t ns)
 	return NULL;
 }
 
-#include <stdio.h>
-
 bool rpc_dispatch_with_mode
 (
 	struct rpc_node* node,
@@ -152,6 +156,137 @@ bool rpc_dispatch_with_mode
 	return false;
 }
 
+bool rpc_handle_remote_string
+(
+	struct rpc_request* req,
+	char* str
+)
+{
+#ifdef DEBUG_PRINT_STDERR
+	fprintf(stderr, "rpc_handle_remote_string(req, \"%s\"): f: %d\n", str, req->payload[req->procPtr]);
+#endif
+	if(req->procPtr >= req->size)
+	{
+		return false;
+	}
+
+	switch(req->payload[req->procPtr++])
+	{
+		case 1: il_reply(req, 1, strlen(str)); return true;
+		case 2:
+			if(req->size < req->procPtr+1)
+			{
+				return false;
+			}
+			uint8_t from = req->payload[req->procPtr];
+			uint8_t len = strlen(str);
+			if(from >= len)
+			{
+				il_reply(req, 0);
+				return true;
+			}
+			len -= from;
+			if(len > req->payload[req->procPtr+1])
+			{
+				len = req->payload[req->procPtr+1];
+			}
+			il_reply_arr(req, str+from, len);
+			return true;
+		default: return false;
+	}
+}
+
+uint8_t rpc_get_subnode_count(struct rpc_node* node)
+{
+	if(0 == (node->modifiers & rpc_modifier_namespace))
+	{
+		return 0;
+	}
+
+	uint8_t ret = 0;
+	while(NULL != node->sub_nodes[ret])
+	{
+		++ret;
+	}
+#ifdef DEBUG_PRINT_STDERR
+	fprintf(stderr, "sub_nodes(%p): %d\n", node, ret);
+#endif
+	return ret;
+}
+
+bool rpc_handle_node_reflection_request
+(
+	struct rpc_node* node,
+	struct rpc_request* req
+)
+{
+#ifdef DEBUG_PRINT_STDERR
+	fprintf(stderr, "rpc_handle_node_reflection_request(%p, ...): req: %d, ns: %d\n", node, req->payload[req->procPtr], node->ns);
+#endif
+
+	switch(req->payload[req->procPtr++])
+	{
+	case 1: il_reply(req, 2, 0, node->ns);			return true;
+	case 2: il_reply(req, 1, node->modifiers);		return true;
+	case 3:	return rpc_handle_remote_string(req, node->name);
+	case 4: return rpc_handle_remote_string(req, node->description);
+	case 5: return rpc_handle_remote_string(req, node->meta);
+
+	case 9: il_reply(req, 1, rpc_get_subnode_count(node)); return true;
+
+	case 11:
+	{
+		uint8_t rns = req->payload[req->procPtr];
+		#ifdef DEBUG_PRINT_STDERR
+			fprintf(stderr, "reflect: nth_subnode_ns(%d) subnodes: %d\n", rns, rpc_get_subnode_count(node));
+		#endif
+		il_reply(req, 1, rpc_get_subnode_count(node) <= rns ?0:node->sub_nodes[rns]->ns);
+		return true;
+	}
+	default: return false;
+	}
+}
+
+bool rpc_dispatch_reflect_request
+(
+	struct rpc_node* node,
+	struct rpc_request* req
+)
+{
+#ifdef DEBUG_PRINT_STDERR
+	fprintf(stderr, "REQ %d\n", req->payload[req->procPtr]);
+#endif
+
+	struct rpc_node* crnt = node;
+	//go and final node, process 10:x pattern
+	if(10 == req->payload[req->procPtr])
+	{
+		while(req->procPtr < req->size && NULL != crnt)
+		{
+			++req->procPtr;
+			if(crnt->modifiers & rpc_modifier_namespace)
+			{
+				crnt = rpc_get_ns(crnt, req->payload[req->procPtr++]);
+				#ifdef DEBUG_PRINT_STDERR
+					fprintf(stderr, "SEL NODE: %p, %d\n", crnt, NULL == crnt?-1:crnt->ns);
+				#endif
+			}
+
+			if(10 != req->payload[req->procPtr])
+			{
+				break;
+			}
+		}
+	}
+
+	if(NULL != crnt)
+	{
+		return rpc_handle_node_reflection_request(crnt, req);
+	}
+
+	return false;
+}
+
 bool rpc_dispatch_root(struct rpc_node* root, struct rpc_request* req)
 {
 	if(req->procPtr >= req->size)
@@ -167,10 +302,9 @@ bool rpc_dispatch_root(struct rpc_node* root, struct rpc_request* req)
 		++req->procPtr;
 		return rpc_dispatch_with_mode(root, req, rpc_dispatch_mode_response);
 
-
 	case 255:
-		//++req->procPtr;
-		//return rpc_dispatch_with_mode(root, req, rpc_dispatch_mode_reflect);
+		++req->procPtr;
+		return rpc_dispatch_reflect_request(root, req);
 	default:
 		//dispatch request
 		return rpc_dispatch_with_mode(root, req, rpc_dispatch_mode_request);

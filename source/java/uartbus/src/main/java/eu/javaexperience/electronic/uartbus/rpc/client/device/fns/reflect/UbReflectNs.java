@@ -1,16 +1,22 @@
 package eu.javaexperience.electronic.uartbus.rpc.client.device.fns.reflect;
 
+import eu.javaexperience.electronic.uartbus.rpc.client.device.UbDeviceNs;
 import eu.javaexperience.electronic.uartbus.rpc.client.device.UbIndex;
-import eu.javaexperience.electronic.uartbus.rpc.client.device.VUnsigned;
+import eu.javaexperience.electronic.uartbus.rpc.client.device.UbRetransmittable;
 import eu.javaexperience.electronic.uartbus.rpc.client.types.UbRemoteString;
+import eu.javaexperience.electronic.uartbus.rpc.data_type.uint16_t;
+import eu.javaexperience.electronic.uartbus.rpc.data_type.uint8_t;
+import eu.javaexperience.nativ.posix.PosixErrnoException;
 
-public interface UbReflectNs 
+public interface UbReflectNs extends UbDeviceNs
 {
 	@UbIndex(ns = 1)
-	public boolean isExists();
+	@UbRetransmittable
+	public uint8_t getNamespaceIndex() throws PosixErrnoException;
 	
 	@UbIndex(ns = 2)
-	public short getModifiers();
+	@UbRetransmittable
+	public uint8_t getModifiers();
 	
 	@UbIndex(ns = 3)
 	public UbRemoteString getName();
@@ -21,16 +27,14 @@ public interface UbReflectNs
 	@UbIndex(ns = 5)
 	public UbRemoteString getMeta();
 	
-	
-	
-	
 	@UbIndex(ns = 9)
-	public VUnsigned getSubNodesCount();
+	@UbRetransmittable
+	public uint8_t getSubNodesCount();
 	
 	@UbIndex(ns = 10)
-	public UbReflectNs getSubNode(short ns);
+	public UbReflectNs getSubNode(uint8_t ns);
 	
-	
-	
-	
+	@UbIndex(ns = 11)
+	@UbRetransmittable
+	public uint8_t getNthSubNodeNamespace(uint8_t ns);
 }
