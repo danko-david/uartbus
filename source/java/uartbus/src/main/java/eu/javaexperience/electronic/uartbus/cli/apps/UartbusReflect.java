@@ -9,6 +9,7 @@ import eu.javaexperience.cli.CliEntry;
 import eu.javaexperience.cli.CliTools;
 import eu.javaexperience.collection.map.SmallMap;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusRpcTools;
+import eu.javaexperience.electronic.uartbus.rpc.UbRpcModifiers;
 import eu.javaexperience.electronic.uartbus.rpc.client.UartBus;
 import eu.javaexperience.electronic.uartbus.rpc.client.device.UartBusDevice;
 import eu.javaexperience.electronic.uartbus.rpc.client.device.fns.reflect.UbReflectNs;
@@ -61,13 +62,13 @@ public class UartbusReflect
 		
 		UbReflectNs ref = dev.getRpcRoot().getReflectFunctions();
 		
-		Map<byte[], RpcNamespace> nss = new SmallMap<>();
+		Map<byte[], RpcNode> nss = new SmallMap<>();
 		/*collectRpcTree(ref, nss);
 		System.out.println(MapTools.toString(nss));*/
 		printTree(ref, 0);
 	}
 	
-	public static class RpcNamespace
+	public static class RpcNode
 	{
 		
 		
@@ -87,7 +88,15 @@ public class UartbusReflect
 			System.out.print(StringTools.repeatChar('\t', in));
 			System.out.print(ref.getNamespaceIndex().value);
 			System.out.print(": ");
-			System.out.println(UartbusRpcTools.loadString(ref.getName()));
+			System.out.print(UartbusRpcTools.loadString(ref.getName()));
+			
+			uint8_t mods = ref.getModifiers();
+			
+			if(0 != (mods.value & UbRpcModifiers.rpc_modifier_function.mask()))
+			{
+				System.out.print("()");
+			}
+			System.out.println();
 			
 			int len = ref.getSubNodesCount().value;
 			for(int i=0;i<len;++i)
