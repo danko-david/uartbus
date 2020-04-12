@@ -61,42 +61,77 @@ public class UartbusEscapedStreamPacketConnector implements UartbusPacketConnect
 		this.onClosed = onClosed;
 	}
 	
+	protected static void commProcessClosed()
+	{
+		LoggingTools.tryLogFormat(LOG, LogLevel.WARNING, "Communication process closed and no reconnection was set.");
+	}
+	
 	protected synchronized InputStream getInputStream()
 	{
-		try
+		while(true)
 		{
-			InputStream ret = io.getInputStream();
-			if(LOG.mayLog(LogLevel.TRACE))
+			try
 			{
-				LoggingTools.tryLogFormat(LOG, LogLevel.TRACE, "`%s`.getInputStream() [io:`%s`] => `%s`", this, io, ret);
+				if(null == io)
+				{
+					break;
+				}
+				
+				InputStream ret = io.getInputStream();
+				if(LOG.mayLog(LogLevel.TRACE))
+				{
+					LoggingTools.tryLogFormat(LOG, LogLevel.TRACE, "`%s`.getInputStream() [io:`%s`] => `%s`", this, io, ret);
+				}
+				
+				if(null == ret)
+				{
+					break;
+				}
+				
+				return ret;
 			}
-			return ret;
-		}
-		catch(Exception e)
-		{
-			manageClosedConnection(e, "Trying to read from the communication process");
+			catch(Exception e)
+			{
+				manageClosedConnection(e, "Trying to read from the communication process");
+			}
 		}
 		
-		return getInputStream();
+		commProcessClosed();
+		return null;
 	}
 	
 	protected synchronized OutputStream getOutputStream()
 	{
-		try
+		while(true)
 		{
-			OutputStream ret = io.getOutputStream();
-			if(LOG.mayLog(LogLevel.TRACE))
+			try
 			{
-				LoggingTools.tryLogFormat(LOG, LogLevel.TRACE, "`%s`.getOutputStream() [io:`%s`] => `%s`", this, io, ret);
+				if(null == io)
+				{
+					break;
+				}
+				
+				OutputStream ret = io.getOutputStream();
+				if(LOG.mayLog(LogLevel.TRACE))
+				{
+					LoggingTools.tryLogFormat(LOG, LogLevel.TRACE, "`%s`.getOutputStream() [io:`%s`] => `%s`", this, io, ret);
+				}
+				
+				if(null == ret)
+				{
+					break;
+				}
+				
+				return ret;
 			}
-			return ret;
-		}
-		catch(Exception e)
-		{
-			manageClosedConnection(e, "Trying to write to the communication process");
+			catch(Exception e)
+			{
+				manageClosedConnection(e, "Trying to write to the communication process");
+			}
 		}
 		
-		return getOutputStream();
+		commProcessClosed();
+		return null;
 	}
 	
 	public synchronized void setIoStream(IOStream io)
@@ -149,7 +184,13 @@ public class UartbusEscapedStreamPacketConnector implements UartbusPacketConnect
 					try
 					{
 						cutter.clear();
-						while(0 < (read = getInputStream().read(read_buffer)))
+						InputStream is = getInputStream();
+						if(null == is)
+						{
+							break;
+						}
+						
+						while(0 < (read = is.read(read_buffer)))
 						{
 							cutter.feedBytes(read_buffer, read);
 						}
@@ -167,6 +208,7 @@ public class UartbusEscapedStreamPacketConnector implements UartbusPacketConnect
 				}
 			}
 		};
+		receiver.setDaemon(true);
 		receiver.start();
 	}
 	
@@ -201,6 +243,10 @@ public class UartbusEscapedStreamPacketConnector implements UartbusPacketConnect
 				}
 				throw new RuntimeException("Stream still closed after 100 retry");
 			}
+		}
+		else
+		{
+			io = null;
 		}
 	}
 	

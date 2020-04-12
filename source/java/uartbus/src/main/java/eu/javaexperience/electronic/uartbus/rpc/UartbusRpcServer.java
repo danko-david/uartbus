@@ -158,6 +158,10 @@ public class UartbusRpcServer
 				conn.setIoStream(socketFactory.get());
 			});
 		}
+		else
+		{
+			conn.setSocketCloseListener(()->System.exit(5));
+		}
 		
 		IOTools.closeOnExit(conn);
 		

@@ -134,12 +134,15 @@ public class UartbusRpcClientTools
 					catch(Exception ex)
 					{
 						LoggingTools.tryLogFormatException(LOG, LogLevel.WARNING, ex, "Exception while receiving and dispatching packet ");
+						if(0 == reconnectRetryDelays.length || reconnectRetryDelays[0] < 0)
+						{
+							return;
+						}
 					}
 				}
 			}
 		};
 		
-		t.setDaemon(true);
 		t.start();
 		return new PacketStreamThread(t);
 	}
