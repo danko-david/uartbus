@@ -2,6 +2,8 @@ package eu.javaexperience.electronic.uartbus.rpc;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +34,13 @@ import eu.javaexperience.rpc.SimpleRpcRequest;
 import eu.javaexperience.rpc.SimpleRpcSession;
 import eu.javaexperience.rpc.SocketRpcServer;
 import eu.javaexperience.rpc.bidirectional.BidirectionalRpcDefaultProtocol;
+
+/*
+import gnu.io.CommPort;
+import gnu.io.CommPortIdentifier;
+import gnu.io.SerialPort;
+*/
+
 import static eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools.*;
 
 public class UartbusRpcServer
@@ -85,6 +94,93 @@ public class UartbusRpcServer
 		System.exit(1);
 	}
 	
+	/*
+	public static IOStream connect(String port, int baud) throws Exception
+	{
+		CommPortIdentifier portIdentifier = CommPortIdentifier.getPortIdentifier(port);
+		if(portIdentifier.isCurrentlyOwned())
+		{
+			throw new RuntimeException("Error: Port is currently in use by: "+portIdentifier.getCurrentOwner());
+		}
+		else
+		{
+			CommPort commPort = portIdentifier.open(port, 6000);
+			
+			if (commPort instanceof SerialPort)
+			{
+				((SerialPort)commPort).setBaudBase(baud);
+				((SerialPort)commPort).setSerialPortParams(baud, SerialPort.DATABITS_8, SerialPort.STOPBITS_1, SerialPort.PARITY_NONE);
+			}
+			
+//			if (commPort instanceof SerialPort)
+//			{
+//				System.out.println("Connect 2/2");
+//				SerialPort serialPort = (SerialPort) commPort;
+//				System.out.println("BaudRate: " + serialPort.getBaudRate());
+//				System.out.println("DataBIts: " + serialPort.getDataBits());
+//				System.out.println("StopBits: " + serialPort.getStopBits());
+//				System.out.println("Parity: " + serialPort.getParity());
+//				System.out.println("FlowControl: " + serialPort.getFlowControlMode());
+//				serialPort.setSerialPortParams(4800,SerialPort.DATABITS_8,SerialPort.STOPBITS_1,SerialPort.PARITY_ODD);
+//				serialPort.setFlowControlMode(SerialPort.FLOWCONTROL_RTSCTS_IN);
+//				System.out.println("BaudRate: " + serialPort.getBaudRate());
+//				System.out.println("DataBIts: " + serialPort.getDataBits());
+//				System.out.println("StopBits: " + serialPort.getStopBits());
+//				System.out.println("Parity: " + serialPort.getParity());
+//				System.out.println("FlowControl: " + serialPort.getFlowControlMode());
+//			}
+			
+			InputStream in = commPort.getInputStream();
+			OutputStream out = commPort.getOutputStream();
+			
+			return new IOStream()
+			{
+				protected boolean closed = false;
+				@Override
+				public void flush() throws IOException
+				{
+					out.flush();
+				}
+				
+				@Override
+				public String remoteAddress()
+				{
+					return "Serial: "+port;
+				}
+				
+				@Override
+				public String localAddress()
+				{
+					return remoteAddress();
+				}
+				
+				@Override
+				public boolean isClosed()
+				{
+					return closed;
+				}
+				
+				@Override
+				public OutputStream getOutputStream()
+				{
+					return out;
+				}
+				
+				@Override
+				public InputStream getInputStream()
+				{
+					return in;
+				}
+				
+				@Override
+				public void close()
+				{
+					this.closed = true;
+				}
+			};
+		}
+	}*/
+	
 	protected static UartbusPacketConnector createSerialPacketConnector(Map<String, List<String>> args)
 	{
 		String serial = SERIAL_DEV.tryParseOrDefault(args, null);
@@ -134,7 +230,9 @@ public class UartbusRpcServer
 					}
 					else
 					{
+						//TODO
 						prev[0] = SerialTools.openSerial(serial, baud);
+						//prev[0] = connect(serial, baud);//SerialTools.openSerial(serial, baud);
 					}
 					prev[0].getInputStream();
 					prev[0].getOutputStream();

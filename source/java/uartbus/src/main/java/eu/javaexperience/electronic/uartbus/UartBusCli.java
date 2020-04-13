@@ -1,5 +1,7 @@
 package eu.javaexperience.electronic.uartbus;
 
+import java.io.InputStream;
+
 import eu.javaexperience.electronic.IhexCli;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusAttachProcess;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusBlink;
@@ -12,6 +14,7 @@ import eu.javaexperience.electronic.uartbus.cli.apps.UartbusPacketloss;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusPing;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusRpcServer;
 import eu.javaexperience.generic.annotations.Ignore;
+import eu.javaexperience.io.IOTools;
 import eu.javaexperience.rpc.cli.RpcCliTools;
 
 public class UartBusCli
@@ -75,6 +78,15 @@ public class UartBusCli
 	public static void attachProcess(String... args) throws Throwable
 	{
 		UartbusAttachProcess.main(args);
+	}
+	
+	public static void version(String... args) throws Throwable
+	{
+		System.out.println("Uartbus Cli version: ");
+		try(InputStream is = ClassLoader.getSystemResourceAsStream("eu/javaexperience/electronic/uartbus/version"))
+		{
+			System.out.write(IOTools.loadAllFromInputStream(is));
+		}
 	}
 	
 	//TODO discover, restart (--soft), appdump,

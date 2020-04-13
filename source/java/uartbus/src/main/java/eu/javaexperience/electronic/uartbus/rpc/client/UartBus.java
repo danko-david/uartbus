@@ -308,9 +308,7 @@ public class UartBus implements Closeable
 			return;
 		}*/
 		
-		
 		MeasurementSerie ser = new MeasurementSerie();
-		
 		
 		for(int m=0;m<20;++m)
 		{
