@@ -6,7 +6,7 @@
 
 	<groupId>javaexperience</groupId>
 	<artifactId>uartbus</artifactId>
-	<version>1.4.7</version>
+	<version>1.5.0</version>
 
 	<name>uartbus</name>
 	<url>http://javaexperience.eu</url>
@@ -63,6 +63,13 @@
 			<groupId>org.rxtx</groupId>
 			<artifactId>rxtx</artifactId>
 			<version>2.1.7</version>
+		</dependency-->
+		
+		<!-- https://mvnrepository.com/artifact/com.fazecast/jSerialComm -->
+		<!--dependency>
+			<groupId>com.fazecast</groupId>
+			<artifactId>jSerialComm</artifactId>
+			<version>2.6.1</version>
 		</dependency-->
 		
 	</dependencies>

@@ -116,13 +116,15 @@
 	#define PACKET_ESCAPE 0xff
 #endif
 
+#define MAX_QUEUE_ENTRY 16
+
 #include "../../bus_gateway/bus_gateway_commons.c"
 
 /******************************** UARTBus *************************************/
 
 void flashLed()
 {
-	digitalWrite(NET_TRAFFIC_LED, !digitalRead(NET_TRAFFIC_LED));
+	//digitalWrite(NET_TRAFFIC_LED, !digitalRead(NET_TRAFFIC_LED));
 }
 
 void USART_Init(void)
@@ -181,16 +183,14 @@ void ub_event(struct uartbus* a, enum uartbus_event event)
 {
 	if(ub_event_receive_start == event)
 	{
-		//digitalWrite(NET_TRAFFIC_LED, 1);
-		/*received_ep = 0;*/
 		receive = true;
 	}
 	else if(ub_event_receive_end == event)
 	{
-		//digitalWrite(NET_TRAFFIC_LED, 0);
 		SERIAL_PC.write(PACKET_ESCAPE);
 		SERIAL_PC.write(~PACKET_ESCAPE);
 		receive = false;
+		SERIAL_PC.flush();
 		flashLed();
 	}
 	
@@ -229,6 +229,11 @@ void manage_data_from_pc()
 	int i = 0;
 	while(SERIAL_PC.available() && ++i < 20)
 	{
+		if(ep >= MAX_PACKET_SIZE)
+		{
+			ep = 0;//break too long package
+		}
+	
 		byte b = SERIAL_PC.read();
 
 		if(mayCut)
@@ -238,7 +243,7 @@ void manage_data_from_pc()
 				flashLed();
 				ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 				{
-					queue_enqueue_content(from_serial, decode, ep);
+					queue_enqueue_content(&from_serial, decode, ep);
 				}
 				ep = 0;
 			}

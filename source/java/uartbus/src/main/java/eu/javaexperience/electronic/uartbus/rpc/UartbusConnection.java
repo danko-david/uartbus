@@ -13,8 +13,5 @@ public interface UartbusConnection extends Closeable
 	public String getAttribute(String key) throws IOException;
 	public void setAttribute(String key, String value) throws IOException;
 	
-	public long getCurrentPacketIndex() throws IOException;
-	public byte[] getPacket(long index) throws IOException;
-	
 	public byte[] getNextPacket() throws IOException;
 }

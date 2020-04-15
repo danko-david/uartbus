@@ -20,7 +20,6 @@ import eu.javaexperience.reflect.CastTo;
 import eu.javaexperience.reflect.Mirror;
 import eu.javaexperience.rpc.RpcSession;
 import eu.javaexperience.rpc.RpcSessionTools;
-import eu.javaexperience.rpc.RpcTools;
 
 public class UartbusRpcEndpoint implements UartbusConnection
 {
@@ -28,7 +27,6 @@ public class UartbusRpcEndpoint implements UartbusConnection
 	
 	protected UartbusPacketConnector conn;
 	
-	//TODO add packed warehouse
 	//TODO add packed delay to manage packet flow rate
 	//TODO packed flow delay disable for emergency situation 
 	public UartbusRpcEndpoint(UartbusPacketConnector connector)
@@ -50,7 +48,7 @@ public class UartbusRpcEndpoint implements UartbusConnection
 				}
 				catch(Exception e)
 				{
-					LoggingTools.tryLogFormatException(LOG, LogLevel.ERROR, e, "Excepton ocurred while dispatching a package from the UB network at session `%s` the packet `%s`", sess, packet);
+					LoggingTools.tryLogFormatException(LOG, LogLevel.ERROR, e, "Exception ocurred while dispatching a package from the UB network at session `%s` the packet `%s`", sess, packet);
 				}
 			}
 		});
@@ -182,18 +180,6 @@ public class UartbusRpcEndpoint implements UartbusConnection
 		}
 	}
 
-	@Override
-	public long getCurrentPacketIndex()
-	{
-		return 0;
-	}
-
-	@Override
-	public byte[] getPacket(long index) throws IOException
-	{
-		throw new UnsupportedOperationException("Packet queue seeking not yet supported.");
-	}
-	
 	protected static final String SESSION_KEY = "UartbusPacketConnector_PacketEndpointQueue";
 	
 	@Override
