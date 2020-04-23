@@ -8,8 +8,11 @@ if [ "$#" -lt 4 ]; then
         exit 1
 fi
 
-
 set -e
+
+if [ -z "$F_CPU" ]; then
+	F_CPU=16000000
+fi
 
 avr-g++ -o ubb.o ub_bootloader.c ub_atmega.c ub_uartbus.c ../bus/lib/common/ub.c ../bus/lib/addressing/addr16.c ../utils/lib/rpc/rpc.c -mmcu=$1\
 	-I../commons/\
@@ -22,6 +25,7 @@ avr-g++ -o ubb.o ub_bootloader.c ub_atmega.c ub_uartbus.c ../bus/lib/common/ub.c
 	-fdata-sections\
 	-fno-exceptions\
 	-DDONT_USE_SOFT_FP=1\
+	-DF_CPU=$F_CPU\
 	-DUB_HOST_VERSION=1\
 	-DBUS_ADDRESS=$3\
 	-Wl,--section-start=.host_table=0x1fe0\
@@ -70,5 +74,3 @@ avr-nm --size-sort ubb.o > ubb.sizes
 if [ $4 -gt -1 ]; then
 	avrdude -p $1 -b 19200 -c avrisp -P /dev/ttyUSB$4 -Uflash:w:ubb.hex:i
 fi
-
-
