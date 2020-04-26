@@ -1,6 +1,8 @@
 
 #include "ubh.h"
 
+#pragma message "Compiling UARTBus host application with clock speed: " SX(F_CPU)
+
 /******************************* GLOBAL variables *****************************/
 
 volatile bool app_run;
@@ -657,7 +659,6 @@ void busSignalOnline(uint8_t powerOnMode, uint8_t softMode)
 //boolean bit
 #define bb(x, y) x?(0x1 <<y):0
 
-
 int main()
 {
 	reset_flag = ubh_impl_get_power_state();
@@ -678,6 +679,15 @@ int main()
 	);
 	//srand(micros());
 	
+	#ifdef DEBUG_TIME_AT_BOOT
+	
+	{
+		ubh_impl_set_user_led(1);
+		uint32_t t = micros();
+		while(!afterMicro(&t, 1000000));
+		ubh_impl_set_user_led(0);
+	}
+	#endif
 	//wait a little bit, we might get some instruction from the bus before
 	//entering application mode
 	{
@@ -688,6 +698,8 @@ int main()
 			ubh_manage_bus();
 		}
 	}
+	
+	
 	
 	ubh_impl_wdt_start(true);
 	bool first = true;

@@ -2,7 +2,6 @@
 #define USART_BAUDRATE BAUD_RATE
 
 #define BAUD USART_BAUDRATE
-#define BAUD_PRESCALE (((F_CPU / (USART_BAUDRATE * 16UL))) - 1)
 
 #include "ubh.h"
 
