@@ -41,9 +41,11 @@ public class UartbusRpcClientTools
 		public final Thread thread;
 	}
 	
+	protected static final int[] RECONNECT_TIMES = {100, 200, 500, 1_000, 2_000, 5_000, 10_000};
+	
 	public static <T> SimpleGet<T> waitReconnect(SimpleGet<T> connect, String entity)
 	{
-		return waitReconnect(connect, entity, 100, 200, 500, 1_000, 2_000, 5_000, 10_000);
+		return waitReconnect(connect, entity, RECONNECT_TIMES);
 	}
 	
 	public static <T> SimpleGet<T> waitReconnect(SimpleGet<T> connect, String entity, int... reconnectWaitTimes)
@@ -93,6 +95,11 @@ public class UartbusRpcClientTools
 		return streamPacketsReconnect(ip, port, onNewPacket, connectionInitializer, -1);
 	}
 	
+	public static PacketStreamThread streamPacketsReconnect(String ip, int port, SimplePublish1<byte[]> onNewPacket, @MayNull SimplePublish1<UartbusConnection> connectionInitializer) throws IOException
+	{
+		return streamPacketsReconnect(ip, port, onNewPacket, connectionInitializer, RECONNECT_TIMES);
+	}
+	
 	public static PacketStreamThread streamPacketsReconnect(String ip, int port, SimplePublish1<byte[]> onNewPacket, @MayNull SimplePublish1<UartbusConnection> connectionInitializer, int... reconnectRetryDelays) throws IOException
 	{
 		SimpleGet<UartbusConnection> tcpReconnect = waitReconnect
@@ -126,6 +133,7 @@ public class UartbusRpcClientTools
 						{
 							connectionInitializer.publish(conn);
 						}
+						
 						while(true)
 						{
 							onNewPacket.publish(conn.getNextPacket());
@@ -136,6 +144,7 @@ public class UartbusRpcClientTools
 						LoggingTools.tryLogFormatException(LOG, LogLevel.WARNING, ex, "Exception while receiving and dispatching packet ");
 						if(0 == reconnectRetryDelays.length || reconnectRetryDelays[0] < 0)
 						{
+							LoggingTools.tryLogFormatException(LOG, LogLevel.WARNING, ex, "No reconnection specified, exiting client receive loop ");
 							return;
 						}
 					}

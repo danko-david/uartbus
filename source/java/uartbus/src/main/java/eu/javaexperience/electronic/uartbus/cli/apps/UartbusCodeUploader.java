@@ -64,17 +64,6 @@ public class UartbusCodeUploader
 		NO_VERIFY
 	};
 	
-	protected static UartBus connect(String... args) throws IOException
-	{
-		Map<String, List<String>> pa = CliTools.parseCliOpts(args);
-		return UartBus.fromTcp
-		(
-			RPC_HOST.tryParseOrDefault(pa, "127.0.0.1"),
-			RPC_PORT.tryParseOrDefault(pa, 2112),
-			UartbusCliTools.parseFrom(pa)
-		);
-	}
-	
 	protected static CodeSegment getCodeFromFile(String sfile) throws IOException
 	{
 		IntelHexFile file = IntelHexFile.loadFile(sfile);
@@ -268,7 +257,7 @@ public class UartbusCodeUploader
 			System.exit(1);
 		}
 		
-		UartBus bus = UartbusCliTools.cliBusConnect(pa); 
+		UartBus bus = UartbusCliTools.cliBusConnect(pa);
 		
 		CodeSegment code = getCodeFromFile(sfile);
 		

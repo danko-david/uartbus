@@ -266,11 +266,12 @@ public class UartBus implements Closeable
 		ret.conn = UartbusRpcClientTools.connectTcp(ip, port);
 		ret.fromAddress = fromAddress;
 		
-		ret.receiverThread = UartbusRpcClientTools.streamPackets
+		ret.receiverThread = UartbusRpcClientTools.streamPacketsReconnect
 		(
 			ip,
 			port,
-			ret.packetReceived
+			ret.packetReceived,
+			null
 		).thread;
 		
 		return ret;
