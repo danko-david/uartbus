@@ -8,10 +8,12 @@ import eu.javaexperience.electronic.uartbus.cli.apps.UartbusBlink;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusCodeUploader;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusCollisionPacketloss;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusConsole;
+import eu.javaexperience.electronic.uartbus.cli.apps.UartbusGrab;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusLogFile;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusLogSql;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusPacketloss;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusPing;
+import eu.javaexperience.electronic.uartbus.cli.apps.UartbusReboot;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusRpcServer;
 import eu.javaexperience.generic.annotations.Ignore;
 import eu.javaexperience.io.IOTools;
@@ -80,6 +82,16 @@ public class UartBusCli
 		UartbusAttachProcess.main(args);
 	}
 	
+	public static void grab(String... args) throws Throwable
+	{
+		UartbusGrab.main(args);
+	}
+	
+	public static void reboot(String... args) throws Throwable
+	{
+		UartbusReboot.main(args);
+	}
+	
 	public static void version(String... args) throws Throwable
 	{
 		System.out.println("Uartbus Cli version: ");
@@ -89,6 +101,5 @@ public class UartBusCli
 		}
 	}
 	
-	//TODO discover, restart (--soft), appdump,
-	//grab (wait device appears in the bus and disable application run.
+	//TODO discover, restart (--soft), appdump, crosslink
 }

@@ -32,6 +32,12 @@ cd $OWD
 
 shopt -s extglob
 
+if [ -z ${ARDUINO_LIB_SOURCE_EXCLUDE+x} ]; then
+	ARDUINO_LIB_SOURCE_EXCLUDE="hooks|main|wiring_pulse"
+fi
+
+ARDUINO_LIB_SOURCES=(${ARDUINO_DIR}/cores/arduino/!($ARDUINO_LIB_SOURCE_EXCLUDE).c{,pp})
+
 avr-g++ -mmcu=$1\
 	-std=c++11\
 	-I$I_COMM -I$I_BUSCOMM -I$I_RPC -I$I_WRAP\
@@ -49,13 +55,8 @@ avr-g++ -mmcu=$1\
 	-I${ARDUINO_DIR}/cores/\
 	-I${ARDUINO_DIR}/cores/arduino\
 	-I${ARDUINO_DIR}/variants/standard\
-	  ${ARDUINO_DIR}/cores/arduino/!(hooks|main|wiring_pulse).c{,pp}\
-
-#	${ARDUINO_DIR}hardware/arduino/cores/arduino/wiring{,_analog,_digital,_pulse,_shift}.c\
-#	${ARDUINO_DIR}hardware/arduino/cores/arduino/{new,Print,Stream,String}.cpp
-
-#	${ARDUINO_DIR}hardware/arduino/cores/arduino/avr-libc/{malloc,realloc,WInterrupts}.c\
-
+		${ARDUINO_LIB_SOURCES[@]}\
+		
 
 avr-objcopy -O ihex -R .eeprom $3.o $3.hex
 avr-objdump -S --disassemble  $3.o > $3.asm

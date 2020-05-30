@@ -109,7 +109,7 @@ public class UartbusCodeUploader
 		throw trex;
 	}
 	
-	protected static void restartGrabDevice(UartBusDevice dev)
+	public static void restartGrabDevice(UartBusDevice dev)
 	{
 		info("Doing grab reboot");
 		final long OT = dev.timeout;
@@ -284,7 +284,7 @@ public class UartbusCodeUploader
 		
 		//restart with hard reset and grab (ensure not enter to application mode) 
 		restartGrabDevice(dev);
-				
+		
 		
 		final int BLOCK_SIZE = 32;
 		
