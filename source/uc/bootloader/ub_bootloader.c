@@ -593,6 +593,13 @@ int init_board(void)
 	init_bus();
 }
 
+bool manage_bus()
+{
+	ubh_impl_wdt_checkpoint();
+	ubh_manage_bus();
+	ubh_impl_wdt_checkpoint();
+}
+
 /********************************** Host tables *******************************/
 
 //constants, function pointers
@@ -606,28 +613,11 @@ void* HOST_TABLE[] =
 	(void*) may_send_packet,
 	(void*) send_packet_priv,
 	(void*) get_max_packet_size,
-	(void*) micros
+	(void*) micros,
+	(void*) manage_bus
 };
 
-/*
-void** HOST_CONSTANTS = (void*[])
-{
-	(void*) UB_HOST_VERSION,
-	(void*) BUS_ADDRESS,
-	(void*) HOST_TABLE_ADDRESS,
-	(void*) APP_START_ADDRESS,
-//	(void*) APP_END_ADDRESS,
-	(void*) APP_CHECKSUM
-};
 
-//TODO provide mode feature: malloc/free, micros, bus_manage (externalised bus call) 
-//dispatch for the upper namespace over 32
-void** HOST_TABLE[] =
-{
-	(void**) HOST_FUNCTIONS,
-	(void**) HOST_CONSTANTS
-};
-*/
 
 __attribute__((section(".host_table"))) void** getHostTable()
 {
@@ -705,9 +695,7 @@ int main()
 	bool first = true;
 	while(1)
 	{
-		ubh_impl_wdt_checkpoint();
-		ubh_manage_bus();
-		ubh_impl_wdt_checkpoint();
+		manage_bus();
 		
 		if(app_run && ubh_impl_has_app())
 		{
