@@ -48,7 +48,7 @@ public class UartbusRpcEndpoint implements UartbusConnection
 				}
 				catch(Exception e)
 				{
-					LoggingTools.tryLogFormatException(LOG, LogLevel.ERROR, e, "Excepton ocurred while dispatching a package from the UB network at session `%s` the packet `%s`", sess, packet);
+					LoggingTools.tryLogFormatException(LOG, LogLevel.ERROR, e, "Exception ocurred while dispatching a package from the UB network at session `%s` the packet `%s`", sess, packet);
 				}
 			}
 		});
@@ -180,18 +180,6 @@ public class UartbusRpcEndpoint implements UartbusConnection
 		}
 	}
 
-	@Override
-	public long getCurrentPacketIndex()
-	{
-		return 0;
-	}
-
-	@Override
-	public byte[] getPacket(long index) throws IOException
-	{
-		throw new UnsupportedOperationException("Packet queue seeking not yet supported.");
-	}
-	
 	protected static final String SESSION_KEY = "UartbusPacketConnector_PacketEndpointQueue";
 	
 	@Override

@@ -23,6 +23,8 @@ public class UartbusRpcClientTools
 	
 	protected static final int[] RECONNECT_RETRY_DELAYS = new int[] {100, 200, 500, 1_000, 2_000, 5_000, 10_000};
 	
+	protected static final int[] RECONNECT_TIMES = {100, 200, 500, 1_000, 2_000, 5_000, 10_000};
+	
 	public static <T> SimpleGet<T> waitReconnect(SimpleGet<T> connect, String entity)
 	{
 		return waitReconnect(connect, entity, RECONNECT_RETRY_DELAYS);

@@ -92,20 +92,31 @@ public class UartbusConsole
 		(
 			e ->
 			{
-				boolean valid = UartbusTools.crc8(e, e.length-1) == e[e.length-1];
-				StringBuilder sb = new StringBuilder();
-				if(logTimes)
+				try
 				{
-					sb.append(">[");
-					sb.append(getTime());
-					sb.append("] ");
+					if(0 == e.length)
+					{
+						return;
+					}
+					boolean valid = UartbusTools.crc8(e, e.length-1) == e[e.length-1];
+					StringBuilder sb = new StringBuilder();
+					if(logTimes)
+					{
+						sb.append(">[");
+						sb.append(getTime());
+						sb.append("] ");
+					}
+					if(!valid)
+					{
+						sb.append("!");
+					}
+					sb.append(UartbusTools.formatColonData(e));
+					System.out.println(sb.toString());
 				}
-				if(!valid)
+				catch(Exception ex)
 				{
-					sb.append("!");
+					ex.printStackTrace();
 				}
-				sb.append(UartbusTools.formatColonData(e));
-				System.out.println(sb.toString());
 			}
 		);
 		

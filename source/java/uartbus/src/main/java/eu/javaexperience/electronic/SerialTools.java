@@ -27,6 +27,7 @@ public class SerialTools
 		ProcessBuilder pb = new ProcessBuilder(params);
 		
 		pb.redirectError(Redirect.INHERIT);
+		
 		final Process p = pb.start();
 		return new IOStream()
 		{

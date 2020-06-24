@@ -1,0 +1,3 @@
+(sym_lib_table
+  (lib (name UB_AT328_proto-rescue)(type Legacy)(uri ${KIPRJMOD}/UB_AT328_proto-rescue.lib)(options "")(descr ""))
+)

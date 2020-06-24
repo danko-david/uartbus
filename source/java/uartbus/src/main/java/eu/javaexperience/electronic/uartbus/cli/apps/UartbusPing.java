@@ -67,14 +67,7 @@ public class UartbusPing
 			false
 		);
 		
-		rpc.getPacketStreamer().addEventListener
-		(
-			e ->
-			{
-				boolean valid = UartbusTools.crc8(e, e.length-1) == e[e.length-1];
-				System.out.println((valid?"":"!")+UartbusTools.formatColonData(e));
-			}
-		);
+		rpc.getPacketStreamer().addEventListener(UartbusTools::printPacketStdout);
 		
 		rpc.startStreaming();
 		

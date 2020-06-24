@@ -12,6 +12,12 @@
 	#define MAX_PACKET_SIZE 48
 #endif
 
+//https://stackoverflow.com/questions/6686675/gcc-macro-expansion-arguments-inside-stringú
+#ifndef SX
+	#define S(x) #x
+	#define SX(x) S(x)
+#endif
+
 extern int received_ep;
 extern uint8_t received_data[MAX_PACKET_SIZE];
 

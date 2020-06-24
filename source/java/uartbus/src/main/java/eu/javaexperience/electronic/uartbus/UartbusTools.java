@@ -372,4 +372,14 @@ public class UartbusTools
 		
 		return null;
 	}
+	
+	public static void printPacketStdout(byte[] data)
+	{
+		if(0 != data.length)
+		{
+			boolean valid = UartbusTools.crc8(data, data.length-1) == data[data.length-1];
+			System.out.println((valid?"":"!")+UartbusTools.formatColonData(data));
+		}
+	}
+	
 }

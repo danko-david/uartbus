@@ -1,0 +1,7 @@
+1.0.0 - Create the first schematic 
+
+1.0.1 - Remove Jack from the board (to free up place)
+1.0.2 - Remove `JP_NO_Safety` from board to free up spaces (use jumper wire on Fuse and R_sImax instead)
+1.0.3 - Adjust text sizes. Add name, board identifier with version, open hardware icon, project site url. Replace `Fuse`'s package to take less place on board.
+1.0.4 - Rearrange the 78xx and chevron jumper pads to avoid using vias
+1.0.5 - Merge `Net-(P3-Pad1)` to `/bus_connector_2_FET/Bus_Gnd` (with text editor) to have a  consistent GND layer, and add GND layer

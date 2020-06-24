@@ -21,8 +21,9 @@ I_WRAP=$(readlink -f utils/ub_app/)
 C_RPC=$(readlink -f utils/lib/rpc/rpc.c)
 C_WRAP=$(readlink -f utils/ub_app/ub_app_wrapper.c)
 
-
-ARDUINO_DIR=/usr/share/arduino/
+if [ -z ${ARDUINO_DIR+x} ]; then
+	ARDUINO_DIR=/usr/share/arduino/hardware/arduino/
+fi
 
 #I_=$(readlink -f )
 #I_=$(readlink -f )
@@ -30,6 +31,12 @@ ARDUINO_DIR=/usr/share/arduino/
 cd $OWD
 
 shopt -s extglob
+
+if [ -z ${ARDUINO_LIB_SOURCE_EXCLUDE+x} ]; then
+	ARDUINO_LIB_SOURCE_EXCLUDE="hooks|main|wiring_pulse"
+fi
+
+ARDUINO_LIB_SOURCES=(${ARDUINO_DIR}/cores/arduino/!($ARDUINO_LIB_SOURCE_EXCLUDE).c{,pp})
 
 avr-g++ -mmcu=$1\
 	-std=c++11\
@@ -45,16 +52,11 @@ avr-g++ -mmcu=$1\
 	-Wl,--section-start=.app_start=0x2000\
 	-DARDUINO_HANDSOFF_UART -DARDUINO_HANDSOFF_TIMER0\
 	-Os -o $3.o "${@:4}" $C_RPC $C_WRAP\
-	-I${ARDUINO_DIR}hardware/arduino/cores/\
-	-I${ARDUINO_DIR}hardware/arduino/cores/arduino\
-	-I${ARDUINO_DIR}hardware/arduino/variants/standard\
-	${ARDUINO_DIR}hardware/arduino/cores/arduino/!(hooks|main|wiring_pulse).c{,pp}\
-
-#	${ARDUINO_DIR}hardware/arduino/cores/arduino/wiring{,_analog,_digital,_pulse,_shift}.c\
-#	${ARDUINO_DIR}hardware/arduino/cores/arduino/{new,Print,Stream,String}.cpp
-
-#	${ARDUINO_DIR}hardware/arduino/cores/arduino/avr-libc/{malloc,realloc,WInterrupts}.c\
-
+	-I${ARDUINO_DIR}/cores/\
+	-I${ARDUINO_DIR}/cores/arduino\
+	-I${ARDUINO_DIR}/variants/standard\
+		${ARDUINO_LIB_SOURCES[@]}\
+		
 
 avr-objcopy -O ihex -R .eeprom $3.o $3.hex
 avr-objdump -S --disassemble  $3.o > $3.asm

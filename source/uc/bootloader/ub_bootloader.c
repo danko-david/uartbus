@@ -1,6 +1,8 @@
 
 #include "ubh.h"
 
+#pragma message "Compiling UARTBus host application with clock speed: " SX(F_CPU)
+
 /******************************* GLOBAL variables *****************************/
 
 volatile bool app_run;
@@ -591,6 +593,13 @@ int init_board(void)
 	init_bus();
 }
 
+bool manage_bus()
+{
+	ubh_impl_wdt_checkpoint();
+	ubh_manage_bus();
+	ubh_impl_wdt_checkpoint();
+}
+
 /********************************** Host tables *******************************/
 
 //constants, function pointers
@@ -604,28 +613,11 @@ void* HOST_TABLE[] =
 	(void*) may_send_packet,
 	(void*) send_packet_priv,
 	(void*) get_max_packet_size,
-	(void*) micros
+	(void*) micros,
+	(void*) manage_bus
 };
 
-/*
-void** HOST_CONSTANTS = (void*[])
-{
-	(void*) UB_HOST_VERSION,
-	(void*) BUS_ADDRESS,
-	(void*) HOST_TABLE_ADDRESS,
-	(void*) APP_START_ADDRESS,
-//	(void*) APP_END_ADDRESS,
-	(void*) APP_CHECKSUM
-};
 
-//TODO provide mode feature: malloc/free, micros, bus_manage (externalised bus call) 
-//dispatch for the upper namespace over 32
-void** HOST_TABLE[] =
-{
-	(void**) HOST_FUNCTIONS,
-	(void**) HOST_CONSTANTS
-};
-*/
 
 __attribute__((section(".host_table"))) void** getHostTable()
 {
@@ -657,7 +649,6 @@ void busSignalOnline(uint8_t powerOnMode, uint8_t softMode)
 //boolean bit
 #define bb(x, y) x?(0x1 <<y):0
 
-
 int main()
 {
 	reset_flag = ubh_impl_get_power_state();
@@ -678,6 +669,15 @@ int main()
 	);
 	//srand(micros());
 	
+	#ifdef DEBUG_TIME_AT_BOOT
+	
+	{
+		ubh_impl_set_user_led(1);
+		uint32_t t = micros();
+		while(!afterMicro(&t, 1000000));
+		ubh_impl_set_user_led(0);
+	}
+	#endif
 	//wait a little bit, we might get some instruction from the bus before
 	//entering application mode
 	{
@@ -689,13 +689,13 @@ int main()
 		}
 	}
 	
+	
+	
 	ubh_impl_wdt_start(true);
 	bool first = true;
 	while(1)
 	{
-		ubh_impl_wdt_checkpoint();
-		ubh_manage_bus();
-		ubh_impl_wdt_checkpoint();
+		manage_bus();
 		
 		if(app_run && ubh_impl_has_app())
 		{

@@ -1,16 +1,22 @@
 package eu.javaexperience.electronic.uartbus;
 
+import java.io.InputStream;
+
 import eu.javaexperience.electronic.IhexCli;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusAttachProcess;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusBlink;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusCodeUploader;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusCollisionPacketloss;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusConsole;
+import eu.javaexperience.electronic.uartbus.cli.apps.UartbusGrab;
+import eu.javaexperience.electronic.uartbus.cli.apps.UartbusLogFile;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusLogSql;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusPacketloss;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusPing;
+import eu.javaexperience.electronic.uartbus.cli.apps.UartbusReboot;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusRpcServer;
 import eu.javaexperience.generic.annotations.Ignore;
+import eu.javaexperience.io.IOTools;
 import eu.javaexperience.rpc.cli.RpcCliTools;
 
 public class UartBusCli
@@ -66,11 +72,34 @@ public class UartBusCli
 		UartbusLogSql.main(args);
 	}
 	
+	public static void logFile(String... args) throws Throwable
+	{
+		UartbusLogFile.main(args);
+	}
+	
 	public static void attachProcess(String... args) throws Throwable
 	{
 		UartbusAttachProcess.main(args);
 	}
 	
-	//TODO discover, restart (--soft), appdump,
-	//grab (wait device appears in the bus and disable application run.
+	public static void grab(String... args) throws Throwable
+	{
+		UartbusGrab.main(args);
+	}
+	
+	public static void reboot(String... args) throws Throwable
+	{
+		UartbusReboot.main(args);
+	}
+	
+	public static void version(String... args) throws Throwable
+	{
+		System.out.println("Uartbus Cli version: ");
+		try(InputStream is = ClassLoader.getSystemResourceAsStream("eu/javaexperience/electronic/uartbus/version"))
+		{
+			System.out.write(IOTools.loadAllFromInputStream(is));
+		}
+	}
+	
+	//TODO discover, restart (--soft), appdump, crosslink
 }

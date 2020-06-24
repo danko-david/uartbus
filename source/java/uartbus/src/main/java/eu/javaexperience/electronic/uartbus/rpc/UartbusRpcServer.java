@@ -7,11 +7,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.RejectedExecutionHandler;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import eu.javaexperience.cli.CliEntry;
@@ -49,9 +44,17 @@ import eu.javaexperience.semantic.references.MayNull;
 
 import static eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools.*;
 
+/*
+import gnu.io.CommPort;
+import gnu.io.CommPortIdentifier;
+import gnu.io.SerialPort;
+*/
+
+//import com.fazecast.jSerialComm.SerialPort;
+
 public class UartbusRpcServer
 {
-	protected static final Logger LOG = JavaExperienceLoggingFacility.getLogger(new Loggable("UarbusRpcServer"));
+	protected static final Logger LOG = JavaExperienceLoggingFacility.getLogger(new Loggable("UartbusRpcServer"));
 	
 	protected static final CliEntry<Integer> RPC_PORT = CliEntry.createFirstArgParserEntry
 	(
@@ -93,6 +96,170 @@ public class UartbusRpcServer
 		MODE//-m
 	};
 	
+	public static void printHelpAndExit(int exit)
+	{
+		System.err.println("Usage of UarbusRpcServer:\n");
+		System.err.println(CliTools.renderListAllOption(PROG_CLI_ENTRIES));
+		System.exit(1);
+	}
+
+/*
+	public static IOStream connect(String port, int baud) throws Exception
+	{
+		SerialPort ser = SerialPort.getCommPort(port);
+		ser.setBaudRate(baud);
+		ser.setFlowControl(SerialPort.FLOW_CONTROL_DISABLED);
+		ser.setParity(SerialPort.ODD_PARITY);
+		
+		ser.openPort(200);
+		InputStream in = ser.getInputStream();
+		OutputStream out = ser.getOutputStream();
+		return new IOStream()
+		{
+			protected boolean closed = false;
+			@Override
+			public void flush() throws IOException
+			{
+				out.flush();
+			}
+			
+			@Override
+			public String remoteAddress()
+			{
+				return "Serial: "+port;
+			}
+			
+			@Override
+			public String localAddress()
+			{
+				return remoteAddress();
+			}
+			
+			@Override
+			public boolean isClosed()
+			{
+				return closed;
+			}
+			
+			@Override
+			public OutputStream getOutputStream()
+			{
+				return out;
+			}
+			
+			@Override
+			public InputStream getInputStream()
+			{
+				return in;
+			}
+			
+			@Override
+			public void close()
+			{
+				this.closed = true;
+			}
+		};
+	}
+*/
+	
+/*
+	public static IOStream connect(String port, int baud) throws Exception
+	{
+		CommPortIdentifier portIdentifier = CommPortIdentifier.getPortIdentifier(port);
+//		if(portIdentifier.isCurrentlyOwned())
+//		{
+//			throw new RuntimeException("Error: Port is currently in use by: "+portIdentifier.getCurrentOwner());
+//		}
+//		else
+		{
+			CommPort commPort = portIdentifier.open(port, 6000);
+			try
+			{
+				System.out.println(commPort.getClass()+": "+commPort.getName());
+				
+				if (commPort instanceof SerialPort)
+				{
+					SerialPort ser = (SerialPort) commPort;
+					ser.setBaudBase(baud);
+					ser.setSerialPortParams(baud, SerialPort.DATABITS_8, SerialPort.STOPBITS_1, SerialPort.PARITY_NONE);
+				}
+				
+//				if (commPort instanceof SerialPort)
+//				{
+//					System.out.println("Connect 2/2");
+//					SerialPort serialPort = (SerialPort) commPort;
+//					System.out.println("BaudRate: " + serialPort.getBaudRate());
+//					System.out.println("DataBIts: " + serialPort.getDataBits());
+//					System.out.println("StopBits: " + serialPort.getStopBits());
+//					System.out.println("Parity: " + serialPort.getParity());
+//					System.out.println("FlowControl: " + serialPort.getFlowControlMode());
+//					serialPort.setSerialPortParams(4800,SerialPort.DATABITS_8,SerialPort.STOPBITS_1,SerialPort.PARITY_ODD);
+//					serialPort.setFlowControlMode(SerialPort.FLOWCONTROL_RTSCTS_IN);
+//					System.out.println("BaudRate: " + serialPort.getBaudRate());
+//					System.out.println("DataBIts: " + serialPort.getDataBits());
+//					System.out.println("StopBits: " + serialPort.getStopBits());
+//					System.out.println("Parity: " + serialPort.getParity());
+//					System.out.println("FlowControl: " + serialPort.getFlowControlMode());
+//				}
+				
+				InputStream in = commPort.getInputStream();
+				OutputStream out = commPort.getOutputStream();
+				
+				return new IOStream()
+				{
+					protected boolean closed = false;
+					@Override
+					public void flush() throws IOException
+					{
+						out.flush();
+					}
+					
+					@Override
+					public String remoteAddress()
+					{
+						return "Serial: "+port;
+					}
+					
+					@Override
+					public String localAddress()
+					{
+						return remoteAddress();
+					}
+					
+					@Override
+					public boolean isClosed()
+					{
+						return closed;
+					}
+					
+					@Override
+					public OutputStream getOutputStream()
+					{
+						return out;
+					}
+					
+					@Override
+					public InputStream getInputStream()
+					{
+						return in;
+					}
+					
+					@Override
+					public void close()
+					{
+						this.closed = true;
+					}
+				};
+			}
+			catch(Exception e)
+			{
+				commPort.close();
+				throw e;
+			}
+		}
+	}
+*/
+
 	protected static UartbusPacketConnector createSerialPacketConnector(Map<String, List<String>> args)
 	{
 		String serial = SERIAL_DEV.tryParseOrDefault(args, null);
@@ -142,7 +309,24 @@ public class UartbusRpcServer
 					}
 					else
 					{
+						//TODO
 						prev[0] = SerialTools.openSerial(serial, baud);
+						//prev[0] = connect(serial, baud);
+						
+						/**
+						 * What is this wait:
+						 * When serial device openend it causes arduino to
+						 * restart and go bootloader mode. (This is the method
+						 * for code upload process)
+						 * 
+						 * If we connect and beneath we send some data, the
+						 * bootloader won't let to go in normal operation (to
+						 * run the bus gateway application code), instead it's
+						 * waiting for new lode to upload.
+						 * 
+						 * This extra wait, cause the bootloader a timeout.
+						 * */
+						Thread.sleep(2000);
 					}
 					prev[0].getInputStream();
 					prev[0].getOutputStream();
@@ -165,6 +349,10 @@ public class UartbusRpcServer
 				LoggingTools.tryLogFormat(LOG, LogLevel.ERROR, "Socket error, reconnecting");
 				conn.setIoStream(socketFactory.get());
 			});
+		}
+		else
+		{
+			conn.setSocketCloseListener(()->System.exit(5));
 		}
 		
 		IOTools.closeOnExit(conn);

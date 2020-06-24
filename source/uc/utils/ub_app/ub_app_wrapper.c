@@ -29,12 +29,91 @@ __attribute__ ((weak)) void init(){};
 
 extern void init();
 
-//TODO extern void __do_global_ctors() when the application is in C++
+//TODO if target AVR
+
+#include <avr/pgmspace.h>
+
+//https://arduino.stackexchange.com/questions/75604/avr-relocated-code-calling-global-constructors
+
+
+/*
+extern "C"
+{
+	extern void* __ctors_start;
+	extern void* __ctors_end;
+
+	__attribute__((noinline)) void call_global_ctors()
+	{
+		for
+		(
+			uint16_t i = (uint16_t) __ctors_start;
+			i < (uint16_t) __ctors_end;
+			i += 2
+		)
+		{
+			uint16_t addr = pgm_read_word_near(i);
+			asm("icall":: "z" (addr));
+		}
+	}
+}
+*/
+
+/*
+extern "C"
+{
+	extern void (*__ctors_start)();
+	extern void (*__ctors_end)();
+
+	__attribute__((noinline)) void call_global_ctors()
+	{
+//		for
+//		(
+			void (*i)() = (void (*)()) 0x20E4;//__ctors_start;
+//			i < __ctors_end;
+//			++i
+//		)
+		{
+			uint16_t addr = pgm_read_word_near(i);
+			asm("icall":: "z" (addr));
+		}
+	}
+}
+*/
+
+#include <avr/interrupt.h>
+extern void (*__ctors_start)();
+extern void (*__ctors_end)();
+
+//__attribute__((noinline)) void call_global_ctors()
+ISR(call_global_ctors)
+{
+	for
+	(
+		register uint16_t i asm ("r24") = (uint16_t) &__ctors_start;
+		i < (uint16_t) &__ctors_end;
+		i+= 2
+	)
+	{
+		uint16_t addr = pgm_read_word_near(i);
+		asm("push r24\n");
+		asm("push r25\n");
+		
+		asm("icall":: "z" (addr));
+		
+		asm("pop r25\n");
+		asm("pop r24\n");
+	}
+}
+
+
+//TODO end AVR
 
 static void init_app_section()
 {
-	__do_copy_data();
 	__do_clear_bss();
+	__do_copy_data();
+	
+	call_global_ctors();
 	init();
 }
 
@@ -65,6 +144,26 @@ bool (*send_packet)(int16_t, uint8_t* , uint16_t);
 uint8_t (*get_max_packet_size)();
 */
 
+void register_packet_dispatch(void (*addr)(struct rpc_request* req))
+{
+	void*** fns = (void***) getHostTableAddress();
+	
+	void (*reg)(void (*addr)(struct rpc_request* req)) =
+		(void (*)(void (*addr)(struct rpc_request* req))) fns[0];
+		
+	reg(addr);
+}
+
+bool may_send_packet()
+{
+	void*** fns = (void***) getHostTableAddress();
+	
+	bool (*may)() =
+		(bool (*)()) fns[1];
+		
+	return may();
+}
+
 bool send_packet(int16_t to, int NS, uint8_t* data, uint16_t size)
 {
 	void*** fns = (void***) getHostTableAddress();
@@ -75,15 +174,7 @@ bool send_packet(int16_t to, int NS, uint8_t* data, uint16_t size)
 	return reg(to, NS, data, size);
 }
 
-void register_packet_dispatch(void (*addr)(struct rpc_request* req))
-{
-	void*** fns = (void***) getHostTableAddress();
-	
-	void (*reg)(void (*addr)(struct rpc_request* req)) =
-		(void (*)(void (*addr)(struct rpc_request* req))) fns[0];
-		
-	reg(addr);
-}
+
 
 __attribute__((weak)) uint32_t micros()
 {

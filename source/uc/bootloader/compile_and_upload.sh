@@ -8,8 +8,11 @@ if [ "$#" -lt 4 ]; then
         exit 1
 fi
 
-
 set -e
+
+if [ -z "$F_CPU" ]; then
+	F_CPU=16000000
+fi
 
 avr-g++ -o ubb.o ub_bootloader.c ub_atmega.c ub_uartbus.c ../bus/lib/common/ub.c ../bus/lib/addressing/addr16.c ../utils/lib/rpc/rpc.c -mmcu=$1\
 	-I../commons/\
@@ -27,12 +30,14 @@ avr-g++ -o ubb.o ub_bootloader.c ub_atmega.c ub_uartbus.c ../bus/lib/common/ub.c
 	-Wl,--section-start=.host_table=0x1fe0\
 	-DHOST_TABLE_ADDRESS=0x1fe0\
 	-DBAUD_RATE=$2\
-	-DF_CPU=16000000\
 	-DAPP_START_ADDRESS=0x2000\
 	-DAPP_CHECKSUM=0\
 	-Wl,--defsym=__stack=0x800700\
 	-Wl,--section-start=.data=0x800702\
+	-DF_CPU=$F_CPU\
 	-Wl,-Tbss,0x800760
+
+
 
 if [ -n "$UBH_COMPILE_ONLY" ]; then
 	echo "UBH_COMPILE_ONLY has been set, so exiting now without code modification and code upload"
@@ -67,8 +72,6 @@ size ubb.o
 avr-objdump -S --disassemble  ubb.o > ubb.asm
 avr-nm --size-sort ubb.o > ubb.sizes
 
-if [ $4 -gt 0 ]; then
+if [ $4 -gt -1 ]; then
 	avrdude -p $1 -b 19200 -c avrisp -P /dev/ttyUSB$4 -Uflash:w:ubb.hex:i
 fi
-
-

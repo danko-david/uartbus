@@ -8,29 +8,40 @@ if [ "$#" -lt 3 ]; then
         exit 1
 fi
 
+if [ -z ${ARDUINO_LIB+x} ]; then
+#	ARDUINO_LIB=/usr/share/arduino/hardware/arduino/
+	ARDUINO_LIB=/usr/share/arduino/
+fi
+
 SOURCES=()
 INCLUDES=()
 ETC=()
 for i in "$@"
 do
 	if [[ $i == -A* ]]; then
+		# read library from the system location
+
 		l=${i##*-A}
-		if [ -d "/usr/share/arduino/libraries/$l" ] || [ -L "/usr/share/arduino/libraries/$l" ]; then
-			INCLUDES+=("-I/usr/share/arduino/libraries/$l")
+		if [ -d "$ARDUINO_LIB/libraries/$l" ] || [ -L "$ARDUINO_LIB/libraries/$l" ]; then
+			INCLUDES+=("-I$ARDUINO_LIB/libraries/$l")
+			INCLUDES+=("-I$ARDUINO_LIB/libraries/$l/src")
 			while read -r line; do
 				SOURCES+=("$line")
-			done <<< `ls /usr/share/arduino/libraries/$l/*.c{,pp}`
+			done <<< `ls $ARDUINO_LIB/libraries/$l{,/src}/*.c{,pp}`
 		fi
 
-		CANON=`readlink -f ~/Arduino/libraries/$l`
+		# read library from your home location
+
+		CANON=`readlink -e ~/Arduino/libraries/$l`
 
 		if [ -d "$CANON" ] ; then
 			INCLUDES+=("-I$CANON")
-		fi
+			INCLUDES+=("-I$CANON/src/")
 
-		while read -r line; do
-			SOURCES+=("$line")
-		done <<< `ls $CANON/*.c{,pp}`
+			while read -r line; do
+				SOURCES+=("$line")
+			done <<< `ls $CANON{,/src}/*.c{,pp}`
+		fi
 
 	else
 		ETC+=("$i")
