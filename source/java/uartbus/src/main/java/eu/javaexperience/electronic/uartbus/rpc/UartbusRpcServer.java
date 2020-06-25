@@ -440,7 +440,7 @@ public class UartbusRpcServer
 			new TaskExecutorPool();
 		
 		AtomicLong ref = new AtomicLong();
-		ConcurrentHashMap<Long, Boolean> missed = new ConcurrentHashMap<>();
+/*		ConcurrentHashMap<Long, Boolean> missed = new ConcurrentHashMap<>();
 		
 		exec.execute(()->
 		{
@@ -455,7 +455,7 @@ public class UartbusRpcServer
 				System.out.println(MapTools.toStringMultiline(missed));
 			}
 		});
-		
+*/		
 		SocketRpcServer<IOStream, RpcSession> srv = new SocketRpcServer<IOStream, RpcSession>
 		(
 			IOStreamFactory.fromServerSocket(new ServerSocket(port)),
@@ -473,7 +473,7 @@ public class UartbusRpcServer
 			protected void responseRequest(SimplePublish1<DataObject> response, RpcSession sess, DataObject request, Object extraCtx)
 			{
 				long val = ref.incrementAndGet();
-				missed.put(val, Boolean.TRUE);
+				//missed.put(val, Boolean.TRUE);
 				
 				//new Thread
 				exec.execute
@@ -500,7 +500,7 @@ public class UartbusRpcServer
 						{
 							RpcSessionTools.setCurrentRpcSession(null);
 						}
-						missed.remove(val);
+						//missed.remove(val);
 					}
 				)
 				

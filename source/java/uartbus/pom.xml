@@ -6,7 +6,7 @@
 
 	<groupId>javaexperience</groupId>
 	<artifactId>uartbus</artifactId>
-	<version>1.5.2</version>
+	<version>1.6.0</version>
 
 	<name>uartbus</name>
 	<url>http://javaexperience.eu</url>
@@ -33,30 +33,11 @@
 		<version>4.11</version>
 		<scope>test</scope>
 	</dependency>
-
-	<dependency>
-		<groupId>javaexperience</groupId>
-		<artifactId>core</artifactId>
-		<version>0.1.37</version>
-	</dependency>
-	
-	<dependency>
-		<groupId>javaexperience</groupId>
-		<artifactId>rpc</artifactId>
-		<version>1.2</version>
-	</dependency>
-	
-	<dependency>
-		<groupId>javaexperience</groupId>
-		<artifactId>linux</artifactId>
-		<version>1.0</version>
-	</dependency>
-		
 	
 	<dependency>
 		<groupId>javaexperience</groupId>
 		<artifactId>core</artifactId>
-		<version>0.2.6</version>
+		<version>0.4.0</version>
 	</dependency>
 	
 	<dependency>
