@@ -11,41 +11,39 @@ import eu.javaexperience.electronic.uartbus.UartbusTools;
 import eu.javaexperience.electronic.uartbus.rpc.client.device.UartBusDevice;
 import eu.javaexperience.electronic.uartbus.rpc.client.device.UbDevStdNsRoot;
 import eu.javaexperience.exceptions.IllegalOperationException;
+import eu.javaexperience.interfaces.simple.SimpleGet;
 import eu.javaexperience.interfaces.simple.publish.SimplePublish1;
 import eu.javaexperience.io.IOTools;
 import eu.javaexperience.measurement.MeasurementSerie;
 import eu.javaexperience.multithread.notify.WaitForSingleEvent;
 import eu.javaexperience.patterns.behavioral.mediator.EventMediator;
+import eu.javaexperience.semantic.references.MayNull;
 
 public class UartBus implements Closeable
 {
 	//TODO abstract stream pair to make capable to connect directly to the
 		//bus through ttyUSBX
 	
-	protected UartbusStreamerEndpoint conn;
-	//protected UartbusConnection conn;
-	//protected Thread receiverThread;
+	protected Closeable connResource;
 	protected int fromAddress;
+	
+	protected SimplePublish1<byte[]> sendPacket;
 	
 	protected final EventMediator<ParsedUartBusPacket> onNewValidPackageReceived = new EventMediator<>();
 	
 	protected final LinkedList<UartbusTransaction> pendingRequests = new LinkedList<>();
 	
-	protected SimplePublish1<byte[]> packetReceived = (e)->
+	public UartBus
+	(
+		@MayNull Closeable resource,
+		SimplePublish1<byte[]> sendPacket,
+		int fromAddress
+	)
 	{
-		byte[] data = UartbusTools.getValidPacket(e);
-		if(null != data)
-		{
-			//System.out.println("receive: "+UartbusTools.formatColonData(data));
-			onNewValidPackageReceived.dispatchEvent(new ParsedUartBusPacket(data, false));
-		}
-		else
-		{ 
-			//System.out.println("wrongPacket: "+UartbusTools.formatColonData(e));
-		}
-	};
-	
-	{
+		this.connResource = resource;
+		this.sendPacket = sendPacket;
+		this.fromAddress = fromAddress;
+		
 		onNewValidPackageReceived.addEventListener
 		(
 			(a)->
@@ -63,6 +61,20 @@ public class UartBus implements Closeable
 				}
 			}
 		);
+	}
+	
+	public void processPacket(byte[] packet)
+	{
+		byte[] data = UartbusTools.getValidPacket(packet);
+		if(null != data)
+		{
+			//System.out.println("receive: "+UartbusTools.formatColonData(data));
+			onNewValidPackageReceived.dispatchEvent(new ParsedUartBusPacket(data, false));
+		}
+		else
+		{ 
+			//System.out.println("wrongPacket: "+UartbusTools.formatColonData(e));
+		}
 	}
 	
 	public void addPendingRequest(UartbusTransaction req)
@@ -150,9 +162,9 @@ public class UartBus implements Closeable
 			addPendingRequest(this);
 			
 			byte[] send = toPacket();
-			synchronized(conn)
+			synchronized(this)
 			{
-				conn.getApi().sendPacket(send);
+				sendPacket.publish(send);
 			}
 		}
 		
@@ -262,18 +274,17 @@ public class UartBus implements Closeable
 	
 	public static UartBus fromTcp(String ip, int port, int fromAddress) throws IOException
 	{
-		UartBus ret = new UartBus();
-		ret.conn = UartbusRpcClientTools.openIpEndpoint(ip, port, null, true);
-		ret.fromAddress = fromAddress;
-		ret.conn.getPacketStreamer().addEventListener(ret.packetReceived);
-		ret.conn.startStreaming();
+		UartbusStreamerEndpoint conn = UartbusRpcClientTools.openIpEndpoint(ip, port, null, true);
+		UartBus ret = new UartBus(conn, conn::sendPacket, fromAddress);
+		conn.getPacketStreamer().addEventListener(ret::processPacket);
+		conn.startStreaming();
 		return ret;
 	}
 
 	@Override
 	public void close() throws IOException
 	{
-		IOTools.silentClose(conn);
+		IOTools.silentClose(connResource);
 	}
 
 	public int getFromAddress()

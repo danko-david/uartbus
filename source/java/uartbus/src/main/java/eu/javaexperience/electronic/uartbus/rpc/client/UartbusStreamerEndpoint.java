@@ -1,6 +1,7 @@
 package eu.javaexperience.electronic.uartbus.rpc.client;
 
 import java.io.Closeable;
+import java.io.IOException;
 
 import eu.javaexperience.electronic.uartbus.rpc.UartbusConnection;
 import eu.javaexperience.interfaces.simple.SimpleGet;
@@ -10,6 +11,7 @@ import eu.javaexperience.log.Loggable;
 import eu.javaexperience.log.Logger;
 import eu.javaexperience.log.LoggingTools;
 import eu.javaexperience.patterns.behavioral.mediator.EventMediator;
+import eu.javaexperience.reflect.Mirror;
 
 public class UartbusStreamerEndpoint implements Closeable
 {
@@ -30,6 +32,18 @@ public class UartbusStreamerEndpoint implements Closeable
 			workingConnection = getConnection.get();
 		}
 		return workingConnection;
+	}
+	
+	public void sendPacket(byte[] data)
+	{
+		try
+		{
+			getApi().sendPacket(data);
+		}
+		catch (IOException e)
+		{
+			Mirror.propagateAnyway(e);
+		}
 	}
 	
 	public synchronized void cleanupConncection()
