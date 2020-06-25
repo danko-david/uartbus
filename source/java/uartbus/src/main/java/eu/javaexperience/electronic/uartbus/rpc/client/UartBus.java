@@ -316,6 +316,11 @@ public class UartBus implements Closeable
 		return new UartBusDevice(this, addr);
 	}
 	
+	public void sendRawPacket(byte[] data)
+	{
+		sendPacket.publish(data);
+	}
+	
 	public static void main(String[] args) throws Throwable
 	{
 		UartBus bus = fromTcp("127.0.0.1", 2112, 63);
