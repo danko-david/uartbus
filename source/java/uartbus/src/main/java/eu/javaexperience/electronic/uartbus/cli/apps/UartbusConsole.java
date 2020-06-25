@@ -10,6 +10,8 @@ import java.util.Map;
 import eu.javaexperience.cli.CliEntry;
 import eu.javaexperience.cli.CliTools;
 import eu.javaexperience.electronic.uartbus.PacketAssembler;
+import eu.javaexperience.electronic.uartbus.UartbusConsoleEnv;
+import eu.javaexperience.electronic.uartbus.UartbusConsoleEnv.UbConsoleResponse;
 import eu.javaexperience.electronic.uartbus.UartbusTools;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusConnection;
@@ -52,6 +54,8 @@ public class UartbusConsole
 		LOOPBACK
 	};
 	
+	protected static UartbusConsoleEnv cmd = new UartbusConsoleEnv();
+	
 	public static void main(String[] args) throws IOException
 	{
 		JavaExperienceLoggingFacility.addStdOut();
@@ -62,8 +66,8 @@ public class UartbusConsole
 			CliTools.printHelpAndExit("UartbusConsole", 1, PROG_CLI_ENTRIES);
 		}
 		
-		int from = UartbusCliTools.parseFrom(pa);
-		int to = TO.tryParseOrDefault(pa, -1);
+		cmd.setFromAddress(UartbusCliTools.parseFrom(pa));
+		cmd.setToAddress(TO.tryParseOrDefault(pa, -1));
 		
 		boolean logTimes = LOG_TIME.hasOption(pa);
 		
@@ -128,7 +132,7 @@ public class UartbusConsole
 		
 		if(null != DATA.getSimple(pa))
 		{
-			asm.writeAddressing(from, to);
+			asm.writeAddressing(cmd.getAddressFrom(), cmd.getAddressTo());
 			asm.write(DATA.tryParse(pa));
 			asm.appendCrc8();
 			byte[] data = asm.done();
@@ -144,71 +148,33 @@ public class UartbusConsole
 		
 		while(null != (line = br.readLine()))
 		{
-			try
+			UbConsoleResponse ret = cmd.feed(line);
+			switch (ret.getType())
 			{
-				line = line.trim();
-				if(0 == line.length())
+			case NO_OP:
+				continue;
+			case NEED_HELP:
+				printHelp();
+				break;
+			
+			case QUERY_ADDRESS_FROM:
+				System.out.println("From address: "+cmd.getAddressFrom());
+				break;
+			case QUERY_ADDRESS_TO:
+				System.out.println("To address: "+cmd.getAddressTo());
+				break;
+			case SEND_PACKET:
+				conn.sendPacket(ret.toPacket());
+				if(logTimes)
 				{
-					continue;
+					System.out.println("<["+getTime()+"]");
 				}
-				
-				if(line.startsWith(">"))
-				{
-					from = Integer.parseInt(StringTools.getSubstringAfterFirstString(line, ">"));
-					line = "?>";
-				}
-				else if(line.startsWith("<"))
-				{
-					to = Integer.parseInt(StringTools.getSubstringAfterFirstString(line, "<"));
-					line = "?<";
-				}
-				
-				if(line.startsWith("?"))
-				{
-					if(line.length() == 1)
-					{
-						printHelp();
-					}
-					else if(line.length() == 2)
-					{
-						switch(line.charAt(1))
-						{
-						case '>':
-							System.out.println("From address: "+from);
-							break;
-		
-						case '<':
-							System.out.println("To address: "+to);
-							break;
-						default: 
-							unrecognisedCmd(line);
-						}
-					}
-					else
-					{
-						unrecognisedCmd(line);
-					}
-				}
-				else
-				{
-					byte[] data = null;
-					
-					data = UartbusTools.parseColonData(line);
-					
-					asm.writeAddressing(from, to);
-					asm.write(data);
-					asm.appendCrc8();
-					conn.sendPacket(asm.done());
-					if(logTimes)
-					{
-						System.out.println("<["+getTime()+"]");
-					}
-				}
-			}
-			catch(Exception e)
-			{
-				System.out.println(e.getMessage());
-				unrecognisedCmd(line);
+				break;
+			case UNKNOWN_COMMAND:
+				unrecognisedCmd(ret.getMessage());
+				break;
+			default:
+				break;
 			}
 		}
 	}
@@ -225,12 +191,9 @@ public class UartbusConsole
 	
 	protected static void printHelp()
 	{
-		System.out.println("help:");
-		System.out.println("	? : prints this help");
-		System.out.println("	> : sets the destination address like: >3");
-		System.out.println("	?> : prints the current destination address");
-		System.out.println("	< : sets the source address like: >12");
-		System.out.println("	?< : prints the current source address");
-		System.out.println("	lines started with numbers and separated with colon is recognised as packet to send");
+		for(String line:UartbusConsoleEnv.HELP_LINES)
+		{
+			System.out.println(line);
+		}
 	}
 }
