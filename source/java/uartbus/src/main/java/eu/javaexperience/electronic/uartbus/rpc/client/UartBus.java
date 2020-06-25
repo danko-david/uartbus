@@ -11,7 +11,6 @@ import eu.javaexperience.electronic.uartbus.UartbusTools;
 import eu.javaexperience.electronic.uartbus.rpc.client.device.UartBusDevice;
 import eu.javaexperience.electronic.uartbus.rpc.client.device.UbDevStdNsRoot;
 import eu.javaexperience.exceptions.IllegalOperationException;
-import eu.javaexperience.interfaces.simple.SimpleGet;
 import eu.javaexperience.interfaces.simple.publish.SimplePublish1;
 import eu.javaexperience.io.IOTools;
 import eu.javaexperience.measurement.MeasurementSerie;
@@ -32,6 +31,10 @@ public class UartBus implements Closeable
 	protected final EventMediator<ParsedUartBusPacket> onNewValidPackageReceived = new EventMediator<>();
 	
 	protected final LinkedList<UartbusTransaction> pendingRequests = new LinkedList<>();
+	
+	protected final EventMediator<byte[]> invalidPackets = new EventMediator<>();
+	
+	protected final EventMediator<byte[]> unrelatedPackets = new EventMediator<>();
 	
 	public UartBus
 	(
@@ -59,21 +62,37 @@ public class UartBus implements Closeable
 						}
 					}
 				}
+				
+				unrelatedPackets.dispatchEvent(a.rawPacket);
 			}
 		);
 	}
 	
+	public EventMediator<byte[]> getInvalidPacketListener()
+	{
+		return invalidPackets;
+	}
+	
+	public EventMediator<byte[]> getUnrelatedPacketListener()
+	{
+		return unrelatedPackets;
+	}
+	
 	public void processPacket(byte[] packet)
 	{
+		if(null == packet)
+		{
+			return;
+		}
+		
 		byte[] data = UartbusTools.getValidPacket(packet);
 		if(null != data)
 		{
-			//System.out.println("receive: "+UartbusTools.formatColonData(data));
 			onNewValidPackageReceived.dispatchEvent(new ParsedUartBusPacket(data, false));
 		}
 		else
 		{ 
-			//System.out.println("wrongPacket: "+UartbusTools.formatColonData(e));
+			invalidPackets.dispatchEvent(packet);
 		}
 	}
 	
