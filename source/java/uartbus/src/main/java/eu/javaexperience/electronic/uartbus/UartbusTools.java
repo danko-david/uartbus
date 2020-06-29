@@ -373,6 +373,15 @@ public class UartbusTools
 		return null;
 	}
 	
+	public static boolean isPacketCrc8Valid(byte[] data)
+	{
+		if(data.length < 1)
+		{
+			return false;
+		}
+		return UartbusTools.crc8(data, data.length-1) == data[data.length-1];
+	}
+	
 	public static void printPacketStdout(byte[] data)
 	{
 		if(0 != data.length)

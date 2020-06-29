@@ -88,7 +88,7 @@ public class UartBus implements Closeable
 		byte[] data = UartbusTools.getValidPacket(packet);
 		if(null != data)
 		{
-			onNewValidPackageReceived.dispatchEvent(new ParsedUartBusPacket(data, false));
+			onNewValidPackageReceived.dispatchEvent(new ParsedUartBusPacket(packet));
 		}
 		else
 		{ 

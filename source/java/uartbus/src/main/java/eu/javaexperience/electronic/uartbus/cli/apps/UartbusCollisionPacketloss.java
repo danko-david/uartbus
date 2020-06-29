@@ -194,7 +194,7 @@ public class UartbusCollisionPacketloss
 					{
 						try
 						{
-							ParsedUartBusPacket packet = new ParsedUartBusPacket(e, true);
+							ParsedUartBusPacket packet = new ParsedUartBusPacket(e);
 							if(packet.to == from)
 							{
 								int seq = UartbusTools.unpackValue(false, packet.payload, 3).intValue();

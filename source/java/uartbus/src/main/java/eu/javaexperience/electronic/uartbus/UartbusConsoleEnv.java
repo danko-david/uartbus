@@ -141,7 +141,7 @@ public class UartbusConsoleEnv
 		addressFrom = from;
 	}
 
-	public void setToAddress(Integer to)
+	public void setToAddress(int to)
 	{
 		addressTo = to;
 	}
