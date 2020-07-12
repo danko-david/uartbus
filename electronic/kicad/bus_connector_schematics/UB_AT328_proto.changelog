@@ -5,3 +5,22 @@
 1.0.3 - Adjust text sizes. Add name, board identifier with version, open hardware icon, project site url. Replace `Fuse`'s package to take less place on board.
 1.0.4 - Rearrange the 78xx and chevron jumper pads to avoid using vias
 1.0.5 - Merge `Net-(P3-Pad1)` to `/bus_connector_2_FET/Bus_Gnd` (with text editor) to have a  consistent GND layer, and add GND layer
+
+Mistakes made at the first production series:
+	- The mask is on the wrong side: to match the AVR pins and RJ11 pinout, you have to
+		solder these stuffs to the opposite side than the solder mask. But actually to
+		have a consistent build, you have to solder everything to the opposite side as intended.
+		To fix this AVR pinout should be flipped and RJ11 pinout must be modified to match the mask and component placement.
+	- Some labels are unreadable: "Open Hardware", the website url, designer name, Jumper names, some component names.
+		This should be written with bigger fonts.
+	- Some label is unreadable if components are placed to the intended side.
+		Eg.: Q_Inv is completely covered when transistors soldered without elevation gap.
+		Move these labels beside of the components placement siluette.
+	- TVS rectangle is on the wrong side.
+		Square footprint should be on the ground side.
+	- RJ11 is a bit too close to the bus pins.
+		The connector and inserted AVR panel are touch each other. (That was close... but they fits)
+
+	= But mechanically and electrically the design works! That's a win.
+
+
