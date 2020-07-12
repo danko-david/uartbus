@@ -45,7 +45,10 @@ build:
 	$(CC) $(CC_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)wiring_pulse.c -o wiring_pulse.c.o 
 	$(CC) $(CC_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)wiring_shift.c -o wiring_shift.c.o
 	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) -include HardwareSerial.h $(LIBRARY_DIR)HardwareSerial.cpp -o HardwareSerial.cpp.o
+ifneq ("${MCU}","atmega328p")
+	$(info Add HS0)
 	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) -include HardwareSerial.h $(LIBRARY_DIR)HardwareSerial0.cpp -o HardwareSerial0.cpp.o 
+endif
 	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)main.cpp -o main.cpp.o 
 	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)new.cpp -o new.cpp.o 
 	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)Print.cpp -o Print.cpp.o 

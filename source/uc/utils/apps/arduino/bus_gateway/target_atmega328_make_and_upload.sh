@@ -15,7 +15,9 @@ MCU=atmega328p F_CPU=16000000 ARDUINO_VARIANT=standard EXT_FLAGS="-DBAUD=$1 -DPC
 #upload using arduino bootloader on the chip' board
 #avrdude -p atmega328p -b19200 -c arduino -P /dev/ttyUSB$2 -cwiring -D -Uflash:w:uartbus_connector.cpp.hex:i
 
-#uploiad directoy using arduino as an isp
-avrdude -p atmega328p -b19200 -c avrisp -P /dev/ttyUSB$2 -Uflash:w:uartbus_connector.cpp.hex:i
+#upload directoy using arduino as an isp
 
+if [ $2 -gt -1 ]; then
+	avrdude -p atmega328p -b19200 -c avrisp -P /dev/ttyUSB$2 -Uflash:w:uartbus_connector.cpp.hex:i
+fi
 
