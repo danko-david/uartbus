@@ -3,8 +3,9 @@
 #include <alloca.h>
 #include "posix_errno.h"
 
-
-#include "ub.h"
+#ifndef UB_EXCLUDE_UARTBUS_HEADER
+	#include "ub.h"
+#endif
 #include "rpc.h"
 #include "addr16.h"
 

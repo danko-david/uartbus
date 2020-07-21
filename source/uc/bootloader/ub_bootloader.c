@@ -33,6 +33,7 @@ void ubh_provide_dispatch_interrupt(void* from)
 //read programspace: addr len
 //commit -> back to app mode
 //bool send_packet(int16_t to, uint8_t* data, uint16_t size);
+uint8_t crc8(uint8_t* data, uint8_t length);
 bool send_packet_priv(int16_t to, uint8_t ns, uint8_t* data, uint8_t size);
 
 int16_t rpc_response(struct rpc_request* req, uint8_t args, struct response_part** parts)

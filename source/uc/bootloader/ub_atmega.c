@@ -10,6 +10,8 @@
 
 extern struct uartbus bus;
 
+void ub_out_rec_byte(struct uartbus* bus, uint16_t data);
+
 #ifndef  ARDUINO
 	#include <avr/interrupt.h>
 	#ifndef sbi

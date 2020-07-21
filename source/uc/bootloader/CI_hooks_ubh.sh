@@ -12,6 +12,7 @@ case $1 in
 
 	build)
 		UBH_COMPILE_ONLY=true ./compile_and_upload.sh atmega328p 115200 4 -1
+		UBH_COMPILE_ONLY=true ./compile_direct_and_upload.sh atmega328p 115200 4 -1
 	;;
 
 	test)
