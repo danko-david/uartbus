@@ -13,6 +13,11 @@ import eu.javaexperience.electronic.uartbus.rpc.client.device.UbDevStdNsRoot;
 import eu.javaexperience.exceptions.IllegalOperationException;
 import eu.javaexperience.interfaces.simple.publish.SimplePublish1;
 import eu.javaexperience.io.IOTools;
+import eu.javaexperience.log.JavaExperienceLoggingFacility;
+import eu.javaexperience.log.LogLevel;
+import eu.javaexperience.log.Loggable;
+import eu.javaexperience.log.Logger;
+import eu.javaexperience.log.LoggingTools;
 import eu.javaexperience.measurement.MeasurementSerie;
 import eu.javaexperience.multithread.notify.WaitForSingleEvent;
 import eu.javaexperience.patterns.behavioral.mediator.EventMediator;
@@ -20,6 +25,8 @@ import eu.javaexperience.semantic.references.MayNull;
 
 public class UartBus implements Closeable
 {
+	protected static final Logger LOG = JavaExperienceLoggingFacility.getLogger(new Loggable("UartBus"));
+	
 	//TODO abstract stream pair to make capable to connect directly to the
 		//bus through ttyUSBX
 	
@@ -88,7 +95,21 @@ public class UartBus implements Closeable
 		byte[] data = UartbusTools.getValidPacket(packet);
 		if(null != data)
 		{
-			onNewValidPackageReceived.dispatchEvent(new ParsedUartBusPacket(packet));
+			ParsedUartBusPacket p = null;
+			
+			try
+			{
+				p = new ParsedUartBusPacket(data);
+			}
+			catch(Exception e)
+			{
+				LoggingTools.tryLogFormatException(LOG, LogLevel.NOTICE, e, "Exception while parsing packet ");
+			}
+			
+			if(null != p)
+			{
+				onNewValidPackageReceived.dispatchEvent(p);
+			}
 		}
 		else
 		{ 

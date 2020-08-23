@@ -18,7 +18,6 @@ public class PacketReader
 		this(data);
 		this.ep = ep;
 	}
-
 	
 	public byte readSByte()
 	{

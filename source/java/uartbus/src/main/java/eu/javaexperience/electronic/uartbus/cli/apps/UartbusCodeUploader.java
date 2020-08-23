@@ -445,10 +445,21 @@ public class UartbusCodeUploader
 
 							byte[] cp = code.getCodePiece(off, BLOCK_SIZE);
 							
-							GenericStruct2<Short, byte[]> c = boot.readProgramCode(addr[0], (byte) cp.length);
-							if(addr[0] != c.a)
+							
+							GenericStruct2<Short, byte[]> c = null;
+							try
 							{
-								throw new RuntimeException("Different address returned, than the requested. Req: "+addr[0]+", ret: "+c.a);
+								c = boot.readProgramCode(addr[0], (byte) cp.length);
+							}
+							catch(Exception e)
+							{
+								LoggingTools.tryLogFormatException(LOG, LogLevel.NOTICE, e, "Exception while getting code: readProgramCode");
+							}
+							
+							if(null == c || addr[0] != c.a)
+							{
+								//retry
+								throw new TransactionException("Different address returned, than the requested. Req: "+addr[0]+", ret: "+((null==c)?-1:c.a));
 							}
 							
 							if(Arrays.equals(cp, c.b))
