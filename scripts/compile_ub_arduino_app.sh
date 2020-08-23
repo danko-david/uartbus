@@ -38,6 +38,10 @@ fi
 
 ARDUINO_LIB_SOURCES=(${ARDUINO_DIR}/cores/arduino/!($ARDUINO_LIB_SOURCE_EXCLUDE).c{,pp})
 
+if [[ -v $UB_DEBUG_COMPILATION ]]; then
+	set -o xtrace
+fi
+
 avr-g++ -mmcu=$1\
 	-std=c++11\
 	-I$I_COMM -I$I_BUSCOMM -I$I_RPC -I$I_WRAP\
@@ -56,7 +60,6 @@ avr-g++ -mmcu=$1\
 	-I${ARDUINO_DIR}/cores/arduino\
 	-I${ARDUINO_DIR}/variants/standard\
 		${ARDUINO_LIB_SOURCES[@]}\
-		
 
 avr-objcopy -O ihex -R .eeprom $3.o $3.hex
 avr-objdump -S --disassemble  $3.o > $3.asm
