@@ -1,5 +1,6 @@
 
 #include "ub_app_wrapper.h"
+#include <avr/pgmspace.h>
 
 #ifdef __cplusplus
 extern "C"{
@@ -19,19 +20,42 @@ __attribute__ ((weak)) void setup(){};
 
 __attribute__ ((weak)) void loop(){};
 
-__attribute__ ((weak)) void __do_copy_data(){};
-__attribute__ ((weak)) void __do_clear_bss(){};
+extern uint8_t __data_start;
+extern uint8_t __data_end;
+extern uint8_t __data_load_start;
 
-extern void __do_copy_data();
-extern void __do_clear_bss();
+__attribute__((noinline)) void ub__do_copy_data()
+{
+	//__data_end __data_start __data_load_start
+	uint8_t* p = &__data_start;
+	while(p < &__data_end)
+	{
+		//*p = *(__data_load_start + (p-__data_start));
+		//*(&__data_load_start+(p-&__data_start)) = *p;
+		*p = pgm_read_byte(&__data_load_start + (p-&__data_start));
+		++p;
+	}
+}
+
+extern unsigned int __bss_start;
+extern unsigned int __bss_end;
+
+//void __do_copy_data(){};
+__attribute__((noinline)) void ub__do_clear_bss()
+{
+	unsigned int* p = &__bss_start;
+	while(p < &__bss_end)
+	{
+		*p++ = 0;
+	}
+};
+
 
 __attribute__ ((weak)) void init(){};
 
 extern void init();
 
 //TODO if target AVR
-
-#include <avr/pgmspace.h>
 
 //https://arduino.stackexchange.com/questions/75604/avr-relocated-code-calling-global-constructors
 
@@ -105,13 +129,12 @@ ISR(call_global_ctors)
 	}
 }
 
-
 //TODO end AVR
 
 static void init_app_section()
 {
-	__do_clear_bss();
-	__do_copy_data();
+	ub__do_copy_data();
+	ub__do_clear_bss();
 	
 	call_global_ctors();
 	init();
@@ -189,6 +212,11 @@ __attribute__((weak)) uint32_t millis()
 {
 	return micros()/1000;
 }
+
+//TODO flush pending packet
+//TODO manage bus
+//TODO soft/hardware reset
+//TODO exit => send exit status and do a hardware reboot
 
 void init_ub_app()
 {
