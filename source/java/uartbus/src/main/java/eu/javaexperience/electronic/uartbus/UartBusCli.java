@@ -102,4 +102,9 @@ public class UartBusCli
 	}
 	
 	//TODO discover, restart (--soft), appdump, crosslink
+/*	public static void reflect(String... args) throws Throwable
+	{
+		UartbusReflect.main(args);
+	}
+*/	
 }

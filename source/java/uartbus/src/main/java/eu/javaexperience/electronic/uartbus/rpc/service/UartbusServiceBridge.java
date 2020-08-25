@@ -7,8 +7,8 @@ import java.lang.reflect.Type;
 import eu.javaexperience.electronic.uartbus.PacketAssembler;
 import eu.javaexperience.electronic.uartbus.rpc.client.ParsedUartBusPacket;
 import eu.javaexperience.electronic.uartbus.rpc.client.UartBus;
-import eu.javaexperience.electronic.uartbus.rpc.client.device.NoReturn;
 import eu.javaexperience.electronic.uartbus.rpc.client.device.UbIndex;
+import eu.javaexperience.electronic.uartbus.rpc.datatype.NoReturn;
 import eu.javaexperience.interfaces.simple.getBy.GetBy1;
 import eu.javaexperience.interfaces.simple.publish.SimplePublish1;
 import eu.javaexperience.nativ.posix.PosixErrnoException;
@@ -143,10 +143,16 @@ public class UartbusServiceBridge
 	
 	protected static void responsePacket(UartbusServiceRequest req, Object... response)
 	{
-		PacketAssembler pa = req.createResponseBuilder();
-		pa.writeObjects(response);
-		pa.appendCrc8();
-		
+		try
+		{
+			PacketAssembler pa = req.createResponseBuilder();
+			pa.writeObjects(response);
+			pa.appendCrc8();
+		}
+		catch(Exception e)
+		{
+			Mirror.propagateAnyway(e);
+		}
 	}
 	
 	protected static boolean canThrowPosixErrno(Method m)

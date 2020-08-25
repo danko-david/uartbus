@@ -8,9 +8,10 @@ import java.math.BigInteger;
 import java.util.Arrays;
 
 import eu.javaexperience.electronic.uartbus.rpc.client.device.UbIndex;
-import eu.javaexperience.electronic.uartbus.rpc.client.device.VSigned;
-import eu.javaexperience.electronic.uartbus.rpc.client.device.VUnsigned;
-import eu.javaexperience.electronic.uartbus.rpc.types.UbString;
+import eu.javaexperience.electronic.uartbus.rpc.client.types.UbRemoteString;
+import eu.javaexperience.electronic.uartbus.rpc.datatype.UbString;
+import eu.javaexperience.electronic.uartbus.rpc.datatype.VSigned;
+import eu.javaexperience.electronic.uartbus.rpc.datatype.VUnsigned;
 import eu.javaexperience.file.AbstractFile;
 import eu.javaexperience.file.AbstractFileSystem;
 import eu.javaexperience.file.fs.os.OsFile;
@@ -123,7 +124,7 @@ public class FtpBusService implements UbFileSystemService
 
 	
 	@UbIndex(ns=4)
-	public UbString getFileName(VUnsigned fileNo) throws PosixErrnoException
+	public UbRemoteString getFileName(VUnsigned fileNo) throws PosixErrnoException
 	{
 		return new UbString(fetchFile(fileNo).file.getFileName());
 	}

@@ -8,8 +8,10 @@ import java.util.concurrent.TimeUnit;
 import eu.javaexperience.datastorage.TransactionException;
 import eu.javaexperience.electronic.uartbus.PacketAssembler;
 import eu.javaexperience.electronic.uartbus.UartbusTools;
+import eu.javaexperience.electronic.uartbus.cli.apps.UartbusCliAppTools;
 import eu.javaexperience.electronic.uartbus.rpc.client.UartBus;
 import eu.javaexperience.electronic.uartbus.rpc.client.UartBus.UartbusTransaction;
+import eu.javaexperience.electronic.uartbus.rpc.datatype.NoReturn;
 import eu.javaexperience.pdw.ProxyHelpedLazyImplementation;
 import eu.javaexperience.reflect.Mirror;
 
@@ -65,25 +67,41 @@ public class UartBusDevice
 						}
 						else if("customNs".equals(method.getName()))
 						{
-							return stepPath(root, (Class) params[0], (short) params[1]);
+							return stepPath(root, (Class) params[0], true, (short) params[1]);
 						}
 						
 						UbIndex ui = method.getAnnotation(UbIndex.class);
-						if(null == ui)
+						/*if(null == ui)
 						{
 							throw new RuntimeException("No namespace index specified for "+method);
-						}
-						return stepPath(root, (Class<R>) method.getReturnType(), ui.ns());
+						}*/
+						return stepPath(root, (Class<R>) method.getReturnType(), null != ui, null == ui?-1:ui.ns(), params);
 					}
 					
 					return device.handleDeviceRpcCall(root.path, method, params);
 				}
 				
-				public Object stepPath(UbDeviceNsLazyImpl root, Class<R> cls, short ns) throws Exception
+				public Object stepPath(UbDeviceNsLazyImpl root, Class<R> cls, boolean hasNs, short ns, Object... objs) throws Exception
 				{
-					byte[] p = Arrays.copyOf(root.path, root.path.length+1);
-					p[root.path.length] = (byte) ns;
-					return wrapWithClass(cls, new UbDeviceNsLazyImpl(root.dev, p));
+					if(null == objs || 0 == objs.length)
+					{
+						byte[] p = Arrays.copyOf(root.path, root.path.length+1);
+						p[root.path.length] = (byte) ns;
+						return wrapWithClass(cls, new UbDeviceNsLazyImpl(root.dev, p));
+					}
+					
+					try(PacketAssembler pa = new PacketAssembler())
+					{
+						pa.write(root.path);
+						if(hasNs)
+						{
+							pa.writeByte(ns);
+						}
+						
+						UartbusTools.appendElements(pa, objs);
+						
+						return wrapWithClass(cls, new UbDeviceNsLazyImpl(root.dev, pa.done()));
+					}
 				}
 			};
 		}

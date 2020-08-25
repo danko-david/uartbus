@@ -4,6 +4,10 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.util.Arrays;
 
+import eu.javaexperience.electronic.uartbus.rpc.datatype.VSigned;
+import eu.javaexperience.electronic.uartbus.rpc.datatype.VUnsigned;
+import eu.javaexperience.electronic.uartbus.rpc.datatype.uint16_t;
+import eu.javaexperience.electronic.uartbus.rpc.datatype.uint8_t;
 import eu.javaexperience.reflect.Mirror;
 import eu.javaexperience.resource.pool.IssuedResource;
 import eu.javaexperience.resource.pool.TrackedLimitedResourcePool;
@@ -318,6 +322,14 @@ public class UartbusTools
 			{
 				pa.writeByte((Byte) o);
 			}
+			else if(o instanceof uint8_t)
+			{
+				pa.writeByte((((uint8_t)o).value & 0xff));
+			}
+			else if(o instanceof uint16_t)
+			{
+				pa.writeShort((((uint16_t)o).value));
+			}
 			else if(o instanceof Short)
 			{
 				pa.writeShort((Short)o);
@@ -333,6 +345,14 @@ public class UartbusTools
 			else if(o instanceof String)
 			{
 				pa.writeString(o.toString());
+			}
+			else if(o instanceof VSigned)
+			{
+				pa.writePackedValue(true, ((VSigned) o).value);
+			}
+			else if(o instanceof VUnsigned)
+			{
+				pa.writePackedValue(true, ((VUnsigned) o).value);
 			}
 			else if(o.getClass().isEnum())
 			{

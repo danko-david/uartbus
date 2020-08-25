@@ -6,6 +6,10 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
 import eu.javaexperience.electronic.uartbus.PacketReader;
+import eu.javaexperience.electronic.uartbus.rpc.datatype.VSigned;
+import eu.javaexperience.electronic.uartbus.rpc.datatype.VUnsigned;
+import eu.javaexperience.electronic.uartbus.rpc.datatype.uint16_t;
+import eu.javaexperience.electronic.uartbus.rpc.datatype.uint8_t;
 import eu.javaexperience.nativ.posix.ERRNO;
 import eu.javaexperience.nativ.posix.PosixErrnoException;
 import eu.javaexperience.reflect.Mirror;
@@ -145,6 +149,14 @@ public class UbRpcTools
 		else if(reqType  == VUnsigned.class)
 		{
 			return new VUnsigned(reader.readVuNumber());
+		}
+		else if(reqType == uint8_t.class)
+		{
+			return new uint8_t(reader.readUByte());
+		}
+		else if(reqType == uint16_t.class)
+		{
+			return new uint16_t(reader.readUShort());
 		}
 		
 		return null;

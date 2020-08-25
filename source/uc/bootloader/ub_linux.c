@@ -13,12 +13,9 @@
 uint32_t ub_impl_get_current_usec()
 {
 	struct timeval tv;
-	struct timezone tz;
-	int stat = gettimeofday(&tv, &tz);
+	int stat = gettimeofday(&tv, NULL);
 	uint32_t now =
-	//	(tv.tv_sec*1000 + tv.tv_usec);//% ((uint32_t) ~0);
-		tv.tv_usec;
-	//printf("now: %d\n", now);
+		(tv.tv_sec*1000000 + tv.tv_usec);
 	return now;
 }
 

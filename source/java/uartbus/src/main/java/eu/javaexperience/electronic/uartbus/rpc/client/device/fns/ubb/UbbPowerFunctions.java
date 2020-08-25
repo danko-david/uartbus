@@ -1,8 +1,8 @@
 package eu.javaexperience.electronic.uartbus.rpc.client.device.fns.ubb;
 
-import eu.javaexperience.electronic.uartbus.rpc.client.device.NoReturn;
 import eu.javaexperience.electronic.uartbus.rpc.client.device.UbDeviceNs;
 import eu.javaexperience.electronic.uartbus.rpc.client.device.UbIndex;
+import eu.javaexperience.electronic.uartbus.rpc.datatype.NoReturn;
 
 public interface UbbPowerFunctions extends UbDeviceNs
 {

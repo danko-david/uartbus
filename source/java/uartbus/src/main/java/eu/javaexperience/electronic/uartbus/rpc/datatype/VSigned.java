@@ -1,4 +1,4 @@
-package eu.javaexperience.electronic.uartbus.rpc.client.device;
+package eu.javaexperience.electronic.uartbus.rpc.datatype;
 
 import java.math.BigInteger;
 

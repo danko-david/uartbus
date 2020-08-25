@@ -3,8 +3,8 @@ package eu.javaexperience.electronic.uartbus.rpc.service.instances.ftp;
 import java.io.IOException;
 import java.math.BigInteger;
 
-import eu.javaexperience.electronic.uartbus.rpc.client.device.VSigned;
-import eu.javaexperience.electronic.uartbus.rpc.client.device.VUnsigned;
+import eu.javaexperience.electronic.uartbus.rpc.datatype.VSigned;
+import eu.javaexperience.electronic.uartbus.rpc.datatype.VUnsigned;
 import eu.javaexperience.file.FileSystemTools;
 import eu.javaexperience.nativ.posix.PosixErrnoException;
 

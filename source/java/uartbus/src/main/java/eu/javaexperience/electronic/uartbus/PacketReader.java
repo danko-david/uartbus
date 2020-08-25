@@ -141,4 +141,13 @@ public class PacketReader
 	{
 		return readInt(false);
 	}
+
+	public int readUShort()
+	{
+		int ret = 0;
+		ret |= ((int) data[ep]) << 8;
+		ret |= data[ep+1] & 0xff;
+		ep += 2;
+		return ret;
+	}
 }

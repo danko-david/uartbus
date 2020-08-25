@@ -1,8 +1,9 @@
 package eu.javaexperience.electronic.uartbus.rpc.service.instances.ftp;
+
 import eu.javaexperience.electronic.uartbus.rpc.client.device.UbIndex;
-import eu.javaexperience.electronic.uartbus.rpc.client.device.VSigned;
-import eu.javaexperience.electronic.uartbus.rpc.client.device.VUnsigned;
-import eu.javaexperience.electronic.uartbus.rpc.types.UbString;
+import eu.javaexperience.electronic.uartbus.rpc.client.types.UbRemoteString;
+import eu.javaexperience.electronic.uartbus.rpc.datatype.VSigned;
+import eu.javaexperience.electronic.uartbus.rpc.datatype.VUnsigned;
 import eu.javaexperience.nativ.posix.PosixErrnoException;
 
 public interface UbFileSystemService
@@ -19,7 +20,7 @@ public interface UbFileSystemService
 	public byte getFileType(VUnsigned fileNo) throws PosixErrnoException;
 	
 	@UbIndex(ns=4)
-	public UbString getFileName(VUnsigned fileNo) throws PosixErrnoException;
+	public UbRemoteString getFileName(VUnsigned fileNo) throws PosixErrnoException;
 	
 	@UbIndex(ns=5)
 	public VUnsigned getSize(VUnsigned fileNo) throws PosixErrnoException;
