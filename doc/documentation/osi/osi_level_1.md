@@ -116,8 +116,7 @@ Cons:
 
 ## Documentation TODOs
 
-- Add Bsc. thesis criticism of this OSI level.
 - Add overvoltage, overcurrent protection schematics (safety circuits can be
 	generalized for all type of pull-up drivers)
-
+- Add other further development options noted in the BSc thesis.
 
