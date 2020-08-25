@@ -8,13 +8,6 @@ if [ "$#" -lt 4 ]; then
 	exit 1
 fi
 
-<<<<<<< HEAD
-./compile_and_upload_for_uc.sh $1 $2 $3 $4 ../bus/lib/common/ub.c ub_bootloader.c ub_atmega.c ub_uartbus.c
-=======
->>>>>>> f-rpc-tree
-
-
-<<<<<<< HEAD
 =======
 avr-g++ -o ubb.o ub_bootloader.c ub_atmega.c ub_uartbus.c ../bus/lib/common/ub.c ../bus/lib/addressing/addr16.c ../utils/lib/rpc/rpc.c -mmcu=$1\
 	-I../commons/\
@@ -75,4 +68,3 @@ avr-nm --size-sort ubb.o > ubb.sizes
 if [ $4 -gt 0 ]; then
 	avrdude -p $1 -b 19200 -c avrisp -P /dev/ttyUSB$4 -Uflash:w:ubb.hex:i
 fi
->>>>>>> f-rpc-tree
