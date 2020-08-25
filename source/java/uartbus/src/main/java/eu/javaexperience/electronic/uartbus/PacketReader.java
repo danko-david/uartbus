@@ -19,6 +19,21 @@ public class PacketReader
 		this.ep = ep;
 	}
 	
+	public int getParseStateIndex()
+	{
+		return ep;
+	}
+	
+	public void setParseStateIndex(int index)
+	{
+		ep = index;
+	}
+	
+	public int getRemainingBytes()
+	{
+		return data.length-ep;
+	}
+	
 	public byte readSByte()
 	{
 		return data[ep++];

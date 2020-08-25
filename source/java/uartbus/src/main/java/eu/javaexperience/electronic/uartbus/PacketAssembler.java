@@ -73,4 +73,9 @@ public class PacketAssembler extends DataOutputStream
 		ByteArrayOutputStream baos = (ByteArrayOutputStream) out;
 		writeByte(UartbusTools.crc8(baos.toByteArray()));
 	}
+
+	public void writeObjects(Object... objects) throws IOException
+	{
+		UartbusTools.appendElements(this, objects);
+	}
 }
