@@ -10,12 +10,17 @@ public class UartbusServiceRequest
 	
 	public PacketAssembler createResponseBuilder()
 	{
+		return createResponseBuilder(request.ep);
+	}
+	
+	public PacketAssembler createResponseBuilder(int dix)
+	{
 		try
 		{
 			PacketAssembler pa = new PacketAssembler();
 			pa.writeAddressing(bridge.getFromAddress(request.getPacket().to), request.getPacket().from);
 			pa.write(new byte[] {0});
-			pa.write(request.getCurrentPath());
+			pa.write(request.getPayloadTo(dix));
 			return pa;
 		}
 		catch(Exception e)

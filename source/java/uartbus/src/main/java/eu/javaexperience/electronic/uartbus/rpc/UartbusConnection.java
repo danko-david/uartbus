@@ -6,6 +6,8 @@ import java.util.Map;
 
 public interface UartbusConnection extends Closeable
 {
+	public void init();
+	
 	//sending data
 	public void sendPacket(byte[] data) throws IOException;
 	

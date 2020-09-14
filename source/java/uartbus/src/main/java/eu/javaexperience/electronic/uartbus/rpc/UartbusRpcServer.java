@@ -360,7 +360,12 @@ public class UartbusRpcServer
 		return conn;
 	}
 	
-	protected static UartbusPacketConnector createDummyConnector(Map<String, List<String>> args)
+	public static UartbusPacketConnector createDummyConnector()
+	{
+		return createDummyConnector(null);
+	}
+	
+	public static UartbusPacketConnector createDummyConnector(Map<String, List<String>> args)
 	{
 		return new UartbusPacketConnector()
 		{
@@ -420,7 +425,7 @@ public class UartbusRpcServer
 			CliTools.printHelpAndExit("UarbusRpcServer", 2, PROG_CLI_ENTRIES);
 		}
 		
-		JavaExperienceLoggingFacility.startLoggingIntoDirectory(new File(wd+"/log/"), "uartbus-rpc-server-");
+		//JavaExperienceLoggingFacility.startLoggingIntoDirectory(new File(wd+"/log/"), "uartbus-rpc-server-");
 		
 		
 		UartbusRpcEndpoint bus = new UartbusRpcEndpoint(conn);
@@ -516,5 +521,15 @@ public class UartbusRpcServer
 		};
 		
 		srv.start();
+	}
+	
+	
+	public static UartbusRpcEndpoint createInProcessDummyServer()
+	{
+		UartbusPacketConnector conn = createDummyConnector(null);
+		UartbusRpcEndpoint bus = new UartbusRpcEndpoint(conn);
+		bus.default_loopback_send_packets = true;
+		bus.default_echo_loopback = false;
+		return bus;
 	}
 }

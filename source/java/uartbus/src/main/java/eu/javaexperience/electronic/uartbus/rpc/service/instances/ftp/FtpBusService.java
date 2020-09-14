@@ -7,6 +7,7 @@ import java.io.RandomAccessFile;
 import java.math.BigInteger;
 import java.util.Arrays;
 
+import eu.javaexperience.electronic.uartbus.rpc.client.device.UbDeviceNs;
 import eu.javaexperience.electronic.uartbus.rpc.client.device.UbIndex;
 import eu.javaexperience.electronic.uartbus.rpc.client.types.UbRemoteString;
 import eu.javaexperience.electronic.uartbus.rpc.datatype.UbString;
@@ -53,7 +54,7 @@ public class FtpBusService implements UbFileSystemService
 		return fr.byPath.get(getRelPath(file));
 	}
 	
-	protected FileEntry sureTranslateFile(AbstractFile file) throws PosixErrnoException
+	protected FileEntry ensureTranslateFile(AbstractFile file) throws PosixErrnoException
 	{
 		String url = getRelPath(file);
 		FileEntry ret = fr.byPath.get(url);
@@ -103,7 +104,7 @@ public class FtpBusService implements UbFileSystemService
 	@UbIndex(ns=2)
 	public VUnsigned getParentFile(VUnsigned fileNo) throws PosixErrnoException
 	{
-		return sureTranslateFile(fetchFile(fileNo).file.getParentFile()).fileNo;
+		return ensureTranslateFile(fetchFile(fileNo).file.getParentFile()).fileNo;
 	}
 	
 	@UbIndex(ns=3)
@@ -147,7 +148,7 @@ public class FtpBusService implements UbFileSystemService
 		{
 			if(!fl[i].getFileName().equals(".ubfs"))
 			{
-				ret[ep++] = sureTranslateFile(fl[i]).fileNo;
+				ret[ep++] = ensureTranslateFile(fl[i]).fileNo;
 			}
 		}
 		
@@ -176,7 +177,7 @@ public class FtpBusService implements UbFileSystemService
 			throw new PosixErrnoException(ERRNO.ENOTDIR);
 		}
 		
-		return sureTranslateFile(fl[i]).fileNo;
+		return ensureTranslateFile(fl[i]).fileNo;
 	}
 	
 	@UbIndex(ns=8)
@@ -265,7 +266,7 @@ public class FtpBusService implements UbFileSystemService
 			throw new PosixErrnoException(ERRNO.EACCES);
 		}
 		
-		return sureTranslateFile(f).fileNo;
+		return ensureTranslateFile(f).fileNo;
 	}
 
 	
@@ -287,7 +288,7 @@ public class FtpBusService implements UbFileSystemService
 			throw new PosixErrnoException(ERRNO.EACCES);
 		}
 		
-		return sureTranslateFile(f).fileNo;
+		return ensureTranslateFile(f).fileNo;
 	}
 
 	
@@ -374,6 +375,7 @@ public class FtpBusService implements UbFileSystemService
 			}
 			catch(IOException e)
 			{
+				e.printStackTrace();
 				throw new PosixErrnoException(ERRNO.EACCES);
 			}
 		}
@@ -396,5 +398,17 @@ public class FtpBusService implements UbFileSystemService
 				throw new PosixErrnoException(ERRNO.ENOENT);
 			}
 		}
+	}
+
+	@Override
+	public <T extends UbDeviceNs> T cast(Class<T> dst)
+	{
+		return null;
+	}
+
+	@Override
+	public <T extends UbDeviceNs> T customNs(Class<T> dst, short num)
+	{
+		return null;
 	}
 }

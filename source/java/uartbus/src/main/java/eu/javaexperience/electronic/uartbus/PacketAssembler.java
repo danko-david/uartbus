@@ -5,6 +5,8 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.math.BigInteger;
 
+import eu.javaexperience.electronic.uartbus.rpc.client.device.UbRpcTools;
+
 public class PacketAssembler extends DataOutputStream
 {
 	public PacketAssembler()
@@ -76,6 +78,6 @@ public class PacketAssembler extends DataOutputStream
 
 	public void writeObjects(Object... objects) throws IOException
 	{
-		UartbusTools.appendElements(this, objects);
+		UbRpcTools.appendElements(this, objects);
 	}
 }

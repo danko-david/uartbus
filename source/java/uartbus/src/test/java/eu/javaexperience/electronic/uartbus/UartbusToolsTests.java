@@ -1,10 +1,15 @@
 package eu.javaexperience.electronic.uartbus;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 import java.math.BigInteger;
+import java.util.Arrays;
 
 import org.junit.Test;
+
+import eu.javaexperience.electronic.uartbus.rpc.datatype.VSigned;
+import eu.javaexperience.text.StringTools;
 
 public class UartbusToolsTests
 {
@@ -307,5 +312,100 @@ public class UartbusToolsTests
 		assertEquals(524288, UartbusTools.unpackValue(true, new byte[]{(byte) 0b10100000, (byte) 0b10000000, 0b00000000}, 0).longValue());
 		assertEquals(-524289, UartbusTools.unpackValue(true, new byte[]{(byte) 0b11100000, (byte) 0b10000000, 0b00000000}, 0).longValue());
 		assertEquals(-532481, UartbusTools.unpackValue(true, new byte[]{(byte) 0b11100000, (byte) 0b11000000, 0b00000000}, 0).longValue());
+	}
+	
+	public static void dbgPrintBytes(BigInteger val)
+	{
+		System.out.print(val+": ");
+		byte[] b = val.toByteArray();
+		for(int i=0;i<b.length;++i)
+		{
+			String txt = Integer.toBinaryString(0xff & b[i]);
+			System.out.print(" "+txt+StringTools.repeatChar('0', 8-txt.length()));
+		}
+		
+		System.out.println();
+	}
+	
+	public static void testPackUnpack(boolean signed, String value)
+	{
+		byte[] data = new byte[value.length()];
+		BigInteger val = new BigInteger(value);
+		int bytes = UartbusTools.packValue(signed, val, data, 0);
+		data = Arrays.copyOf(data, bytes);
+		BigInteger up = UartbusTools.unpackValue(signed, data, 0);
+		/*System.out.print("before: ");
+		dbgPrintBytes(val);
+		System.out.print("after: ");
+		dbgPrintBytes(up);
+		System.out.println();*/
+		assertEquals(val, up);
+	}
+	
+	@Test
+	public void testUnsignedValues()
+	{
+		testPackUnpack(true, "1024");
+		testPackUnpack(true, "95349643593278962348975692345932456");
+		testPackUnpack(true, "875423123432230121024332421223");
+	}
+	
+	@Test
+	public void testSignedValues()
+	{
+		
+		testPackUnpack(true, "95349643593278962348975692345932456");
+		testPackUnpack(true, "875423123432230121024332421223");
+		
+		testPackUnpack(true, "-95349643593278962348975692345932456");
+		testPackUnpack(true, "-875423123432230121024332421223");
+		
+		testPackUnpack(true, "1024");
+	}
+	
+	
+	@Test
+	public void testLongPack_min()
+	{
+		byte[] data = new byte[10];
+		UartbusTools.packValue(true, new BigInteger(String.valueOf(Long.MIN_VALUE)), data, 0);
+		assertArrayEquals
+		(
+			new byte[]{-64, -1, -1, -1, -1, -1, -1, -1, -1, 127},
+			data
+		);
+	}
+	
+	@Test
+	public void testLongPack_max()
+	{
+		byte[] data = new byte[10];
+		UartbusTools.packValue(true, new BigInteger(String.valueOf(Long.MAX_VALUE)), data, 0);
+		assertArrayEquals
+		(
+			new byte[]{-128, -1, -1, -1, -1, -1, -1, -1, -1, 127},
+			data
+		);
+	}
+	
+	
+	@Test
+	public void testLongUnpack_min()
+	{
+		assertEquals
+		(
+			new BigInteger(String.valueOf(Long.MIN_VALUE)),
+			UartbusTools.unpackValue(true, new byte[]{-64, -1, -1, -1, -1, -1, -1, -1, -1, 127}, 0)
+		);
+	}
+	
+	@Test
+	public void testLongUnpack_max()
+	{
+		assertEquals
+		(
+			new BigInteger(String.valueOf(Long.MAX_VALUE)),
+			UartbusTools.unpackValue(true, new byte[]{-128, -1, -1, -1, -1, -1, -1, -1, -1, 127}, 0)
+		);
 	}
 }

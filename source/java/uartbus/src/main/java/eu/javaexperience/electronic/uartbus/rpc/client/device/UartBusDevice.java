@@ -7,10 +7,8 @@ import java.util.concurrent.TimeUnit;
 
 import eu.javaexperience.datastorage.TransactionException;
 import eu.javaexperience.electronic.uartbus.PacketAssembler;
-import eu.javaexperience.electronic.uartbus.UartbusTools;
-import eu.javaexperience.electronic.uartbus.cli.apps.UartbusCliAppTools;
 import eu.javaexperience.electronic.uartbus.rpc.client.UartBus;
-import eu.javaexperience.electronic.uartbus.rpc.client.UartBus.UartbusTransaction;
+import eu.javaexperience.electronic.uartbus.rpc.client.UartbusTransaction;
 import eu.javaexperience.electronic.uartbus.rpc.datatype.NoReturn;
 import eu.javaexperience.pdw.ProxyHelpedLazyImplementation;
 import eu.javaexperience.reflect.Mirror;
@@ -98,10 +96,16 @@ public class UartBusDevice
 							pa.writeByte(ns);
 						}
 						
-						UartbusTools.appendElements(pa, objs);
+						UbRpcTools.appendElements(pa, objs);
 						
 						return wrapWithClass(cls, new UbDeviceNsLazyImpl(root.dev, pa.done()));
 					}
+				}
+				
+				@Override
+				protected void handleException(Throwable e)
+				{
+					Mirror.throwCheckedExceptionAsUnchecked(e);
 				}
 			};
 		}
@@ -124,10 +128,10 @@ public class UartBusDevice
 		
 		path = Arrays.copyOf(path, path.length+1);
 		path[path.length-1] = (byte) ns.ns();
-		UartbusTools.appendElements(pa, path);
+		UbRpcTools.appendElements(pa, path);
 		if(null != params && params.length > 0)
 		{
-			UartbusTools.appendElements(pa, params);
+			UbRpcTools.appendElements(pa, params);
 		}
 		
 		Type ret = method.getReturnType();

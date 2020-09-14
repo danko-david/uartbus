@@ -150,4 +150,9 @@ public class PacketReader
 		ep += 2;
 		return ret;
 	}
+
+	public boolean hasUnprocessedBytes()
+	{
+		return ep < data.length;
+	}
 }

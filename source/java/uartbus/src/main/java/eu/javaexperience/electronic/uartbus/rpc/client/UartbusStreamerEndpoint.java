@@ -3,6 +3,7 @@ package eu.javaexperience.electronic.uartbus.rpc.client;
 import java.io.Closeable;
 import java.io.IOException;
 
+import eu.javaexperience.electronic.uartbus.UartbusTools;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusConnection;
 import eu.javaexperience.interfaces.simple.SimpleGet;
 import eu.javaexperience.log.JavaExperienceLoggingFacility;
@@ -10,6 +11,7 @@ import eu.javaexperience.log.LogLevel;
 import eu.javaexperience.log.Loggable;
 import eu.javaexperience.log.Logger;
 import eu.javaexperience.log.LoggingTools;
+import eu.javaexperience.multithread.notify.WaitForEvents;
 import eu.javaexperience.patterns.behavioral.mediator.EventMediator;
 import eu.javaexperience.reflect.Mirror;
 
@@ -18,18 +20,19 @@ public class UartbusStreamerEndpoint implements Closeable
 	protected static final Logger LOG = JavaExperienceLoggingFacility.getLogger(new Loggable("UartbusStreamerEndpoint"));
 	
 	protected SimpleGet<UartbusConnection> getConnection;
-	protected UartbusConnection workingConnection;
+	protected volatile UartbusConnection workingConnection;
 	
 	public UartbusStreamerEndpoint(SimpleGet<UartbusConnection> getConnection)
 	{
 		this.getConnection = getConnection;
 	}
 	
-	public synchronized UartbusConnection getApi()
+	public UartbusConnection getApi()
 	{
 		if(null == workingConnection)
 		{
 			workingConnection = getConnection.get();
+			UartbusTools.initConnection(workingConnection);
 		}
 		return workingConnection;
 	}
@@ -46,7 +49,7 @@ public class UartbusStreamerEndpoint implements Closeable
 		}
 	}
 	
-	public synchronized void cleanupConncection()
+	public void cleanupConncection()
 	{
 		workingConnection = null;
 	}
@@ -65,6 +68,9 @@ public class UartbusStreamerEndpoint implements Closeable
 	{
 		if(null == streamer)
 		{
+			WaitForEvents w = new WaitForEvents(1);
+			WaitForEvents[] ws = new WaitForEvents[] {w};
+			
 			runStreamer = true;
 			streamer = new Thread()
 			{
@@ -85,6 +91,17 @@ public class UartbusStreamerEndpoint implements Closeable
 							{
 								LoggingTools.tryLogFormatException(LOG, LogLevel.FATAL, e, "Exception occurred while getting connection for packet streaming (stopping): ");
 								break;
+							}
+							
+							if(null == conn)
+							{
+								break;
+							}
+							
+							if(null != ws[0])
+							{
+								ws[0].call();
+								ws[0] = null;
 							}
 							
 							try
@@ -115,6 +132,7 @@ public class UartbusStreamerEndpoint implements Closeable
 			};
 			
 			streamer.start();
+			w.waitForAllEvent();
 			return;
 		}
 		

@@ -1,20 +1,22 @@
 package eu.javaexperience.electronic.uartbus;
 
-import java.io.IOException;
+import java.lang.reflect.Proxy;
 import java.math.BigInteger;
 import java.util.Arrays;
 
-import eu.javaexperience.electronic.uartbus.rpc.datatype.VSigned;
-import eu.javaexperience.electronic.uartbus.rpc.datatype.VUnsigned;
-import eu.javaexperience.electronic.uartbus.rpc.datatype.uint16_t;
-import eu.javaexperience.electronic.uartbus.rpc.datatype.uint8_t;
-import eu.javaexperience.reflect.Mirror;
-import eu.javaexperience.resource.pool.IssuedResource;
-import eu.javaexperience.resource.pool.TrackedLimitedResourcePool;
+import eu.javaexperience.electronic.uartbus.rpc.UartbusConnection;
+import eu.javaexperience.electronic.uartbus.rpc.client.ParsedUartBusPacket;
+import eu.javaexperience.log.JavaExperienceLoggingFacility;
+import eu.javaexperience.log.LogLevel;
+import eu.javaexperience.log.Loggable;
+import eu.javaexperience.log.Logger;
+import eu.javaexperience.log.LoggingTools;
 import eu.javaexperience.text.StringTools;
 
 public class UartbusTools
 {
+	protected static final Logger LOG = JavaExperienceLoggingFacility.getLogger(new Loggable("UartbusTools"));
+	
 	private UartbusTools() {}
 	
 	public static byte crc8(byte[] data)
@@ -78,6 +80,46 @@ public class UartbusTools
 		return sb.toString();
 	}
 	
+	public static String formatColonDataWithValidation(byte[] e)
+	{
+		if(UartbusTools.crc8(e, e.length-1) != e[e.length-1])
+		{
+			return "!"+formatColonData(e);
+		}
+		return formatColonData(e);
+	}
+	
+	public static enum PacketFormattingMode
+	{
+		RAW_COLON,
+		RAW_COLON_WITH_VERIFY,
+		PARSED_PACKET
+	}
+	
+	public static String formatPacketWithMode(PacketFormattingMode mode, byte[] data)
+	{
+		switch(mode)
+		{
+		case PARSED_PACKET:
+			try
+			{
+				return ParsedUartBusPacket.fromRawPacketWithCrc(data).toShortUserText();
+			}
+			catch(Throwable t)
+			{
+				return formatColonDataWithValidation(data);
+			}
+			
+		case RAW_COLON:
+			return formatColonData(data);
+			
+		case RAW_COLON_WITH_VERIFY:
+			return formatColonDataWithValidation(data);
+		}
+		
+		return null;
+	}
+	
 	public static int packValue(boolean signed, int value, byte[] dst, int startIndex)
 	{
 		return packValue(signed, BigInteger.valueOf(value), dst, startIndex);
@@ -110,7 +152,7 @@ public class UartbusTools
 		}
 		
 		byte[] re = value.toByteArray();
-		if(re[0] == 0)// && 1 != re.length
+		if(re[0] == 0)
 		{
 			re = Arrays.copyOfRange(re, 1, re.length);
 		}
@@ -240,8 +282,6 @@ public class UartbusTools
 		return Arrays.copyOf(ret, r);
 	}
 	
-	protected static final TrackedLimitedResourcePool<PacketAssembler> PA_POOL = new TrackedLimitedResourcePool<PacketAssembler>(()->new PacketAssembler(), 1024);
-	
 	public static BigInteger unpackValue(boolean signed, byte[] data, int startIndex)
 	{
 		return unpackValue(signed, data, startIndex, null);
@@ -261,37 +301,49 @@ public class UartbusTools
 		{
 			throw new RuntimeException("Incomplete value in the buffer.");
 		}
+		
+		final int used = ahead;
 		BigInteger ret = null;
 		
 		int cut = 0xff & ~((signed?0x40:0x00) | 0x80);
+		
+		final byte cut_first = 0x7f;
 		
 		int req = ((ahead+1)*7)/8+1;
 		
 		byte[] num = new byte[req];
 		
-		int off = 0;
-		int index = num.length-1;
-		
-		for(int i=ahead;i>=0;--i,--index)
+		int off = -1;
+		for(int index = num.length-1;index >= 0&& ahead >= 0;--index, --ahead)
 		{
-			int val = ((i != 0?~0x80&0xff:cut) & data[startIndex+index]) >> off;
-			if(index > 0)
+			if(7 == ++off)
 			{
-				val |= (cut & data[startIndex+index-1]) << (7-off);
-			}
-			
-			val &= 0xff;
-			
-			if(++off == 8)
-			{
-				off = 0;
+				off = -1;
 				index += 1;
+				continue;
 			}
 			
+			int val = ((index != startIndex?cut_first:cut) & data[startIndex+ahead]) >>> off;
+			
+			if(ahead > 0)
+			{
+				int prev = ((cut_first & data[startIndex+ahead-1]) << (7-off));
+				/*System.out.println
+				(
+					index+"/"+off+": "+Integer.toBinaryString(prev)
+					+" | "+Integer.toBinaryString(val)
+				);*/
+				val |= prev;
+			}
+			
+			//System.out.println(index+" "+Integer.toBinaryString(val));
 			num[index] = (byte) val;
+			
+			
 		}
 		
 		ret = new BigInteger(num);
+		//System.out.println("unpack: "+Arrays.toString(num)+" "+ret);
 		
 		if(signed && (data[startIndex] & 0x40) > 0)
 		{
@@ -300,89 +352,12 @@ public class UartbusTools
 		
 		if(null != usedBytes && usedBytes.length > 0)
 		{
-			usedBytes[0] = ahead+1;
+			usedBytes[0] = used+1;
 		}
 		
 		return ret;
 	}
 	
-	public static void appendElements(PacketAssembler pa, Object... elements) throws IOException
-	{
-		for(Object o:elements)
-		{
-			if(null == o)
-			{
-				throw new NullPointerException("Can't serialize null");
-			}
-			else if(o instanceof Boolean)
-			{
-				pa.writeByte(o == Boolean.FALSE?0:1);
-			}
-			else if(o instanceof Byte)
-			{
-				pa.writeByte((Byte) o);
-			}
-			else if(o instanceof uint8_t)
-			{
-				pa.writeByte((((uint8_t)o).value & 0xff));
-			}
-			else if(o instanceof uint16_t)
-			{
-				pa.writeShort((((uint16_t)o).value));
-			}
-			else if(o instanceof Short)
-			{
-				pa.writeShort((Short)o);
-			}
-			else if(o instanceof byte[])
-			{
-				pa.write((byte[]) o);
-			}
-			else if(o instanceof Number)
-			{
-				pa.writePackedValue(true, (Number) o);
-			}
-			else if(o instanceof String)
-			{
-				pa.writeString(o.toString());
-			}
-			else if(o instanceof VSigned)
-			{
-				pa.writePackedValue(true, ((VSigned) o).value);
-			}
-			else if(o instanceof VUnsigned)
-			{
-				pa.writePackedValue(true, ((VUnsigned) o).value);
-			}
-			else if(o.getClass().isEnum())
-			{
-				pa.writeByte(((Enum)o).ordinal());
-			}
-			else
-			{
-				throw new RuntimeException("Can't serialize packet component ("+(null == o?"null":o.getClass())+"): "+o);
-			}
-		}
-	}
-	
-	public static byte[] toPacket(int to, int from, Object... elements)
-	{
-		try(IssuedResource<PacketAssembler> res = PA_POOL.acquireResource())
-		{
-			PacketAssembler pa = res.getResource();
-			pa.writeAddressing(from, to);
-			appendElements(pa, elements);
-			
-			pa.appendCrc8();
-			return pa.done();
-		}
-		catch(Exception e)
-		{
-			Mirror.propagateAnyway(e);
-			return null;
-		}
-	}
-
 	public static byte[] getValidPacket(byte[] e)
 	{
 		if(e.length > 0 && UartbusTools.crc8(e, e.length-1) == e[e.length-1])
@@ -408,6 +383,35 @@ public class UartbusTools
 		{
 			boolean valid = UartbusTools.crc8(data, data.length-1) == data[data.length-1];
 			System.out.println((valid?"":"!")+UartbusTools.formatColonData(data));
+		}
+	}
+
+	public static void initConnection(UartbusConnection conn)
+	{
+		if(null == conn)
+		{
+			return;
+		}
+		
+		try
+		{
+			conn.init();
+		}
+		catch(Throwable t)
+		{
+			Object str = conn;
+			if(Proxy.isProxyClass(conn.getClass()))
+			{
+				str = "Proxy: "+System.identityHashCode(conn);
+			}
+			LoggingTools.tryLogFormatException
+			(
+				LOG,
+				LogLevel.NOTICE,
+				t,
+				"Exception while calling `%s`.call(). This might happened beacuse you connect to and older version of connection implementation.",
+				str
+			);
 		}
 	}
 	

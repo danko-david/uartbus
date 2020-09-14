@@ -18,7 +18,7 @@ import eu.javaexperience.electronic.IntelHexFile;
 import eu.javaexperience.electronic.IntelHexFile.CodeSegment;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools;
 import eu.javaexperience.electronic.uartbus.rpc.client.UartBus;
-import eu.javaexperience.electronic.uartbus.rpc.client.UartBus.UartbusTransaction;
+import eu.javaexperience.electronic.uartbus.rpc.client.UartbusTransaction;
 import eu.javaexperience.electronic.uartbus.rpc.client.device.UartBusDevice;
 import eu.javaexperience.electronic.uartbus.rpc.client.device.UbDevStdNsRoot;
 import eu.javaexperience.electronic.uartbus.rpc.client.device.fns.ubb.UbBootloaderFunctions;

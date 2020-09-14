@@ -15,6 +15,7 @@ import eu.javaexperience.electronic.uartbus.cli.apps.UartbusPacketloss;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusPing;
 import eu.javaexperience.electronic.uartbus.cli.apps.UartbusReboot;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusRpcServer;
+import eu.javaexperience.electronic.uartbus.rpc.service.instances.UartbusServicesCli;
 import eu.javaexperience.generic.annotations.Ignore;
 import eu.javaexperience.io.IOTools;
 import eu.javaexperience.rpc.cli.RpcCliTools;
@@ -99,6 +100,11 @@ public class UartBusCli
 		{
 			System.out.write(IOTools.loadAllFromInputStream(is));
 		}
+	}
+	
+	public static void service(String... args) throws Throwable
+	{
+		UartbusServicesCli.main(args);
 	}
 	
 	//TODO discover, restart (--soft), appdump, crosslink

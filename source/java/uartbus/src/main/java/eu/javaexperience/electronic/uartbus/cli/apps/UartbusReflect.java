@@ -8,7 +8,6 @@ import java.util.Map;
 import eu.javaexperience.cli.CliEntry;
 import eu.javaexperience.cli.CliTools;
 import eu.javaexperience.collection.map.SmallMap;
-import eu.javaexperience.electronic.uartbus.rpc.UartbusRpcTools;
 import eu.javaexperience.electronic.uartbus.rpc.UbRpcModifiers;
 import eu.javaexperience.electronic.uartbus.rpc.client.UartBus;
 import eu.javaexperience.electronic.uartbus.rpc.client.device.UartBusDevice;

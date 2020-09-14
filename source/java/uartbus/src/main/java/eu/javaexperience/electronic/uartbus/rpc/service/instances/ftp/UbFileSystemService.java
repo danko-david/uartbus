@@ -1,12 +1,13 @@
 package eu.javaexperience.electronic.uartbus.rpc.service.instances.ftp;
 
+import eu.javaexperience.electronic.uartbus.rpc.client.device.UbDeviceNs;
 import eu.javaexperience.electronic.uartbus.rpc.client.device.UbIndex;
 import eu.javaexperience.electronic.uartbus.rpc.client.types.UbRemoteString;
 import eu.javaexperience.electronic.uartbus.rpc.datatype.VSigned;
 import eu.javaexperience.electronic.uartbus.rpc.datatype.VUnsigned;
 import eu.javaexperience.nativ.posix.PosixErrnoException;
 
-public interface UbFileSystemService
+public interface UbFileSystemService extends UbDeviceNs
 {
 	// File attributes and filesystem discovery
 	

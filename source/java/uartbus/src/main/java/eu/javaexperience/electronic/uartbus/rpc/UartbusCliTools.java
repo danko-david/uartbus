@@ -89,6 +89,14 @@ public class UartbusCliTools
 		"r", "-reconnect"
 	);
 	
+	public static final CliEntry<String> DECODE_PACKET = CliEntry.createFirstArgParserEntry
+	(
+		(e)->e,
+		"Decode packet",
+		"D", "-decode-packet"
+	);
+	
+	
 	public static UartBus cliBusConnect(Map<String, List<String>> cliArgs) throws IOException
 	{
 		return UartBus.fromTcp

@@ -1,6 +1,5 @@
 package eu.javaexperience.electronic.uartbus.rpc;
 
-import java.io.EOFException;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
@@ -11,7 +10,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import eu.javaexperience.collection.map.OneShotMap;
-import eu.javaexperience.electronic.uartbus.UartbusPacketConnector;
+import eu.javaexperience.electronic.uartbus.rpc.UartbusConnection;
+import eu.javaexperience.interfaces.simple.publish.SimplePublish1;
 import eu.javaexperience.log.JavaExperienceLoggingFacility;
 import eu.javaexperience.log.LogLevel;
 import eu.javaexperience.log.Loggable;
@@ -22,57 +22,45 @@ import eu.javaexperience.reflect.Mirror;
 import eu.javaexperience.rpc.RpcSession;
 import eu.javaexperience.rpc.RpcSessionTools;
 
-public class UartbusRpcEndpoint implements UartbusConnection
+public class UartbusConnectionDistributor implements UartbusConnection
 {
-	protected static final Logger LOG = JavaExperienceLoggingFacility.getLogger(new Loggable("UartbusRpcEndpoint"));
+	protected static final Logger LOG = JavaExperienceLoggingFacility.getLogger(new Loggable("UartbusConnectionDistributor"));
 	
-	protected UartbusPacketConnector conn;
+	protected SimplePublish1<byte[]> sendPacket;
 	
-	protected static final byte[] END_OF_RECEIVE = new byte[]{0};
+	protected String sessionKey = "UartbusConnectionDistributor_"+System.identityHashCode(this);
 	
-	//TODO add packed delay to manage packet flow rate
-	//TODO packed flow delay disable for emergency situation 
-	public UartbusRpcEndpoint(UartbusPacketConnector connector)
+	public UartbusConnectionDistributor(SimplePublish1<byte[]> sendPacket)
 	{
-		this.conn = connector;
-		conn.setPacketHook((packet)->
-		{
-			PacketEndpointQueue[] queues = null;
-			synchronized(sessions)
-			{
-				queues = sessions.toArray(PacketEndpointQueue.emptyPacketEndpointQueue);
-			}
-			
-			for(PacketEndpointQueue sess:queues)
-			{
-				try
-				{
-					sess.queue.put(packet);
-				}
-				catch(Exception e)
-				{
-					LoggingTools.tryLogFormatException(LOG, LogLevel.ERROR, e, "Exception ocurred while dispatching a package from the UB network at session `%s` the packet `%s`", sess, packet);
-				}
-			}
-		});
-		conn.startListen();
+		this.sendPacket = sendPacket;
 	}
 	
-	protected volatile Set<PacketEndpointQueue> sessions = Collections.newSetFromMap(new WeakHashMap<>());
+	public void feedPacketToDistribute(byte[] packet)
+	{
+		PacketEndpointQueue[] queues = null;
+		synchronized(sessions)
+		{
+			queues = sessions.toArray(PacketEndpointQueue.emptyPacketEndpointQueue);
+		}
+		
+		for(PacketEndpointQueue sess:queues)
+		{
+			try
+			{
+				sess.queue.put(packet);
+			}
+			catch(Exception e)
+			{
+				LoggingTools.tryLogFormatException(LOG, LogLevel.ERROR, e, "Excepton ocurred while dispatching a package from the UB network at session `%s` the packet `%s`", sess, packet);
+			}
+		}
+	}
 	
-	protected boolean default_echo_loopback = true;
-	protected boolean default_loopback_send_packets = false;
+	protected Set<PacketEndpointQueue> sessions = Collections.newSetFromMap(new WeakHashMap<>());
 	
 	protected static class PacketEndpointQueue
 	{
-		public PacketEndpointQueue(UartbusRpcEndpoint uartbusRpcEndpoint)
-		{
-			echo_loopback = uartbusRpcEndpoint.default_echo_loopback;
-			loopback_send_packets = uartbusRpcEndpoint.default_loopback_send_packets;
-		}
-		
 		public static final PacketEndpointQueue[] emptyPacketEndpointQueue = new PacketEndpointQueue[0];
-		protected boolean echo_loopback = true;
 		protected boolean loopback_send_packets = false;
 		protected BlockingQueue<byte[]> queue = new LinkedBlockingQueue<>();
 		protected RpcSession rpcSession;
@@ -80,23 +68,18 @@ public class UartbusRpcEndpoint implements UartbusConnection
 	
 	protected PacketEndpointQueue getSessionQueue()
 	{
-		if(null == sessions)
-		{
-			return null;
-		}
-		
 		RpcSession sess = RpcSessionTools.ensureGetCurrentRpcSession();
 		
 		Map<String, Object> map = sess.getExtraDataMap();
 		PacketEndpointQueue pq = null;
 		synchronized(sessions)
 		{
-			pq = (PacketEndpointQueue) map.get(SESSION_KEY);
+			pq = (PacketEndpointQueue) map.get(sessionKey);
 			if(null == pq)
 			{
-				pq = new PacketEndpointQueue(this);
+				pq = new PacketEndpointQueue();
 				pq.rpcSession = sess;
-				map.put(SESSION_KEY, pq);
+				map.put(sessionKey, pq);
 				sessions.add(pq);
 			}
 		}
@@ -107,7 +90,7 @@ public class UartbusRpcEndpoint implements UartbusConnection
 	@Override
 	public void sendPacket(byte[] data) throws IOException
 	{
-		conn.sendPacket(data);
+		sendPacket.publish(data);
 		PacketEndpointQueue[] queues;
 		synchronized(sessions)
 		{
@@ -120,13 +103,11 @@ public class UartbusRpcEndpoint implements UartbusConnection
 			LoggingTools.tryLogFormat(LOG, LogLevel.TRACE, "sendPacket trying loopback on sessions: `%s`", Arrays.toString(queues));
 		}
 		
-		RpcSession csess = RpcSessionTools.getCurrentRpcSession();
-		
 		for(PacketEndpointQueue sess:queues)
 		{
 			try
 			{
-				if(sess.loopback_send_packets && (sess.echo_loopback || sess != csess))
+				if(sess.loopback_send_packets)
 				{
 					sess.queue.put(data);
 				}
@@ -152,11 +133,6 @@ public class UartbusRpcEndpoint implements UartbusConnection
 			return String.valueOf(getSessionQueue().loopback_send_packets);
 		}
 		
-		if("echo_loopback".equals(key))
-		{
-			return String.valueOf(getSessionQueue().echo_loopback);
-		}
-		
 		return null;
 	}
 
@@ -174,38 +150,14 @@ public class UartbusRpcEndpoint implements UartbusConnection
 			LoggingTools.tryLogFormat(LOG, LogLevel.DEBUG, "Set loopback 'loopback_send_packets' to `%s` for session `%s`", set, sess);
 			sess.loopback_send_packets = set;
 		}
-		
-		if("echo_loopback".equals(key))
-		{
-			Boolean set = (Boolean) CastTo.Boolean.cast(value);
-			if(null == set)
-			{
-				throw new RuntimeException("The given value `"+value+"` can not be casted to boolean.");
-			}
-			PacketEndpointQueue sess = getSessionQueue();
-			LoggingTools.tryLogFormat(LOG, LogLevel.DEBUG, "Set loopback 'echo_loopback' to `%s` for session `%s`", set, sess);
-			sess.echo_loopback = set;
-		}
 	}
 
-	protected static final String SESSION_KEY = "UartbusPacketConnector_PacketEndpointQueue";
-	
 	@Override
 	public byte[] getNextPacket() throws IOException
 	{
 		try
 		{
-			PacketEndpointQueue sess = getSessionQueue();
-			byte[] ret = END_OF_RECEIVE;
-			if(null != sess)
-			{
-				ret = sess.queue.take();
-			}
-			if(END_OF_RECEIVE == ret)
-			{
-				throw new EOFException("End of receive.");
-			}
-			return ret;
+			return getSessionQueue().queue.take();
 		}
 		catch (InterruptedException e)
 		{
@@ -215,21 +167,7 @@ public class UartbusRpcEndpoint implements UartbusConnection
 	}
 
 	@Override
-	public void close() throws IOException
-	{
-		conn.close();
-		
-		//interrupt readers 
-		Set<PacketEndpointQueue> old = sessions;
-		sessions = null;
-		synchronized(old)
-		{
-			for(PacketEndpointQueue s:old)
-			{
-				s.queue.add(END_OF_RECEIVE);
-			}
-		}
-	}
+	public void close() throws IOException{}
 
 	@Override
 	public void init()

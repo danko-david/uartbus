@@ -37,7 +37,7 @@ public class UbString implements UbRemoteString
 		f = Math.min(f, bytes.length);
 		t = Math.min(t, bytes.length);
 		
-		return Arrays.copyOfRange(bytes, (int) t, (int) f);
+		return Arrays.copyOfRange(bytes, (int) f, (int) t);
 	}
 
 	@Override

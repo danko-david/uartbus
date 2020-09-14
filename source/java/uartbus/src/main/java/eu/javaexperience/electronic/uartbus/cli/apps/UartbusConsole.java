@@ -13,6 +13,7 @@ import eu.javaexperience.electronic.uartbus.PacketAssembler;
 import eu.javaexperience.electronic.uartbus.UartbusConsoleEnv;
 import eu.javaexperience.electronic.uartbus.UartbusConsoleEnv.UbConsoleResponse;
 import eu.javaexperience.electronic.uartbus.UartbusTools;
+import eu.javaexperience.electronic.uartbus.UartbusTools.PacketFormattingMode;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusConnection;
 import eu.javaexperience.electronic.uartbus.rpc.client.UartbusRpcClientTools;
@@ -21,7 +22,6 @@ import eu.javaexperience.log.JavaExperienceLoggingFacility;
 import eu.javaexperience.log.Loggable;
 import eu.javaexperience.log.Logger;
 import eu.javaexperience.text.Format;
-import eu.javaexperience.text.StringTools;
 import static eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools.*;
 
 public class UartbusConsole
@@ -51,7 +51,8 @@ public class UartbusConsole
 		DATA,
 		EXIT,
 		LOG_TIME,
-		LOOPBACK
+		LOOPBACK,
+		DECODE_PACKET
 	};
 	
 	protected static UartbusConsoleEnv cmd = new UartbusConsoleEnv();
@@ -68,6 +69,8 @@ public class UartbusConsole
 		
 		cmd.setFromAddress(UartbusCliTools.parseFrom(pa));
 		cmd.setToAddress(TO.tryParseOrDefault(pa, -1));
+		
+		boolean decode = DECODE_PACKET.hasOption(pa);
 		
 		boolean logTimes = LOG_TIME.hasOption(pa);
 		
@@ -102,7 +105,7 @@ public class UartbusConsole
 					{
 						return;
 					}
-					boolean valid = UartbusTools.crc8(e, e.length-1) == e[e.length-1];
+					
 					StringBuilder sb = new StringBuilder();
 					if(logTimes)
 					{
@@ -110,11 +113,15 @@ public class UartbusConsole
 						sb.append(getTime());
 						sb.append("] ");
 					}
-					if(!valid)
+					
+					if(decode)
 					{
-						sb.append("!");
+						sb.append(UartbusTools.formatPacketWithMode(PacketFormattingMode.PARSED_PACKET, e));
 					}
-					sb.append(UartbusTools.formatColonData(e));
+					else
+					{
+						sb.append(UartbusTools.formatColonDataWithValidation(e));
+					}
 					System.out.println(sb.toString());
 				}
 				catch(Exception ex)

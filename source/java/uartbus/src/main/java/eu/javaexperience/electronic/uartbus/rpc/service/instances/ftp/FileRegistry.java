@@ -93,7 +93,7 @@ public class FileRegistry
 		{
 			if(find.equals(f.getFileName()))
 			{
-				return file;
+				return f;
 			}
 		}
 		

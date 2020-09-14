@@ -10,15 +10,10 @@ import java.util.Map;
 
 import eu.javaexperience.cli.CliEntry;
 import eu.javaexperience.cli.CliTools;
-import eu.javaexperience.electronic.uartbus.UartbusTools;
 import eu.javaexperience.electronic.uartbus.rpc.UartbusCliTools;
-import eu.javaexperience.electronic.uartbus.rpc.UartbusConnection;
 import eu.javaexperience.electronic.uartbus.rpc.client.UartBus;
-import eu.javaexperience.electronic.uartbus.rpc.client.UartbusRpcClientTools;
-import eu.javaexperience.electronic.uartbus.rpc.client.UartBus.UartbusTransaction;
 import eu.javaexperience.electronic.uartbus.rpc.client.device.UartBusDevice;
 import eu.javaexperience.log.JavaExperienceLoggingFacility;
-import eu.javaexperience.reflect.Mirror;
 
 public class UartbusReboot
 {
