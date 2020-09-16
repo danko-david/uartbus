@@ -41,8 +41,8 @@ public class UbRpcTest extends TestCase
 		cb = VirtualUartBus.createEnv();
 		cb.addPacketLogging();
 		
-		//JavaExperienceLoggingFacility.addStdOut();
-		//JavaExperienceLoggingFacility.setAllFacilityLoglevel(LogLevel.TRACE);
+		JavaExperienceLoggingFacility.addStdOut();
+		JavaExperienceLoggingFacility.setAllFacilityLoglevel(LogLevel.TRACE);
 		
 		bridge = UartbusServiceBridge.attachServiceTo(new RpcTestServiceImpl(), cb.getBus(), 63, (byte)32);
 		apiBus = cb.newBus(63);
@@ -206,13 +206,13 @@ public class UbRpcTest extends TestCase
 	{
 		GenericStruct1<Short> struct = new GenericStruct1<>();
 		
-		struct.a = 0;
+		struct.a = (short) 0;
 		assertEquals(struct, api.setStruct1(struct));
 		
-		struct.a = 15;
+		struct.a = (short) 15;
 		assertEquals(struct, api.setStruct1(struct));
 
-		struct.a = -15;
+		struct.a = (short) -15;
 		assertEquals(struct, api.setStruct1(struct));
 	}
 	
@@ -220,15 +220,15 @@ public class UbRpcTest extends TestCase
 	{
 		GenericStruct2<Short, String> struct = new GenericStruct2<>();
 		
-		struct.a = 0;
+		struct.a = (short) 0;
 		struct.b = "Hello";
 		assertEquals(struct, api.setStruct2(struct));
 		
-		struct.a = 15;
+		struct.a = (short) 15;
 		struct.b = "World";
 		assertEquals(struct, api.setStruct2(struct));
 
-		struct.a = -15;
+		struct.a = (short) -15;
 		assertEquals(struct, api.setStruct2(struct));
 	}
 	
