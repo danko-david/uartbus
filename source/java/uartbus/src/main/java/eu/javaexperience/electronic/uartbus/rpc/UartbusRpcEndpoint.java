@@ -126,7 +126,7 @@ public class UartbusRpcEndpoint implements UartbusConnection
 		{
 			try
 			{
-				if(sess.loopback_send_packets && (sess.echo_loopback || sess != csess))
+				if(sess.loopback_send_packets || (sess.echo_loopback && sess != csess))
 				{
 					sess.queue.put(data);
 				}
