@@ -32,7 +32,7 @@ CC_FLAGS  = $(GENERAL_FLAGS)
 INCLUDE_FILES = "-I$(ARDUINO_DIR)hardware/arduino/cores/" "-I$(ARDUINO_DIR)hardware/arduino/cores/arduino" "-I$(ARDUINO_DIR)hardware/arduino/variants/$(ARDUINO_VARIANT)/" "-I../../../../bus/lib/arduino" "-I../../../../bus/lib/common" "-I."
 
 # library sources
-LIBRARY_DIR = "$(ARDUINO_DIR)hardware/arduino/cores/arduino/"
+LIBRARY_DIR = $(ARDUINO_DIR)hardware/arduino/cores/arduino/
 
 build:
 	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) $(MAIN_SKETCH) -o $(MAIN_SKETCH).o
@@ -44,10 +44,14 @@ build:
 	$(CC) $(CC_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)wiring_digital.c -o wiring_digital.c.o 
 	$(CC) $(CC_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)wiring_pulse.c -o wiring_pulse.c.o 
 	$(CC) $(CC_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)wiring_shift.c -o wiring_shift.c.o
+	
+	
 	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) -include HardwareSerial.h $(LIBRARY_DIR)HardwareSerial.cpp -o HardwareSerial.cpp.o
 ifneq ("${MCU}","atmega328p")
+ifneq (,$(wildcard $(LIBRARY_DIR)HardwareSerial0.cpp))
 	$(info Add HS0)
-	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) -include HardwareSerial.h $(LIBRARY_DIR)HardwareSerial0.cpp -o HardwareSerial0.cpp.o 
+	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) -include HardwareSerial.h $(LIBRARY_DIR)HardwareSerial0.cpp -o HardwareSerial0.cpp.o
+endif 
 endif
 	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)main.cpp -o main.cpp.o 
 	$(CPP) $(CPP_FLAGS) $(INCLUDE_FILES) $(LIBRARY_DIR)new.cpp -o new.cpp.o 
@@ -64,3 +68,5 @@ endif
 clean:
 	rm *.{o,d,a,hex,eep,elf}
 
+ls:
+	
