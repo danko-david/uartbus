@@ -41,5 +41,6 @@ bool il_reply(struct rpc_request* req, uint8_t size, ...);
 void dispatch_function_chain(void** chain, struct rpc_request* req);
 void dispatch_descriptor_chain(void** chain, struct rpc_request* req);
 
+bool try_consume_path(struct rpc_request* req, uint8_t size, ...);
 
 #endif /* RPC_H_ */

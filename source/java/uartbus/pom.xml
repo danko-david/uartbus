@@ -100,7 +100,7 @@
 					<execution>
 						<id>build-uartbus-rpc-server</id>
 						<configuration>
-							<appendAssemblyId>false</appendAssemblyId>
+							<appendAssemblyId>true</appendAssemblyId>
 							<archive>
 								<manifest>
 									<mainClass>eu.javaexperience.electronic.uartbus.UartBusCli</mainClass>
@@ -118,6 +118,48 @@
 					</execution>
 				</executions>
 			</plugin>
+			
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-site-plugin</artifactId>
+				<version>3.7.1</version>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-project-info-reports-plugin</artifactId>
+				<version>3.0.0</version>
+			</plugin>
+			
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-javadoc-plugin</artifactId>
+				<version>2.4</version>
+			</plugin>
 		</plugins>
 	</build>
+	
+	<scm>
+		<connection>scm:git:https://github.com/danko-david/uartbus.git</connection>
+	</scm>
+	
+	<reporting>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-javadoc-plugin</artifactId>
+				<version>3.2.0</version>
+				<configuration>
+				</configuration>
+			</plugin>
+		</plugins>
+	</reporting>
+	
+	<licenses>
+		<license>
+			<name>MIT License</name>
+			<url>LICENSE.md</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
 </project>

@@ -78,6 +78,31 @@ bool il_reply(struct rpc_request* req, uint8_t size, ...)
 	return req->reply(req, 1, arr);
 }
 
+
+bool try_consume_path(struct rpc_request* req, uint8_t size, ...)
+{
+	va_list v;
+	va_start(v, size);
+	
+	if(req->size - req->procPtr < size)
+	{
+		return false;
+	}
+	
+	for(uint8_t i=0;i<size;++i)
+	{
+		if(req->payload[req->procPtr+i] != (uint8_t) va_arg(v, int))
+		{
+			return false;
+		}
+	}
+	va_end(v);
+	
+	req->procPtr += size;
+	
+	return true;
+}
+
 /****************************** Dispatch utils ********************************/
 
 void dispatch_function_chain(void** chain, struct rpc_request* req)
