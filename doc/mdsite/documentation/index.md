@@ -18,13 +18,16 @@ show that chapter is located in the same set of file as the ascending chapter.
 
 ### 2.1 [UARTBus OSI oriented implementation details](./osi/index.md)
 #### 2.1.1 - [Physical layer](./osi/osi_level_1.md)
-#### 2.1.2 - Data link layer
-#### 2.1.3 - Network layer
-#### 2.1.4 - Transport layer
-#### 2.1.5 - Session layer
-#### 2.1.6 - Presentation layer
+#### 2.1.2 - [Data link layer](./osi/osi_level_2.md)
+#### 2.1.3 - [Network layer](./osi/osi_level_3.md)
+##### 2.1.3_1 [Device and device group addresses](./osi/osi_level_3.md)
+##### 2.1.3_2 [Variable length addressing](./osi/osi_level_3.md)
+##### 2.1.3_3 [Default packet scheme](./osi/osi_level_3.md)
+#### 2.1.4 - [Transport layer](./osi/osi_level_4.md)
+#### 2.1.5 - [Session layer](./osi/osi_level_5.md)
+#### 2.1.6 - [Presentation layer](./osi/osi_level_6.md)
 #### 2.1.6.1 - RPC	Namespaces, parameters, reponse method, etc.
-#### 2.1.7 - Application layer (UARTBus Java library)
+#### 2.1.7 - Application layer (UARTBus Java library) <!--(./osi/osi_level_7.md)-->
 
 ### 2.2 UARTBus components
 #### 2.2.1 - bus driver, libub (osi-2), gateway, 

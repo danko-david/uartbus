@@ -24,7 +24,7 @@ strings to identify namespaces like the SNMP/MIB does.
 - 2: bootloader, host functions (reboot soft/hard, enable/disable app, app code read/upload)  
 - 3: debug functions  
 - 4-31: not used but reserved for ub_bootloader
-- 32 and over - user defined namespaces
+- 32 -255 - user defined namespaces
 - 255: reflection namespace. (An extra library support to get the node's function,
 	extra details, available namespaces, function and signatures)
 
