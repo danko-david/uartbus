@@ -29,7 +29,13 @@ show that chapter is located in the same set of file as the ascending chapter.
 ### 2.2 UARTBus components
 #### 2.2.1 - bus driver, libub (osi-2), gateway, 
 
-## 3 Repository overview and usage crash course.
+## 3 Repository overview.
+### 3.1 Source documentations
+#### 3.1.1 Javadoc documentation
+##### 3.1.1.1 [Javadoc source documentation](./javadoc)
+##### 3.1.1.2 [Javadoc test source documentation](./test-javadoc)
+#### 3.1.2 [Doxygen java/c/c++ source documentation](./doxygen)
+
 
 
 ## X) Appendix
