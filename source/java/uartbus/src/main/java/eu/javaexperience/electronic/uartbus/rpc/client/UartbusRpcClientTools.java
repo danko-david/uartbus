@@ -11,6 +11,7 @@ import eu.javaexperience.log.Loggable;
 import eu.javaexperience.log.Logger;
 import eu.javaexperience.log.LoggingTools;
 import eu.javaexperience.reflect.Mirror;
+import eu.javaexperience.retry.RetryTools;
 import eu.javaexperience.rpc.bidirectional.BidirectionalRpcDefaultProtocol;
 import eu.javaexperience.rpc.javaclient.JavaRpcClientTools;
 import eu.javaexperience.rpc.javaclient.JavaRpcParallelClient;
@@ -20,52 +21,6 @@ public class UartbusRpcClientTools
 	private UartbusRpcClientTools(){}
 	
 	protected static final Logger LOG = JavaExperienceLoggingFacility.getLogger(new Loggable("UartbusRpcClientTools"));
-	
-	protected static final int[] RECONNECT_RETRY_DELAYS = new int[] {100, 200, 500, 1_000, 2_000, 5_000, 10_000};
-	
-	protected static final int[] RECONNECT_TIMES = {100, 200, 500, 1_000, 2_000, 5_000, 10_000};
-	
-	public static <T> SimpleGet<T> waitReconnect(SimpleGet<T> connect, String entity)
-	{
-		return waitReconnect(connect, entity, RECONNECT_RETRY_DELAYS);
-	}
-	
-	public static <T> SimpleGet<T> waitReconnect(SimpleGet<T> connect, String entity, int... reconnectWaitTimes)
-	{
-		return ()->
-		{
-			for(int i=0;i<reconnectWaitTimes.length;++i)
-			{
-				try
-				{
-					return connect.get();
-				}
-				catch(Exception e)
-				{
-					if(reconnectWaitTimes[i] < 0)
-					{
-						throw e;
-					}
-					
-					LoggingTools.tryLogFormatException(LOG, LogLevel.WARNING, e, "Can't do `%s`, waiting `%s` millisec before trying reconnect again. ", entity, reconnectWaitTimes[i]);
-					try
-					{
-						Thread.sleep(reconnectWaitTimes[i]);
-					}
-					catch (InterruptedException e1)
-					{
-						return null;
-					}
-					
-					if(i >= reconnectWaitTimes.length-1)
-					{
-						i = reconnectWaitTimes.length-2;
-					}
-				}
-			}
-			return null;
-		};
-	}
 	
 	public static JavaRpcParallelClient openIpParallelClient(String ip, int port) throws IOException
 	{
@@ -84,7 +39,7 @@ public class UartbusRpcClientTools
 	{
 		if(reconnect)
 		{
-			return openIpEndpoint(ip, port, connectionInitializer, RECONNECT_RETRY_DELAYS);
+			return openIpEndpoint(ip, port, connectionInitializer, RetryTools.getDefaultReconnectTimeMillisecs());
 		}
 		else
 		{
@@ -101,6 +56,11 @@ public class UartbusRpcClientTools
 				}
 			});
 		}
+	}
+	
+	public static <T> SimpleGet<T> waitReconnect(SimpleGet<T> get, String entity, int... reconn)
+	{
+		return RetryTools.waitReconnect(get, entity, LOG, LogLevel.WARNING, reconn);
 	}
 	
 	public static UartbusStreamerEndpoint openIpEndpoint(String ip, int port, SimplePublish1<UartbusConnection> connectionInitializer, int... reconnectRetryDelays)

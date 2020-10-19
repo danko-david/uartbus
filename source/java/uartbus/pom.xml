@@ -6,7 +6,7 @@
 
 	<groupId>javaexperience</groupId>
 	<artifactId>uartbus</artifactId>
-	<version>1.7.1</version>
+	<version>1.7.2</version>
 
 	<name>uartbus</name>
 	<url>http://javaexperience.eu</url>
@@ -21,7 +21,7 @@
 		<repository>
 			<id>jvx-repo</id>
 			<name>Javaexprience-custom-repo</name>
-			<url>http://maven.javaexperience.eu/</url>
+			<url>https://maven.javaexperience.eu/</url>
 		</repository>
 	</repositories>
 
@@ -30,14 +30,14 @@
 	<dependency>
 		<groupId>junit</groupId>
 		<artifactId>junit</artifactId>
-		<version>4.11</version>
+		<version>4.13.1</version>
 		<scope>test</scope>
 	</dependency>
 	
 	<dependency>
 		<groupId>javaexperience</groupId>
 		<artifactId>core</artifactId>
-		<version>0.4.10</version>
+		<version>0.4.11</version>
 	</dependency>
 	
 	<dependency>
