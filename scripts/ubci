@@ -1,0 +1,182 @@
+#!/bin/bash
+
+# helper script
+# Used to wrap custom operations inside one script
+
+################################# Init block  ##################################
+
+shopt -s extglob
+REPO_ROOT=$(readlink -f "$(dirname `readlink -f "$0"`)/../")
+OWD=$(pwd)
+
+
+add_command_ub()
+{
+	_rh_try_ret_help 'Creates ub script wraps executable java application'
+	cd "$(dirname "$0")"
+	cd ../WD
+	cat  > ub <<EOL
+	#!/bin/bash
+	exec java -jar $(readlink -f uartbus.jar) \$@
+EOL
+	chmod 755 ub
+	echo "Copy this into the terminal: export PATH=\$PATH:$(readlink -f .)"
+}
+
+deb_install_deps()
+{
+	_rh_try_ret_help 'Installs build dependencies on debian based linux distribution'
+	sudo apt-get install socat git gcc-avr arduino maven openjdk-17-j{re,dk} libpcre3-dev libpth-dev
+}
+
+get_c_deps()
+{
+	_rh_try_ret_help 'Downloads build dependencies'
+	# TODO use git submodules instead
+	cd "$(dirname `readlink -f "$0"`)"
+
+	cd ../WD/
+
+	if [ -d "toe" ]; then
+		cd toe
+		git pull origin master
+		git reset --hard
+		cd ..
+	else
+		git clone https://github.com/danko-david/toe.git
+	fi;
+
+
+	if [ -d "lazyctest" ]; then
+		cd lazyctest
+		git pull origin master
+		git reset --hard
+		cd ..
+	else
+		git clone https://github.com/danko-david/lazyctest.git
+	fi;
+}
+
+mdsite_init()
+{
+	_rh_try_ret_help 'Perpares repository to compile site'
+	cd "$(dirname `readlink -f "$0"`)"
+	cd ../WD
+	mkdir -p mdsite
+	cd mdsite
+	ln -s ../../resources .
+}
+
+mdsite_compile()
+{
+	_rh_try_ret_help 'Compiles website'
+	cd "$(dirname `readlink -f "$0"`)"
+	cd ..
+	mdsite compile -d doc/mdsite -t WD/mdsite "$@"
+}
+
+mdsite_compile_doc()
+{
+	_rh_try_ret_help 'Compiles code documentations for web'
+	cd ../doc/doxygen
+	doxygen source.cfg
+
+	cd ../../source/java/uartbus/
+	mvn site
+
+	cd ../../../
+	ln -s $(readlink -f ./WD/doxygen/html/) ./WD/mdsite/documentation/doxygen
+	ln -s $(readlink -f ./source/java/uartbus/target/site/apidocs/) ./WD/mdsite/documentation/javadoc
+	ln -s $(readlink -f ./source/java/uartbus/target/site/testapidocs/) ./WD/mdsite/documentation/test-javadoc
+}
+
+
+ci_run_phase()
+{
+	_rh_try_ret_help 'Runs ci phases on repository. Common phases: clean prepare_build build test deploy install'
+
+	set -e
+
+	cd "$(dirname `readlink -f "$0"`)"
+	cd ../..
+
+	find . -type f -name "CI_hooks_*.sh" | while read SCRIPT; do
+		echo "Executing $SCRIPT $1"
+		eval $SCRIPT $1
+	done
+
+	echo "All found 'CI_hooks_*.sh $1' executed successfully"
+}
+
+
+ci_all()
+{
+
+	ci_run_phase clean
+	ci_run_phase prepare_build
+	ci_run_phase build
+	ci_run_phase test
+}
+############################# RH helper functions ##############################
+
+_rh_try_ret_help()
+{
+	if [ ! -z $RH_RUNTIME_REQUEST_HELP ]
+	then
+		echo $1
+		exit 1;
+	fi
+}
+
+############################ RH built-in functions #############################
+
+help()
+{
+	_rh_try_ret_help "Returns RH help with the list of all annotated functions"
+
+	echo "RH stands for 'right hand'. It is a wrapper script wherein you can collect tiny commands."
+	echo "Specify one righthand function from the followings:"
+
+	RH_RUNTIME_REQUEST_HELP=true
+
+	for f in ${RH_FUNCTIONS[@]}
+	do
+		# if the command has help
+		if type $f | grep -qP '^\s+_rh_try_ret_help '
+		then
+			echo -e "\t$f - "$($f)
+		fi
+	done
+}
+
+############################## Application area ################################
+
+# Collection available commands
+RH_FUNCTIONS=()
+
+for func in `typeset -F | grep -Po '(?<=-f).*$' | sort`
+do
+	RH_FUNCTIONS+=($func);
+done
+
+# print help if nothing specified
+
+if [ $# '<' '1' ]
+then
+	help
+	exit 1
+fi
+
+# run command
+for f in ${RH_FUNCTIONS[@]}
+do
+	if [ "$1" "=" "$f" ]
+	then
+		$f "${@:2}"
+		exit $?
+	fi
+done
+
+echo "Uartbus CI function $1 not found, so now printing help..."
+help
+exit 1

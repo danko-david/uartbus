@@ -1,0 +1,393 @@
+#!/bin/bash
+
+# helper script
+# Used to wrap custom operations inside one script
+
+################################# Init block  ##################################
+
+shopt -s extglob
+REPO_ROOT=$(readlink -f "$(dirname `readlink -f "$0"`)/../")
+OWD=$(pwd)
+
+DEFAULT_ARDUINO_LIB_SOURCE_EXCLUDE="main|hooks"
+
+################################ RH app area  ##################################
+
+touch_ub_node_config()
+{
+  _rh_try_ret_help "Generate node configuration: \$node_name.ub"
+
+  if [ "$#" -lt 1 ]; then
+    echo "Specify node name"
+    exit 1
+  fi
+
+  if [ -f $1".ub" ]; then
+    echo "UB configuration file $1.ub already exists"
+    exit 1
+  fi
+
+cat << EOF >> $1".ub"
+# Exclude source files from compilation
+ARDUINO_LIB_SOURCE_EXCLUDE="$DEFAULT_ARDUINO_LIB_SOURCE_EXCLUDE"
+
+# Target chip manufacturer and model
+UB_MCU_MANUFACTURER=ATMEL
+UB_MCU=atmega328p
+
+# Compilation method, flags, debug
+UB_COMPILER_INFRA=compile_ub_arduino_app_with_selective_arduino_libs
+UB_COMPILE_FLAGS=""
+UB_DEBUG_COMPILATION=true
+
+# Clock speed in Hz
+UB_CLOCK_SPEED=16000000
+
+# Target device address
+UB_TARGET_ADDR=1
+
+EOF
+
+}
+
+deploy_node()
+{
+  _rh_try_ret_help 'Looks up the node source, compiles and uploads to the target node. \$1: looks for \$1.cpp for source and \$1.ub for envvars'
+
+  set -e
+
+  if [ ! -f $1".ub" ]
+  then
+    echo "$1.ub environment file does not exists"
+    exit 1
+  fi
+
+  set -a
+  source $1".ub"
+  set +a
+
+  if [ ! -f $1".cpp" ]
+  then
+    echo "$1.cpp source file does not exists"
+    exit 1
+  fi
+
+  CPP_DATE=$(date -r $1".cpp" "+%Y%m%d%H%M.%S")
+
+  # is .hex latest? compile and touch timestamp
+  HEX_DATE=0
+  if [ -f $1".hex" ]; then
+    HEX_DATE=$(date -r $1".hex" "+%Y%m%d%H%M.%S")
+  fi
+
+  if [ $CPP_DATE != $HEX_DATE ]; then
+    $UB_COMPILER_INFRA $UB_MCU $UB_CLOCK_SPEED $UB_COMPILE_FLAGS $1 $1.cpp
+    touch -a -m -t $CPP_DATE $1".hex"
+  else
+    echo "HEX output is up to date"
+  fi
+
+  # TODO check latest code uploaded
+
+  # start upload
+  ub upload -c $1.hex -t $UB_TARGET_ADDR
+}
+
+compile_ub_arduino_app_with_selective_arduino_libs()
+{
+  HELP="Usage: compile_ub_arduino_app_with_arduino_libs.sh \$mcu \$clock_hz \$output_nameset \$gcc_options_and_cpp_file
+        eg: compile_ub_arduino_app_with_arduino_libs.sh atmega328p 16000000 myprog myprog.cpp -o"
+
+  _rh_try_ret_help "$HELP"
+
+  if [ "$#" -lt 3 ]; then
+    echo $HELP
+  fi
+
+  SOURCES=()
+  INCLUDES=()
+  ETC=()
+  for i in "$@"
+  do
+  	if [[ $i == -A* ]]; then
+  		# read library from the system location
+
+  		l=${i##*-A}
+  		if [ -d "$ARDUINO_LIB/libraries/$l" ] || [ -L "$ARDUINO_LIB/libraries/$l" ]; then
+  			INCLUDES+=("-I$ARDUINO_LIB/libraries/$l/")
+  			if [ -d "$ARDUINO_LIB/libraries/$l/src" ]; then
+  				INCLUDES+=("-I$ARDUINO_LIB/libraries/$l/src")
+  			fi
+  			if [ -d "$ARDUINO_LIB/libraries/$l/src/avr" ]; then
+  				INCLUDES+=("-I$ARDUINO_LIB/libraries/$l/src/avr")
+  			fi
+  			while read -r line; do
+  				SOURCES+=("$line")
+  			done <<< `ls $ARDUINO_LIB/libraries/$l/{,src,src/avr}/*.c{,pp}`
+  		fi
+
+  		# read library from your home location
+
+  		CANON=`readlink -e ~/Arduino/libraries/$l`
+
+  		if [ -d "$CANON" ] ; then
+  			INCLUDES+=("-I$CANON")
+  			INCLUDES+=("-I$CANON/src/")
+
+  			while read -r line; do
+  				SOURCES+=("$line")
+  			done <<< `ls $CANON/{,src,src/avr}/*.c{,pp}`
+  		fi
+
+  	else
+  		ETC+=("$i")
+  	fi
+  done
+
+  args=()
+  if [ -n "$ETC" ]; then
+  	args+=("${ETC[@]}")
+  fi
+
+  args+=("-DARDUINO=200")
+
+  if [ -n "$INCLUDES" ]; then
+  	args+=("${INCLUDES[@]}")
+  fi
+
+  if [ -n "$SOURCES" ]; then
+  	args+=("${SOURCES[@]}")
+  fi
+
+  if [ ! -z $UB_DEBUG_COMPILATION ]; then
+  	echo "ETC: ${ETC[@]}"
+  	echo "INCLUDES: ${INCLUDES[@]}"
+  	echo "SOURCES: ${SOURCES[@]}"
+  	echo "ALL_AGRS:  ${args[@]}"
+  fi
+
+  compile_ub_arduino_app "${args[@]}"
+}
+
+compile_ub_arduino_app_with_arduino_libs()
+{
+  HELP="Usage: compile_ub_arduino_app_with_arduino_libs \$mcu \$clock_hz \$output_nameset \$gcc_options_and_cpp_file
+        eg: compile_ub_arduino_app_with_arduino_libs atmega328p 16000000 myprog myprog.cpp -o"
+
+  _rh_try_ret_help "$HELP"
+
+  if [ "$#" -lt 3 ]; then
+  	echo $HELP
+  fi
+
+  INCLUDES=()
+  while read -r line; do
+  	INCLUDES+=("-I$line")
+  done <<< `find  $ARDUINO_SOURCE_SEARCH_DIR -maxdepth 1 -xtype d`
+
+  args=("$@")
+  args+=("-DARDUINO=200")
+  args+=("${INCLUDES[@]}")
+  args+=("${ARDUINO_SOURCE_SEARCH_GLOB[@]}")
+
+  compile_ub_arduino_app "${args[@]}"
+}
+
+compile_ub_arduino_app()
+{
+  HELP="Usage: compile_ub_app \$mcu \$clock_hz \$output_nameset \$gcc_options_and_cpp_file
+        eg: compile_ub_app atmega328p 16000000 myprog myprog.cpp -o"
+
+  _rh_try_ret_help "$HELP"
+
+  if [ "$#" -lt 3 ]; then
+  	echo $HELP
+    exit 1
+  fi
+
+  set -e
+
+  if [ -z $ARDUINO_LIB_SOURCE_EXCLUDE ]; then
+  	ARDUINO_LIB_SOURCE_EXCLUDE="$DEFAULT_ARDUINO_LIB_SOURCE_EXCLUDE"
+  fi
+
+  ARDUINO_SOURCE_SEARCH_GLOB=(~/Arduino/libraries/*/*.cpp)
+  ARDUINO_SOURCE_SEARCH_DIR=~/Arduino/libraries/
+
+  if [ -z $ARDUINO_LIB ]; then
+    ARDUINO_LIB=/usr/share/arduino/
+  fi
+
+  if [ -z $ARDUINO_DIR ]; then
+    ARDUINO_DIR=/usr/share/arduino/hardware/arduino/avr/
+  fi
+
+  ARDUINO_LIB_SOURCES=(${ARDUINO_DIR}/cores/arduino/!($ARDUINO_LIB_SOURCE_EXCLUDE).c{,pp})
+
+  if [ ! -z $UB_DEBUG_COMPILATION ]; then
+    set -o xtrace
+  fi
+
+  compile_ub_app $1 $2 $3 \
+    -std=c++11\
+    -Wall\
+    -Wl,--gc-sections\
+    -DARDUINO_HANDSOFF_UART -DARDUINO_HANDSOFF_TIMER0\
+    -Os -o $3.o "${@:4}" $C_RPC $C_WRAP\
+    -I${ARDUINO_DIR}/cores/\
+    -I${ARDUINO_DIR}/cores/arduino\
+    -I${ARDUINO_DIR}/variants/standard\
+      ${ARDUINO_LIB_SOURCES[@]}
+
+#    -I${ARDUINO_DIR}/variants/mega\
+}
+
+compile_ub_app()
+{
+  HELP="Usage: compile_ub_app \$mcu \$clock_hz \$output_nameset \$gcc_options_and_cpp_file
+        eg: compile_ub_app atmega328p 16000000 myprog myprog.cpp"
+
+  _rh_try_ret_help "$HELP"
+
+  if [ "$#" -lt 3 ]; then
+    echo $HELP
+    exit 1
+  fi
+
+  set -e
+
+  I_COMM=$REPO_ROOT"/source/uc/commons"
+  I_BUSCOMM=$REPO_ROOT"/source/uc/bus/lib/common"
+  I_RPC=$REPO_ROOT"/source/uc/utils/lib/rpc"
+  I_WRAP=$REPO_ROOT"/source/uc/utils/ub_app/"
+  C_RPC=$REPO_ROOT"/source/uc/utils/lib/rpc/rpc.c"
+  C_WRAP=$REPO_ROOT"/source/uc/utils/ub_app/ub_app_wrapper.c"
+
+  avr-g++ -mmcu=$1\
+  	-I$I_COMM -I$I_BUSCOMM -I$I_RPC -I$I_WRAP\
+  	-ffunction-sections\
+  	-fdata-sections\
+  	-fno-exceptions\
+  	-DF_CPU=$2\
+  	-DHOST_TABLE_ADDRESS=0x1fe0\
+  	-Wl,--section-start=.text=0x2020\
+  	-Wl,--section-start=.app_start=0x2000\
+  	-Os -o $3.o "${@:4}" $C_RPC $C_WRAP
+
+  avr-objcopy -O ihex -R .eeprom $3.o $3.hex
+  avr-objdump -S --disassemble  $3.o > $3.asm
+  avr-nm --size-sort $3.o > $3.sizes
+}
+
+compile_linux_ubh_app()
+{
+  _rh_try_ret_help "Compiles source file as uartbus stdio attachable process."
+  $REPO_ROOT/source/uc/bootloader/linux_compile.sh "$@"
+}
+
+assemble_uartbus()
+{
+    _rh_try_ret_help "Builds the latest version of \`ub\` cli utility"
+
+    set -e
+    cd $REPO_ROOT"/source/java/uartbus"
+
+    mvn compile
+    mvn -q -Dexec.executable=echo -Dexec.args='${project.version}' --non-recursive exec:exec > target/classes/eu/javaexperience/electronic/uartbus/version
+    mvn package
+    cp $REPO_ROOT"/source/java/uartbus/target/uartbus.jar" $REPO_ROOT"/WD"
+
+    cd $OWD
+}
+
+ub()
+{
+  _rh_try_ret_help "Runs latest version of \`ub\` cli utility"
+  echo $REPO_ROOT"/WD/uartbus.jar"
+  if [ ! -f $REPO_ROOT"/WD/uartbus.jar" ]; then
+    assemble_uartbus
+  fi
+
+  java -jar $REPO_ROOT"/WD/uartbus.jar" "$@"
+}
+
+export_arduino_lib()
+{
+  mkdir -p $REPO_ROOT/arduino_ub_lib
+
+  rm -R $REPO_ROOT/arduino_ub_lib/*
+
+  set -e
+
+  cp $REPO_ROOT/source/uc/commons/posix_errno.h $REPO_ROOT/WD/arduino_ub_lib/
+  cp $REPO_ROOT/source/uc/bus/lib/common/ub.c $REPO_ROOT/WD/arduino_ub_lib/ub.cpp
+  cp $REPO_ROOT/source/uc/bus/lib/common/ub.h $REPO_ROOT/WD/arduino_ub_lib/
+  cp $REPO_ROOT/source/uc/bus/lib/addressing/addr16.* $REPO_ROOT/WD/arduino_ub_lib/
+
+  cp -R ../../source/uc/bus/lib/arduino/* $REPO_ROOT/WD/arduino_ub_lib/
+
+}
+
+############################# RH helper functions ##############################
+
+_rh_try_ret_help()
+{
+	if [ ! -z $RH_RUNTIME_REQUEST_HELP ]
+	then
+		echo $1
+		exit 1;
+	fi
+}
+
+############################ RH built-in functions #############################
+
+help()
+{
+	_rh_try_ret_help "Returns RH help with the list of all annotated functions"
+
+	echo "RH stands for 'right hand'. It is a wrapper script wherein you can collect tiny commands."
+	echo "Specify one righthand function from the followings:"
+
+	RH_RUNTIME_REQUEST_HELP=true
+
+	for f in ${RH_FUNCTIONS[@]}
+	do
+		# if the command has help
+		if type $f | grep -qP '^\s+_rh_try_ret_help '
+		then
+			echo -e "\t$f - "$($f)
+		fi
+	done
+}
+
+############################## Application area ################################
+
+# Collection available commands
+RH_FUNCTIONS=()
+
+for func in `typeset -F | grep -Po '(?<=-f).*$' | sort`
+do
+	RH_FUNCTIONS+=($func);
+done
+
+# print help if nothing specified
+
+if [ $# '<' '1' ]
+then
+	help
+	exit 1
+fi
+
+# run command
+for f in ${RH_FUNCTIONS[@]}
+do
+	if [ "$1" "=" "$f" ]
+	then
+		$f "${@:2}"
+		exit $?
+	fi
+done
+
+echo "Uartbus build helper function $1 not found, so now printing help..."
+help
+exit 1
