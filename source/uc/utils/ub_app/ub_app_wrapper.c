@@ -10,11 +10,19 @@ extern "C"{
 #define S(x) #x
 #define SX(x) S(x)
 
-__attribute__((noinline)) void*** getHostTableAddress()
+
+__attribute__((noinline, optimize("O1"), noipa)) void** getHostTableAddress()
 {
 	asm("jmp " SX(HOST_TABLE_ADDRESS));
-	return NULL;//keep the compiler happy
 }
+
+/*
+__attribute__((noinline)) volatile void** getHostTableAddress()
+{
+	volatile void** (*fn)() = (volatile void** (*)()) HOST_TABLE_ADDRESS;
+	return fn();
+}
+*/
 
 __attribute__ ((weak)) void setup(){};
 
@@ -24,14 +32,11 @@ extern uint8_t __data_start;
 extern uint8_t __data_end;
 extern uint8_t __data_load_start;
 
-__attribute__((noinline)) void ub__do_copy_data()
+void ub__do_copy_data()
 {
-	//__data_end __data_start __data_load_start
 	uint8_t* p = &__data_start;
 	while(p < &__data_end)
 	{
-		//*p = *(__data_load_start + (p-__data_start));
-		//*(&__data_load_start+(p-&__data_start)) = *p;
 		*p = pgm_read_byte(&__data_load_start + (p-&__data_start));
 		++p;
 	}
@@ -40,8 +45,7 @@ __attribute__((noinline)) void ub__do_copy_data()
 extern unsigned int __bss_start;
 extern unsigned int __bss_end;
 
-//void __do_copy_data(){};
-__attribute__((noinline)) void ub__do_clear_bss()
+void ub__do_clear_bss()
 {
 	unsigned int* p = &__bss_start;
 	while(p < &__bss_end)
@@ -50,88 +54,32 @@ __attribute__((noinline)) void ub__do_clear_bss()
 	}
 };
 
-
 __attribute__ ((weak)) void init(){};
 
 extern void init();
-
-//TODO if target AVR
-
-//https://arduino.stackexchange.com/questions/75604/avr-relocated-code-calling-global-constructors
-
-
-/*
-extern "C"
-{
-	extern void* __ctors_start;
-	extern void* __ctors_end;
-
-	__attribute__((noinline)) void call_global_ctors()
-	{
-		for
-		(
-			uint16_t i = (uint16_t) __ctors_start;
-			i < (uint16_t) __ctors_end;
-			i += 2
-		)
-		{
-			uint16_t addr = pgm_read_word_near(i);
-			asm("icall":: "z" (addr));
-		}
-	}
-}
-*/
-
-/*
-extern "C"
-{
-	extern void (*__ctors_start)();
-	extern void (*__ctors_end)();
-
-	__attribute__((noinline)) void call_global_ctors()
-	{
-//		for
-//		(
-			void (*i)() = (void (*)()) 0x20E4;//__ctors_start;
-//			i < __ctors_end;
-//			++i
-//		)
-		{
-			uint16_t addr = pgm_read_word_near(i);
-			asm("icall":: "z" (addr));
-		}
-	}
-}
-*/
 
 #include <avr/interrupt.h>
 extern void (*__ctors_start)();
 extern void (*__ctors_end)();
 
-//__attribute__((noinline)) void call_global_ctors()
-ISR(call_global_ctors)
+__attribute__((noinline)) void call_global_ctors()
 {
-	for
-	(
-		register uint16_t i asm ("r24") = (uint16_t) &__ctors_start;
-		i < (uint16_t) &__ctors_end;
-		i+= 2
-	)
+	uint16_t start = (uint16_t)&__ctors_start;
+	uint16_t end = (uint16_t)&__ctors_end;
+	
+	for (uint16_t i = start; i < end; i += 2)
 	{
 		uint16_t addr = pgm_read_word_near(i);
-		asm("push r24\n");
-		asm("push r25\n");
-		
-		asm("icall":: "z" (addr));
-		
-		asm("pop r25\n");
-		asm("pop r24\n");
+		asm volatile(
+			"icall \n\t" 
+			: 
+			: "z" (addr) 
+			: "r0", "r18", "r19", "r20", "r21", "r22", "r23", "r24", "r25", "r26", "r27"
+		);
 	}
 }
 
-//TODO end AVR
-
-static void init_app_section()
+void init_ub_app()
 {
 	ub__do_copy_data();
 	ub__do_clear_bss();
@@ -149,7 +97,6 @@ __attribute__((weak, noinline, section(".app_start"))) void ub_app(bool first)
 		setup();
 	}
 	loop();
-	asm ("ret");
 }
 
 /**
@@ -160,73 +107,48 @@ __attribute__((weak, noinline, section(".app_start"))) void ub_app(bool first)
  */
 __attribute__ ((weak)) int main(){ ub_app(true);}
 
-/*
-void (*register_packet_dispatch)(void (*addr)(struct rpc_request* req));
-bool (*may_send_packet)();
-bool (*send_packet)(int16_t, uint8_t* , uint16_t);
-uint8_t (*get_max_packet_size)();
-*/
-
 void register_packet_dispatch(void (*addr)(struct rpc_request* req))
 {
-	void*** fns = (void***) getHostTableAddress();
-	
-	void (*reg)(void (*addr)(struct rpc_request* req)) =
-		(void (*)(void (*addr)(struct rpc_request* req))) fns[0];
-		
-	reg(addr);
+	void** fns = getHostTableAddress();
+	asm volatile("" : "+r"(fns));
+	((void (*)(void (*addr)(struct rpc_request* req))) fns[0])(addr);
 }
 
 bool may_send_packet()
 {
-	void*** fns = (void***) getHostTableAddress();
-	
-	bool (*may)() =
-		(bool (*)()) fns[1];
-		
+	void** fns = getHostTableAddress();
+	asm volatile("" : "+r"(fns));
+	bool (*may)() = (bool (*)()) fns[1];
 	return may();
 }
 
 bool send_packet(int16_t to, int NS, uint8_t* data, uint16_t size)
 {
-	void*** fns = (void***) getHostTableAddress();
-	
+	void** fns = getHostTableAddress();
+	asm volatile("" : "+r"(fns));
 	bool (*reg)(int16_t, uint8_t, uint8_t*, uint16_t) =
 		(bool (*)(int16_t, uint8_t, uint8_t*, uint16_t)) fns[2];
-		
 	return reg(to, NS, data, size);
 }
 
-
-
 __attribute__((weak)) uint32_t micros()
 {
-	void*** fns = (void***) getHostTableAddress();
-	
-	uint32_t (*f)() = (uint32_t (*)()) fns[4];
-		
-	return f();
+    // Megkapjuk a fix címet
+    void** fns = getHostTableAddress();
+    
+    // Átkonvertáljuk egy olyan mutatóvá, ami VOLATILE POINTEREKET tartalmaz
+    // Ez azt jelenti: a tömb elemei a fordító számára bármikor megváltozhatnak!
+    void* volatile* volatile_fns = (void* volatile*)fns;
+    
+    // Így a fordító kénytelen lesz az ld utasítással kiolvasni a 4. indexet
+    uint32_t (*f)() = (uint32_t (*)()) volatile_fns[4];
+        
+    return f();
 }
 
 __attribute__((weak)) uint32_t millis()
 {
 	return micros()/1000;
-}
-
-//TODO flush pending packet
-//TODO manage bus
-//TODO soft/hardware reset
-//TODO exit => send exit status and do a hardware reboot
-
-void init_ub_app()
-{
-	init_app_section();
-	//HOST_TABLE_ADDRESS
-/*	void** fns = getHostTableAddress();
-	register_packet_dispatch = (void (*)(void (*)(int16_t, int16_t, uint8_t*, uint8_t))) fns[0];
-	may_send_packet = (bool (*)()) fns[1];
-	send_packet = (bool (*)(int16_t, uint8_t* , uint16_t)) fns[2];
-	get_max_packet_size = (uint8_t (*)()) fns[3];*/
 }
 
 #ifdef __cplusplus
