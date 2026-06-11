@@ -9,8 +9,7 @@ case $1 in
 	;;
 
 	prepare_build)
-		./scripts/get_c_deps.sh
-		./WD/lazyctest/scripts/assemble.sh
+		./deps/lazyctest/scripts/assemble.sh
 	;;
 
 	build)

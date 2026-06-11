@@ -6,11 +6,11 @@ rm linux_uartbus_gateway
 
 gcc -g\
 	../../../bus/lib/common/ub.c\
-	../../../../../WD/toe/src/c/utils.c\
-	../../../../../WD/toe/src/c/concurrency.c\
-	../../../../../WD/toe/src/c/rerunnable_thread.c\
-	../../../../../WD/toe/src/c/worker_pool.c\
-	-I../../../../../WD/toe/src/c/\
+	../../../../../deps/toe/src/c/utils.c\
+	../../../../../deps/toe/src/c/concurrency.c\
+	../../../../../deps/toe/src/c/rerunnable_thread.c\
+	../../../../../deps/toe/src/c/worker_pool.c\
+	-I../../../../../deps/toe/src/c/\
 	-I../../../bus/lib/common/\
 	linux_bus_gateway.c\
 	-lpthread\

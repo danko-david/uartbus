@@ -1,0 +1,6 @@
+[submodule "deps/toe"]
+	path = deps/toe
+	url = https://github.com/danko-david/toe.git
+[submodule "deps/lazyctest"]
+	path = deps/lazyctest
+	url = https://github.com/danko-david/lazyctest.git

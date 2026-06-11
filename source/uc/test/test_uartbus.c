@@ -1,6 +1,6 @@
 
 //TODO if you miss this file call "./scripts/get_c_deps.sh"
-#include "../../../WD/toe/src/c/utils.c"
+#include "../../../deps/toe/src/c/utils.c"
 
 #include "lazyctest.h"
 
