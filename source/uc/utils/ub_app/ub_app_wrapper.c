@@ -10,22 +10,12 @@ extern "C"{
 #define S(x) #x
 #define SX(x) S(x)
 
-
 __attribute__((noinline, optimize("O1"), noipa)) void** getHostTableAddress()
 {
 	asm("jmp " SX(HOST_TABLE_ADDRESS));
 }
 
-/*
-__attribute__((noinline)) volatile void** getHostTableAddress()
-{
-	volatile void** (*fn)() = (volatile void** (*)()) HOST_TABLE_ADDRESS;
-	return fn();
-}
-*/
-
 __attribute__ ((weak)) void setup(){};
-
 __attribute__ ((weak)) void loop(){};
 
 extern uint8_t __data_start;
@@ -105,7 +95,7 @@ __attribute__((weak, noinline, section(".app_start"))) void ub_app(bool first)
  * function will never be called and so it's saves the ub_app function,
  * but never calls.
  */
-__attribute__ ((weak)) int main(){ ub_app(true);}
+__attribute__((weak)) int main(){ ub_app(true);}
 
 void register_packet_dispatch(void (*addr)(struct rpc_request* req))
 {
@@ -133,17 +123,10 @@ bool send_packet(int16_t to, int NS, uint8_t* data, uint16_t size)
 
 __attribute__((weak)) uint32_t micros()
 {
-    // Megkapjuk a fix címet
-    void** fns = getHostTableAddress();
-    
-    // Átkonvertáljuk egy olyan mutatóvá, ami VOLATILE POINTEREKET tartalmaz
-    // Ez azt jelenti: a tömb elemei a fordító számára bármikor megváltozhatnak!
-    void* volatile* volatile_fns = (void* volatile*)fns;
-    
-    // Így a fordító kénytelen lesz az ld utasítással kiolvasni a 4. indexet
-    uint32_t (*f)() = (uint32_t (*)()) volatile_fns[4];
-        
-    return f();
+	void** fns = getHostTableAddress();
+	void* volatile* volatile_fns = (void* volatile*)fns;
+	uint32_t (*f)() = (uint32_t (*)()) volatile_fns[4];
+	return f();
 }
 
 __attribute__((weak)) uint32_t millis()
