@@ -18,7 +18,7 @@ One repository, several independent parts that all speak the same wire protocol:
 | `source/uc/utils/apps/` | bus gateways (ATmega2560/328 through Arduino, and Linux) and a sample app | C/C++ |
 | `source/uc/test/` | unit tests of the bus core and the host program, run on the PC | C, lazyctest |
 | `source/java/uartbus/` | the `ub` CLI, JSON RPC server and the device object model | Java 8 source level, Maven |
-| `source/rust/uartbus/` | `ub`: Rust port of the whole Java CLI in one small executable, see its `README.md`. **Not committed yet** (untracked) | Rust 2021, Cargo |
+| `source/rust/uartbus/` | `ub`: Rust port of the whole Java CLI in one small executable, see its `README.md` | Rust 2021, Cargo |
 | `electronic/kicad/` | bus driver and prototype board schematics | KiCad |
 | `doc/`, `resources/` | website sources (mdsite), doxygen config, images, thesis | Markdown |
 | `deps/` | git submodules `toe` (C utilities) and `lazyctest` (C test runner) | |
@@ -122,9 +122,11 @@ silently fixed) and remove an item in the change that solves it.
 
 Where this repository differs from the global policy. The repository is right until decided.
 
-- **Changelog.** `CHANGELOG.md` starts at `1.8.0`, chosen as the next minor after the Java
-  artifact `1.7.2`; there is no version tag yet and the history before it is not written up.
-  Proposal: confirm or change the number, and build the older entries from `git log`.
+- **Versions.** The versions up to `1.7.2` are the ones of `source/java/uartbus/pom.xml` in the
+  git history (`1.0`, `1.3`, `1.4` written as `1.0.0`, `1.3.0`, `1.4.0`); none of them is a git
+  tag. `1.8.0` is my choice for the work after `1.7.2`, and the pom still says `1.7.2`.
+  Proposal: confirm `1.8.0`, and decide whether the pom (and the Rust crate, now `0.2.0`) follow
+  the changelog version from here on.
 - **Helper script.** The global policy expects one helper named after the project in the root;
   here there are two under `scripts/`. Proposal: keep `ubb` and `ubci`, add a `run_tests`
   function to `ubci` that runs the C, Java and Rust tests, and fix `ci_run_phase`.
