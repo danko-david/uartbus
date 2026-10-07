@@ -117,6 +117,42 @@ ci_all()
 	ci_run_phase build
 	ci_run_phase test
 }
+rust_run_tests()
+{
+	_rh_try_ret_help 'Runs the tests of the Rust ub port that need nothing external. Arguments are passed to cargo test'
+
+	set -e
+	cd "$REPO_ROOT/source/rust/uartbus"
+	cargo test "$@"
+}
+
+rust_run_java_interop_tests()
+{
+	_rh_try_ret_help 'Runs the Rust ub port together with the Java one. Needs maven and Java 8 ($UB_TEST_JAVA, default: the Debian openjdk-8 or java)'
+
+	set -e
+
+	if [ -z "$UB_TEST_JAVA" ]; then
+		UB_TEST_JAVA=/usr/lib/jvm/java-8-openjdk-amd64/bin/java
+		if [ ! -x "$UB_TEST_JAVA" ]; then
+			UB_TEST_JAVA=java
+		fi
+	fi
+
+	if [ -z "$UB_TEST_JAR" ]; then
+		UB_TEST_JAR="$REPO_ROOT/source/java/uartbus/target/uartbus-jar-with-dependencies.jar"
+		if [ ! -f "$UB_TEST_JAR" ]; then
+			cd "$REPO_ROOT/source/java/uartbus"
+			mvn -q package -DskipTests
+		fi
+	fi
+
+	export UB_TEST_JAVA UB_TEST_JAR
+
+	cd "$REPO_ROOT/source/rust/uartbus"
+	cargo test --test java_interop -- --ignored
+}
+
 ############################# RH helper functions ##############################
 
 _rh_try_ret_help()

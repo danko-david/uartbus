@@ -311,6 +311,29 @@ ub()
   java -jar $REPO_ROOT"/WD/uartbus.jar" "$@"
 }
 
+assemble_ub_rust()
+{
+  _rh_try_ret_help "Builds the Rust port of the \`ub\` cli utility into WD/ub_rust"
+
+  set -e
+  cd $REPO_ROOT"/source/rust/uartbus"
+
+  cargo build --release
+  cp $REPO_ROOT"/source/rust/uartbus/target/release/ub" $REPO_ROOT"/WD/ub_rust"
+
+  cd $OWD
+}
+
+ub_rust()
+{
+  _rh_try_ret_help "Runs the Rust port of the \`ub\` cli utility (same commands as \`ub\`, no java needed)"
+  if [ ! -f $REPO_ROOT"/WD/ub_rust" ]; then
+    assemble_ub_rust
+  fi
+
+  $REPO_ROOT"/WD/ub_rust" "$@"
+}
+
 export_arduino_lib()
 {
   mkdir -p $REPO_ROOT/arduino_ub_lib

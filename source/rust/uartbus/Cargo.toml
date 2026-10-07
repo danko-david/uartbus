@@ -1,0 +1,25 @@
+[package]
+name = "uartbus"
+version = "0.2.0"
+edition = "2021"
+license = "MIT"
+description = "Rust port of the Java UARTBus `ub` command: bus gateway RPC server, bus clients and Intel HEX utilities in one executable."
+
+[[bin]]
+name = "ub"
+path = "src/main.rs"
+
+[dependencies]
+# localtime/mktime for log file names and rotation, signal for ^C statistics
+libc = "0.2"
+# arbitrary length variable integers of the bus RPC
+num-bigint = "0.4"
+num-traits = "0.2"
+# JSON lines protocol of the RPC server
+serde_json = "1.0"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true

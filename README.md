@@ -59,6 +59,8 @@ The way to satisfy these requirement is to design and implement:
 - Java: At the PC side there's a server application (written in java) that makes
 	the bus available through a JSON RPC server, this makes possible multiple PC
 	application to connect the bus simultaneously even for different languages.
+- Rust: the same CLI as one small executable without JVM, for embedded computers
+	(Raspberry PI, routers), see [source/rust/uartbus](./source/rust/uartbus/README.md).
 - Java: CLI application: `ping` to ping nodes, `console` to send command to
 	devices, `packetloss` to measure packet loss ratio between bus gateway
 	and node, `collisionPacketloss` to measure packet loss and duplication
